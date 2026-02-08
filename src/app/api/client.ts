@@ -24,11 +24,11 @@ export class ApiClient {
   static async getGrossistes(): Promise<Grossiste[]> {
     await simulateNetworkDelay();
     const response = await endpoints.getGrossistes();
-    
+
     if (!response.success || !response.data) {
       throw new Error(response.error || 'Erreur lors de la récupération des grossistes');
     }
-    
+
     return response.data;
   }
 
@@ -46,11 +46,11 @@ export class ApiClient {
   }): Promise<Facture> {
     await simulateNetworkDelay();
     const response = await endpoints.createFacture(data);
-    
+
     if (!response.success || !response.data) {
       throw new Error(response.error || 'Erreur lors de la création de la facture');
     }
-    
+
     return response.data;
   }
 
@@ -60,11 +60,11 @@ export class ApiClient {
   static async verifyFacture(factureId: number): Promise<endpoints.VerifyFactureResponse> {
     await simulateNetworkDelay();
     const response = await endpoints.verifyFactureById(factureId);
-    
+
     if (!response.success || !response.data) {
       throw new Error(response.error || 'Erreur lors de la vérification de la facture');
     }
-    
+
     return response.data;
   }
 
@@ -74,11 +74,11 @@ export class ApiClient {
   static async getFactures(): Promise<Facture[]> {
     await simulateNetworkDelay();
     const response = await endpoints.getFactures();
-    
+
     if (!response.success || !response.data) {
       throw new Error(response.error || 'Erreur lors de la récupération des factures');
     }
-    
+
     return response.data;
   }
 
@@ -88,11 +88,11 @@ export class ApiClient {
   static async getFactureById(factureId: number): Promise<Facture> {
     await simulateNetworkDelay();
     const response = await endpoints.getFactureById(factureId);
-    
+
     if (!response.success || !response.data) {
       throw new Error(response.error || 'Erreur lors de la récupération de la facture');
     }
-    
+
     return response.data;
   }
 
@@ -102,11 +102,11 @@ export class ApiClient {
   static async deleteFacture(factureId: number): Promise<{ message: string }> {
     await simulateNetworkDelay();
     const response = await endpoints.deleteFacture(factureId);
-    
+
     if (!response.success || !response.data) {
       throw new Error(response.error || 'Erreur lors de la suppression de la facture');
     }
-    
+
     return response.data;
   }
 
@@ -116,11 +116,11 @@ export class ApiClient {
   static async getStats(): Promise<endpoints.StatsResponse> {
     await simulateNetworkDelay();
     const response = await endpoints.getStats();
-    
+
     if (!response.success || !response.data) {
       throw new Error(response.error || 'Erreur lors de la récupération des statistiques');
     }
-    
+
     return response.data;
   }
 
@@ -130,11 +130,11 @@ export class ApiClient {
   static async getAnomalies(type?: string): Promise<Anomalie[]> {
     await simulateNetworkDelay();
     const response = await endpoints.getAnomalies(type);
-    
+
     if (!response.success || !response.data) {
       throw new Error(response.error || 'Erreur lors de la récupération des anomalies');
     }
-    
+
     return response.data;
   }
 }

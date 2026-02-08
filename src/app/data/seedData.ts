@@ -19,7 +19,7 @@ export function seedDemoData(): void {
   const alliance = db.getGrossisteByNom('Alliance Healthcare');
 
   if (!cerpRouen || !ocp || !alliance) {
-    console.error('❌ Erreur: Grossistes non trouvés. Initialiser la DB d\'abord.');
+    console.error("❌ Erreur: Grossistes non trouvés. Initialiser la DB d'abord.");
     return;
   }
 
@@ -75,7 +75,9 @@ export function seedDemoData(): void {
   const statut2 = anomalies2.length > 0 ? 'anomalie' : 'conforme';
   db.updateFacture(facture2.id, { statut_verification: statut2 });
   const montantAnomalie2 = anomalies2.reduce((sum, a) => sum + a.montant_ecart, 0);
-  console.log(`      ✓ Statut: ${statut2} - ${anomalies2.length} anomalie(s) - ${montantAnomalie2.toFixed(2)}€ récupérable`);
+  console.log(
+    `      ✓ Statut: ${statut2} - ${anomalies2.length} anomalie(s) - ${montantAnomalie2.toFixed(2)}€ récupérable`
+  );
 
   // ==================== FACTURE 3 - OCP - ANOMALIE ====================
   console.log('   📄 Création Facture 3: FAC-OCP-001 (ANOMALIE ~123€)');
@@ -102,7 +104,9 @@ export function seedDemoData(): void {
   const statut3 = anomalies3.length > 0 ? 'anomalie' : 'conforme';
   db.updateFacture(facture3.id, { statut_verification: statut3 });
   const montantAnomalie3 = anomalies3.reduce((sum, a) => sum + a.montant_ecart, 0);
-  console.log(`      ✓ Statut: ${statut3} - ${anomalies3.length} anomalie(s) - ${montantAnomalie3.toFixed(2)}€ récupérable`);
+  console.log(
+    `      ✓ Statut: ${statut3} - ${anomalies3.length} anomalie(s) - ${montantAnomalie3.toFixed(2)}€ récupérable`
+  );
 
   // ==================== FACTURE 4 - Alliance Healthcare - CONFORME ====================
   console.log('   📄 Création Facture 4: FAC-ALL-001 (CONFORME)');
@@ -155,7 +159,9 @@ export function seedDemoData(): void {
   const statut5 = anomalies5.length > 0 ? 'anomalie' : 'conforme';
   db.updateFacture(facture5.id, { statut_verification: statut5 });
   const montantAnomalie5 = anomalies5.reduce((sum, a) => sum + a.montant_ecart, 0);
-  console.log(`      ✓ Statut: ${statut5} - ${anomalies5.length} anomalie(s) - ${montantAnomalie5.toFixed(2)}€ récupérable`);
+  console.log(
+    `      ✓ Statut: ${statut5} - ${anomalies5.length} anomalie(s) - ${montantAnomalie5.toFixed(2)}€ récupérable`
+  );
 
   // ==================== RÉSUMÉ ====================
   const stats = db.getStats();

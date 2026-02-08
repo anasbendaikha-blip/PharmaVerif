@@ -43,12 +43,15 @@ class PersistentDatabase {
       localStorage.setItem(STORAGE_KEYS.factures, JSON.stringify(this.factures));
       localStorage.setItem(STORAGE_KEYS.anomalies, JSON.stringify(this.anomalies));
       localStorage.setItem(STORAGE_KEYS.lignes, JSON.stringify(this.lignesFactures));
-      localStorage.setItem(STORAGE_KEYS.counters, JSON.stringify({
-        grossiste: this.nextGrossisteId,
-        facture: this.nextFactureId,
-        anomalie: this.nextAnomalieId,
-        ligne: this.nextLigneId,
-      }));
+      localStorage.setItem(
+        STORAGE_KEYS.counters,
+        JSON.stringify({
+          grossiste: this.nextGrossisteId,
+          facture: this.nextFactureId,
+          anomalie: this.nextAnomalieId,
+          ligne: this.nextLigneId,
+        })
+      );
       localStorage.setItem(STORAGE_KEYS.initialized, 'true');
     } catch (e) {
       console.warn('⚠️ Impossible de sauvegarder dans localStorage:', e);
@@ -135,7 +138,7 @@ class PersistentDatabase {
    * Réinitialise complètement la base de données (efface localStorage)
    */
   resetDb(): void {
-    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+    Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
     this.initialized = false;
     this.initDb();
   }
@@ -332,7 +335,9 @@ class PersistentDatabase {
     const totalFactures = this.factures.length;
     const anomaliesDetectees = this.anomalies.length;
     const montantRecuperable = this.anomalies.reduce((sum, a) => sum + a.montant_ecart, 0);
-    const facturesConformes = this.factures.filter((f) => f.statut_verification === 'conforme').length;
+    const facturesConformes = this.factures.filter(
+      (f) => f.statut_verification === 'conforme'
+    ).length;
     const tauxConformite = totalFactures > 0 ? (facturesConformes / totalFactures) * 100 : 0;
 
     return {

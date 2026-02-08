@@ -9,9 +9,22 @@ import { StatCard } from '../components/StatCard';
 import { AnomalieCard } from '../components/AnomalieCard';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 import {
   ArrowLeft,
   FileText,
@@ -22,8 +35,17 @@ import {
   FileDown,
 } from 'lucide-react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from 'recharts';
 import { ApiClient } from '../api/client';
 import { Facture, Anomalie } from '../types';
@@ -106,9 +128,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     const grossistes = db.getAllGrossistes();
     return grossistes.map((g) => {
       const gFactures = factures.filter((f) => f.grossiste_id === g.id);
-      const gAnomalies = anomalies.filter((a) =>
-        gFactures.some((f) => f.id === a.facture_id)
-      );
+      const gAnomalies = anomalies.filter((a) => gFactures.some((f) => f.id === a.facture_id));
       const montantRecuperable = gAnomalies.reduce((sum, a) => sum + a.montant_ecart, 0);
 
       return {
@@ -155,9 +175,9 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-white dark:bg-gray-800 border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
@@ -165,15 +185,17 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                 <Button
                   variant="ghost"
                   onClick={() => onNavigate('home')}
-                  className="gap-1 -ml-2 h-auto p-1 text-gray-600 hover:text-gray-900"
+                  className="gap-1 -ml-2 h-auto p-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:text-white"
                   size="sm"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   Retour
                 </Button>
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-              <p className="text-gray-600">Vue d'ensemble de vos vérifications</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tableau de bord</h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Vue d'ensemble de vos vérifications
+              </p>
             </div>
             <Button className="gap-2 bg-blue-600 hover:bg-blue-700">
               <Download className="h-4 w-4" />
@@ -192,7 +214,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
             value={stats.total_factures}
             icon={FileText}
             iconColor="text-blue-600"
-            iconBgColor="bg-blue-100"
+            iconBgColor="bg-blue-100 dark:bg-blue-900/30"
           />
           <StatCard
             title="Anomalies détectées"
@@ -270,7 +292,12 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                       <RechartsTooltip
                         formatter={(value: number) => [`${value.toFixed(2)} €`, 'Montant']}
                       />
-                      <Bar dataKey="montant" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Montant récupérable (€)" />
+                      <Bar
+                        dataKey="montant"
+                        fill="#3b82f6"
+                        radius={[4, 4, 0, 0]}
+                        name="Montant récupérable (€)"
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -320,8 +347,9 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
             {/* Anomalies List */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {anomaliesFiltrees.length} anomalie{anomaliesFiltrees.length > 1 ? 's' : ''} trouvée
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {anomaliesFiltrees.length} anomalie{anomaliesFiltrees.length > 1 ? 's' : ''}{' '}
+                  trouvée
                   {anomaliesFiltrees.length > 1 ? 's' : ''}
                 </h2>
               </div>
@@ -335,7 +363,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                 <Card>
                   <CardContent className="p-12 text-center">
                     <CheckCircle2 className="h-12 w-12 text-green-400 mx-auto mb-4" />
-                    <p className="text-gray-600">Aucune anomalie trouvée</p>
+                    <p className="text-gray-600 dark:text-gray-400">Aucune anomalie trouvée</p>
                     <p className="text-sm text-gray-400 mt-1">
                       Vérifiez des factures pour voir les résultats ici
                     </p>
@@ -399,7 +427,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                                   Anomalie
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100">
                                   Non vérifié
                                 </span>
                               )}
@@ -414,7 +442,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                               >
                                 {exportingId === facture.id ? (
                                   <>
-                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
+                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 dark:border-gray-600 border-t-blue-600" />
                                     Export...
                                   </>
                                 ) : (
@@ -433,7 +461,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                 ) : (
                   <div className="text-center py-8">
                     <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">Aucune facture vérifiée</p>
+                    <p className="text-gray-500 dark:text-gray-400">Aucune facture vérifiée</p>
                   </div>
                 )}
               </CardContent>
@@ -441,7 +469,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
 
             <Card>
               <CardContent className="p-6 text-center">
-                <p className="text-gray-600 mb-4">
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
                   Importez des factures pour voir l'historique complet
                 </p>
                 <Button

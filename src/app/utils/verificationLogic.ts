@@ -2,7 +2,7 @@
  * PharmaVerif - Logique métier de vérification des factures pharmaceutiques
  * Copyright (c) 2026 Anas BENDAIKHA
  * Tous droits réservés.
- * 
+ *
  * Ce fichier contient la logique de vérification des remises et détection d'anomalies.
  */
 
@@ -12,11 +12,11 @@ import type { FactureParsee, LigneFactureParsee } from './fileParser';
 
 /**
  * Fonction principale : vérifie une facture et détecte les anomalies
- * 
+ *
  * @param facture - La facture à vérifier
  * @param grossiste - Le grossiste associé avec ses taux de remise
  * @returns Liste des anomalies détectées
- * 
+ *
  * Logique de vérification :
  * 1. Calculer la remise totale attendue
  * 2. Calculer la remise réelle appliquée
@@ -25,18 +25,19 @@ import type { FactureParsee, LigneFactureParsee } from './fileParser';
  */
 export function verifyFacture(facture: Facture, grossiste: Grossiste): Anomalie[] {
   const anomalies: Anomalie[] = [];
-  
+
   // 1. Calculer la remise totale attendue
-  const tauxRemiseTotale = grossiste.remise_base + grossiste.cooperation_commerciale + grossiste.escompte;
+  const tauxRemiseTotale =
+    grossiste.remise_base + grossiste.cooperation_commerciale + grossiste.escompte;
   const remiseAttendue = facture.montant_brut_ht * (tauxRemiseTotale / 100);
-  
+
   // 2. Calculer la remise réelle appliquée
   const remiseReelle = facture.remises_ligne_a_ligne + facture.remises_pied_facture;
-  
+
   // 3. Comparer avec une tolérance de 5€
   const ecartRemise = remiseAttendue - remiseReelle;
   const TOLERANCE_REMISE = 5.0;
-  
+
   if (Math.abs(ecartRemise) > TOLERANCE_REMISE) {
     if (ecartRemise > 0) {
       // Remise attendue > remise appliquée : remise manquante
@@ -60,12 +61,12 @@ export function verifyFacture(facture: Facture, grossiste: Grossiste): Anomalie[
       });
     }
   }
-  
+
   // 4. Vérifier la cohérence du net à payer
   const netCalcule = facture.montant_brut_ht - remiseReelle;
   const ecartNetAPayer = Math.abs(netCalcule - facture.net_a_payer);
   const TOLERANCE_NET = 1.0;
-  
+
   if (ecartNetAPayer > TOLERANCE_NET) {
     anomalies.push({
       id: Date.now() + Math.random() + 1,
@@ -76,11 +77,11 @@ export function verifyFacture(facture: Facture, grossiste: Grossiste): Anomalie[
       created_at: new Date().toISOString(),
     });
   }
-  
+
   // Vérifications supplémentaires
   const anomaliesSupplementaires = verifierConditionsSpecifiques(facture, grossiste);
   anomalies.push(...anomaliesSupplementaires);
-  
+
   return anomalies;
 }
 
@@ -88,14 +89,14 @@ export function verifyFacture(facture: Facture, grossiste: Grossiste): Anomalie[
  * Vérifications supplémentaires spécifiques
  * - Franco : frais de port quand montant > seuil
  * - Prix suspects sur lignes individuelles
- * 
+ *
  * @param facture - La facture à vérifier
  * @param grossiste - Le grossiste associé
  * @returns Liste des anomalies spécifiques détectées
  */
 function verifierConditionsSpecifiques(facture: Facture, grossiste: Grossiste): Anomalie[] {
   const anomalies: Anomalie[] = [];
-  
+
   // Vérifier le franco (frais de port)
   // Détection déterministe : si le montant brut dépasse le franco mais que le net à payer
   // est supérieur au montant attendu (brut - remises), des frais de port sont probablement inclus
@@ -116,15 +117,19 @@ function verifierConditionsSpecifiques(facture: Facture, grossiste: Grossiste): 
       });
     }
   }
-  
+
   // Vérifier les prix suspects sur les lignes individuelles
   if (facture.lignes && facture.lignes.length > 0) {
     facture.lignes.forEach((ligne) => {
       // Détecter si la remise ligne est anormalement faible
       if (ligne.remise_appliquee < grossiste.remise_base - 0.5) {
-        const ecartLigne = ligne.prix_unitaire * ligne.quantite * ((grossiste.remise_base - ligne.remise_appliquee) / 100);
-        
-        if (ecartLigne > 10) { // Seuil de 10€ par ligne
+        const ecartLigne =
+          ligne.prix_unitaire *
+          ligne.quantite *
+          ((grossiste.remise_base - ligne.remise_appliquee) / 100);
+
+        if (ecartLigne > 10) {
+          // Seuil de 10€ par ligne
           anomalies.push({
             id: Date.now() + Math.random() + 3,
             facture_id: facture.id,
@@ -137,34 +142,34 @@ function verifierConditionsSpecifiques(facture: Facture, grossiste: Grossiste): 
       }
     });
   }
-  
+
   return anomalies;
 }
 
 /**
  * Calcule le potentiel d'économies sur une liste de factures
- * 
+ *
  * @param factures - Liste des factures à analyser
  * @returns Montant total récupérable (somme des écarts détectés)
  */
 export function calculateSavingsPotential(factures: Facture[]): number {
   let totalEconomies = 0;
-  
+
   factures.forEach((facture) => {
     const grossiste = db.getGrossisteById(facture.grossiste_id);
     if (!grossiste) return;
-    
+
     const anomalies = verifyFacture(facture, grossiste);
     const economieFacture = anomalies.reduce((sum, anomalie) => sum + anomalie.montant_ecart, 0);
     totalEconomies += economieFacture;
   });
-  
+
   return parseFloat(totalEconomies.toFixed(2));
 }
 
 /**
  * Calcule les statistiques détaillées par type d'anomalie
- * 
+ *
  * @param factures - Liste des factures à analyser
  * @returns Objet avec statistiques par type
  */
@@ -178,11 +183,11 @@ export function calculateAnomalieStats(factures: Facture[]): {
     franco_non_respecte: { count: 0, montantTotal: 0 },
     prix_suspect: { count: 0, montantTotal: 0 },
   };
-  
+
   factures.forEach((facture) => {
     const grossiste = db.getGrossisteById(facture.grossiste_id);
     if (!grossiste) return;
-    
+
     const anomalies = verifyFacture(facture, grossiste);
     anomalies.forEach((anomalie) => {
       if (stats[anomalie.type_anomalie]) {
@@ -191,18 +196,18 @@ export function calculateAnomalieStats(factures: Facture[]): {
       }
     });
   });
-  
+
   // Arrondir les montants
   Object.keys(stats).forEach((key) => {
     stats[key].montantTotal = parseFloat(stats[key].montantTotal.toFixed(2));
   });
-  
+
   return stats;
 }
 
 /**
  * Génère une facture aléatoire pour la démonstration
- * 
+ *
  * @param grossisteId - ID du grossiste (optionnel, aléatoire si non fourni)
  * @returns Facture générée avec données réalistes
  */
@@ -236,13 +241,13 @@ export function genererFactureAleatoire(grossisteId?: number): Facture {
     const produit = produitsExemples[Math.floor(Math.random() * produitsExemples.length)];
     const quantite = Math.floor(Math.random() * 60) + 15;
     const montantLigne = produit.prix * quantite;
-    
+
     // Appliquer de façon variable la remise de base (70% respectent la remise, 30% ont une remise partielle)
     const respecteRemise = Math.random() < 0.7;
-    const remiseAppliquee = respecteRemise 
-      ? grossiste.remise_base 
+    const remiseAppliquee = respecteRemise
+      ? grossiste.remise_base
       : grossiste.remise_base * (0.4 + Math.random() * 0.5); // 40-90% de la remise
-    
+
     const montantHT = montantLigne * (1 - remiseAppliquee / 100);
 
     lignes.push({
@@ -260,13 +265,13 @@ export function genererFactureAleatoire(grossisteId?: number): Facture {
   }
 
   const remisesLigneALigne = lignes.reduce((sum, l) => {
-    return sum + (l.prix_unitaire * l.quantite * l.remise_appliquee / 100);
+    return sum + (l.prix_unitaire * l.quantite * l.remise_appliquee) / 100;
   }, 0);
 
   // Simuler l'application partielle ou totale des remises pied de facture
   const tauxRemisePiedFacture = grossiste.cooperation_commerciale + grossiste.escompte;
   const respecteRemisePied = Math.random() < 0.65; // 65% respectent, 35% ont des anomalies
-  
+
   const remisesPiedFacture = respecteRemisePied
     ? montantBrutHT * (tauxRemisePiedFacture / 100)
     : montantBrutHT * (tauxRemisePiedFacture / 100) * (0.3 + Math.random() * 0.6); // 30-90% du montant attendu
@@ -291,7 +296,7 @@ export function genererFactureAleatoire(grossisteId?: number): Facture {
 
 /**
  * Calculer les remises attendues selon les taux du grossiste
- * 
+ *
  * @param facture - La facture à analyser
  * @param grossiste - Le grossiste avec ses taux
  * @returns Montant total des remises attendues
@@ -304,32 +309,32 @@ export function calculerRemisesAttendues(facture: Facture, grossiste: Grossiste)
 
 /**
  * Obtenir un résumé textuel de la conformité d'une facture
- * 
+ *
  * @param facture - La facture à analyser
  * @param grossiste - Le grossiste associé
  * @returns Description textuelle du statut
  */
 export function getFactureConformiteSummary(facture: Facture, grossiste: Grossiste): string {
   const anomalies = verifyFacture(facture, grossiste);
-  
+
   if (anomalies.length === 0) {
     return 'Facture conforme : toutes les remises sont correctement appliquées.';
   }
-  
+
   const montantTotal = anomalies.reduce((sum, a) => sum + a.montant_ecart, 0);
   return `${anomalies.length} anomalie(s) détectée(s) pour un montant de ${montantTotal.toFixed(2)}€ récupérable.`;
 }
 
 /**
  * NOUVELLE FONCTION : Convertir une facture parsée en objet Facture pour vérification
- * 
+ *
  * @param factureParsee - Données extraites du fichier
  * @param grossisteId - ID du grossiste sélectionné
  * @returns Facture formatée pour vérification
  */
 export function convertParsedToFacture(factureParsee: FactureParsee, grossisteId: number): Facture {
   const grossiste = db.getGrossisteById(grossisteId);
-  
+
   if (!grossiste) {
     throw new Error(`Grossiste avec ID ${grossisteId} non trouvé`);
   }
@@ -341,7 +346,8 @@ export function convertParsedToFacture(factureParsee: FactureParsee, grossisteId
     produit: ligneParsee.designation,
     cip: ligneParsee.code_produit || `CODE-${index}`,
     quantite: ligneParsee.quantite,
-    prix_unitaire: ligneParsee.prix_unitaire_ht || (ligneParsee.total_ligne_ht / ligneParsee.quantite),
+    prix_unitaire:
+      ligneParsee.prix_unitaire_ht || ligneParsee.total_ligne_ht / ligneParsee.quantite,
     remise_appliquee: ligneParsee.remise_pourcent || 0,
     montant_ht: ligneParsee.total_ligne_ht,
   }));

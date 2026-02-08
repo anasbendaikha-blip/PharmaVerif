@@ -2,7 +2,7 @@
  * PharmaVerif - Export PDF
  * Copyright (c) 2026 Anas BENDAIKHA
  * Tous droits réservés.
- * 
+ *
  * Génère des rapports PDF professionnels pour les factures vérifiées.
  */
 
@@ -119,12 +119,9 @@ function drawFooter(doc: jsPDF, pageNumber: number) {
 
   // Mention "Document confidentiel"
   doc.setFontSize(8);
-  doc.text(
-    'Document confidentiel - PharmaVerif © 2026',
-    pageWidth / 2,
-    pageHeight - 12,
-    { align: 'center' }
-  );
+  doc.text('Document confidentiel - PharmaVerif © 2026', pageWidth / 2, pageHeight - 12, {
+    align: 'center',
+  });
 }
 
 /**
@@ -155,9 +152,7 @@ export interface PDFExportOptions {
 /**
  * Génère un PDF de rapport de vérification
  */
-export async function generateVerificationPDF(
-  options: PDFExportOptions
-): Promise<jsPDF> {
+export async function generateVerificationPDF(options: PDFExportOptions): Promise<jsPDF> {
   const { facture, anomalies, grossiste } = options;
 
   // Créer le document PDF (A4)
@@ -216,10 +211,7 @@ export async function generateVerificationPDF(
     ['Remises pied de facture', formatEuro(facture.remises_pied_facture || 0)],
     [
       'Total des remises',
-      formatEuro(
-        (facture.remises_ligne_a_ligne || 0) +
-          (facture.remises_pied_facture || 0)
-      ),
+      formatEuro((facture.remises_ligne_a_ligne || 0) + (facture.remises_pied_facture || 0)),
     ],
     ['Net à payer', formatEuro(facture.net_a_payer)],
   ];
@@ -315,10 +307,7 @@ export async function generateVerificationPDF(
     currentY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 10 : currentY + 60;
 
     // Total des écarts
-    const totalEcart = anomalies.reduce(
-      (sum, a) => sum + a.montant_ecart,
-      0
-    );
+    const totalEcart = anomalies.reduce((sum, a) => sum + a.montant_ecart, 0);
 
     doc.setFillColor(...COLORS.danger);
     doc.rect(15, currentY, pageWidth - 30, 12, 'F');
@@ -346,7 +335,7 @@ export async function generateVerificationPDF(
     doc.setTextColor(...COLORS.gray.medium);
 
     const recommendations = [
-      '• Contacter votre grossiste pour demander un avoir sur le montant de l\'écart détecté.',
+      "• Contacter votre grossiste pour demander un avoir sur le montant de l'écart détecté.",
       '• Conserver ce rapport comme justificatif pour votre contestation.',
       '• Vérifier que les conditions contractuelles sont à jour dans notre système.',
       '• Suivre régulièrement vos factures pour éviter la récurrence de ces anomalies.',
@@ -394,11 +383,9 @@ export async function generateVerificationPDF(
     ['Franco (port gratuit)', formatEuro(grossiste.franco)],
     [
       'Remise totale théorique',
-      `${(
-        grossiste.remise_base +
-        grossiste.cooperation_commerciale +
-        grossiste.escompte
-      ).toFixed(2)}%`,
+      `${(grossiste.remise_base + grossiste.cooperation_commerciale + grossiste.escompte).toFixed(
+        2
+      )}%`,
     ],
   ];
 
@@ -440,9 +427,7 @@ export function downloadPDF(doc: jsPDF, filename: string) {
 /**
  * Génère et télécharge le rapport de vérification
  */
-export async function exportVerificationReport(
-  options: PDFExportOptions
-): Promise<void> {
+export async function exportVerificationReport(options: PDFExportOptions): Promise<void> {
   const { facture } = options;
 
   // Générer le PDF

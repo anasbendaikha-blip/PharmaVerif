@@ -2,7 +2,7 @@
  * PharmaVerif - Types TypeScript
  * Copyright (c) 2026 Anas BENDAIKHA
  * Tous droits réservés.
- * 
+ *
  * Définitions des types et interfaces pour l'application.
  */
 
@@ -50,7 +50,12 @@ export interface LigneFacture {
 export interface Anomalie {
   id: number;
   facture_id: number; // foreign key vers Facture
-  type_anomalie: 'remise_manquante' | 'ecart_calcul' | 'remise_incorrecte' | 'prix_suspect' | 'franco_non_respecte';
+  type_anomalie:
+    | 'remise_manquante'
+    | 'ecart_calcul'
+    | 'remise_incorrecte'
+    | 'prix_suspect'
+    | 'franco_non_respecte';
   description: string;
   montant_ecart: number;
   created_at: string; // ISO datetime string

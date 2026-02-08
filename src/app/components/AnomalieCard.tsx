@@ -74,13 +74,15 @@ export function AnomalieCard({ anomalie }: AnomalieCardProps) {
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <h3 className="font-semibold text-gray-900">{getTypeLabel(anomalie.type_anomalie)}</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  {getTypeLabel(anomalie.type_anomalie)}
+                </h3>
                 <Badge variant="outline" className={getGraviteColor(gravite)}>
                   {gravite === 'elevee' ? 'Élevée' : gravite === 'moyenne' ? 'Moyenne' : 'Faible'}
                 </Badge>
               </div>
               {anomalie.facture && (
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   {anomalie.facture.numero} - {anomalie.facture.grossiste?.nom}
                 </p>
               )}
@@ -88,18 +90,18 @@ export function AnomalieCard({ anomalie }: AnomalieCardProps) {
           </div>
         </div>
 
-        <p className="text-gray-700 mb-4">{anomalie.description}</p>
+        <p className="text-gray-700 dark:text-gray-300 mb-4">{anomalie.description}</p>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Impact financier :</span>
+            <span className="text-gray-600 dark:text-gray-400">Impact financier :</span>
             <span className="font-semibold text-red-600">
               {formatCurrency(anomalie.montant_ecart)}
             </span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Date de détection :</span>
-            <span className="text-gray-900">
+            <span className="text-gray-600 dark:text-gray-400">Date de détection :</span>
+            <span className="text-gray-900 dark:text-gray-100">
               {new Date(anomalie.created_at).toLocaleDateString('fr-FR')}
             </span>
           </div>

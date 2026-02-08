@@ -2,7 +2,7 @@
  * PharmaVerif - Utilitaires de formatage des nombres
  * Copyright (c) 2026 Anas BENDAIKHA
  * Tous droits réservés.
- * 
+ *
  * Formatage des nombres, montants et pourcentages au format français.
  */
 
@@ -16,13 +16,13 @@
 export function formatNumber(value: number, decimals: number = 2): string {
   // Formater avec le nombre de décimales souhaité
   const formatted = value.toFixed(decimals);
-  
+
   // Séparer la partie entière et décimale
   const [integerPart, decimalPart] = formatted.split('.');
-  
+
   // Ajouter des espaces tous les 3 chiffres (de droite à gauche)
   const integerWithSpaces = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  
+
   // Recombiner avec la partie décimale
   return decimalPart ? `${integerWithSpaces}.${decimalPart}` : integerWithSpaces;
 }
