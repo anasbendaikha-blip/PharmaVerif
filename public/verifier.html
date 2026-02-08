@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vérifier une facture - PharmaVerif</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        /* Animation pour la zone de drop */
+        .drop-zone {
+            transition: all 0.3s ease;
+        }
+        
+        .drop-zone.drag-over {
+            background-color: #eff6ff;
+            border-color: #2563eb;
+            transform: scale(1.02);
+        }
+        
+        /* Animation pour les résultats */
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .slide-in-up {
+            animation: slideInUp 0.5s ease-out;
+        }
+        
+        /* Style pour les inputs avec validation */
+        .input-error {
+            border-color: #ef4444;
+        }
+        
+        .input-success {
+            border-color: #10b981;
+        }
+        
+        /* Dotted border pour le drag & drop */
+        .border-dashed-animated {
+            background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' stroke='%239CA3AF' stroke-width='3' stroke-dasharray='10%2c 10' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+        }
+        
+        /* Animation du bouton */
+        .btn-verify {
+            transition: all 0.3s ease;
+        }
+        
+        .btn-verify:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);
+        }
+        
+        .btn-verify:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Loading spinner */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        
+        /* Hide scrollbar pour Firefox */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+        
+        /* Custom scrollbar pour Chrome/Safari */
+        *::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        *::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        
+        *::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans antialiased">
+    
+    <!-- HEADER -->
+    <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-blue-600 text-white p-2 rounded-lg">
+                        <i data-lucide="file-check" class="w-8 h-8"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">PharmaVerif</h1>
+                        <p class="text-sm text-gray-500">Vérification intelligente de factures pharmaceutiques</p>
+                    </div>
+                </div>
+                
+                <nav class="hidden md:flex space-x-8">
+                    <a href="/index.html" class="text-gray-600 hover:text-gray-900 transition">Accueil</a>
+                    <a href="/verifier.html" class="text-blue-600 font-medium hover:text-blue-700 transition">Vérifier</a>
+                    <a href="/index.html#conditions" class="text-gray-600 hover:text-gray-900 transition">Conditions</a>
+                </nav>
+                
+                <!-- Mobile menu button -->
+                <button class="md:hidden text-gray-600 hover:text-gray-900">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Page Title -->
+        <div class="mb-8">
+            <h2 class="text-3xl font-bold text-gray-900 mb-2">Vérifier une facture</h2>
+            <p class="text-gray-600">Uploadez votre facture PDF ou saisissez les informations manuellement</p>
+        </div>
+
+        <!-- LAYOUT 2 COLONNES -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            
+            <!-- COLONNE GAUCHE (40%) -->
+            <div class="lg:col-span-2 space-y-6">
+                
+                <!-- ZONE UPLOAD -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                        <i data-lucide="upload-cloud" class="w-5 h-5 text-blue-600"></i>
+                        <span>Upload de facture (optionnel)</span>
+                    </h3>
+                    
+                    <!-- Drop Zone -->
+                    <div id="drop-zone" 
+                         class="drop-zone border-dashed-animated rounded-lg p-8 text-center cursor-pointer bg-gray-50 hover:bg-blue-50 transition">
+                        <div class="flex flex-col items-center space-y-4">
+                            <div class="bg-blue-100 text-blue-600 p-4 rounded-full">
+                                <i data-lucide="file-text" class="w-12 h-12"></i>
+                            </div>
+                            <div>
+                                <p class="text-gray-700 font-medium mb-1">
+                                    Glissez votre facture PDF ici
+                                </p>
+                                <p class="text-sm text-gray-500">
+                                    ou <span class="text-blue-600 font-medium">parcourez vos fichiers</span>
+                                </p>
+                            </div>
+                            <p class="text-xs text-gray-400">
+                                Format accepté: PDF • Taille max: 10 Mo
+                            </p>
+                        </div>
+                        <input type="file" id="file-input" accept="application/pdf" class="hidden">
+                    </div>
+                </div>
+
+                <!-- PREVIEW PDF -->
+                <div id="file-preview" class="bg-white rounded-lg shadow-md p-6 hidden">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                        <i data-lucide="file" class="w-5 h-5 text-blue-600"></i>
+                        <span>Fichier uploadé</span>
+                    </h3>
+                    
+                    <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <div class="flex items-start space-x-3">
+                            <div class="bg-red-100 text-red-600 p-3 rounded-lg flex-shrink-0">
+                                <i data-lucide="file-text" class="w-8 h-8"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p id="file-name" class="font-medium text-gray-900 truncate">
+                                    facture.pdf
+                                </p>
+                                <p id="file-size" class="text-sm text-gray-500">
+                                    1.2 Mo
+                                </p>
+                                <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
+                                    <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+                                    Aperçu PDF disponible après septembre 2026
+                                </div>
+                            </div>
+                            <button id="remove-file" class="text-gray-400 hover:text-red-600 transition">
+                                <i data-lucide="x" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <p class="mt-4 text-sm text-gray-500 text-center">
+                        <i data-lucide="sparkles" class="w-4 h-4 inline text-yellow-500"></i>
+                        L'OCR automatique extraira les données de votre PDF
+                    </p>
+                </div>
+
+                <!-- AIDE -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="flex items-start space-x-3">
+                        <i data-lucide="lightbulb" class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5"></i>
+                        <div class="text-sm text-blue-900">
+                            <p class="font-medium mb-1">Astuce</p>
+                            <p class="text-blue-700">
+                                Vous pouvez remplir le formulaire manuellement si vous n'avez pas le PDF sous la main.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COLONNE DROITE (60%) -->
+            <div class="lg:col-span-3 space-y-6">
+                
+                <!-- FORMULAIRE -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center space-x-2">
+                        <i data-lucide="edit-3" class="w-5 h-5 text-blue-600"></i>
+                        <span>Informations de la facture</span>
+                    </h3>
+                    
+                    <form id="verification-form" class="space-y-5">
+                        
+                        <!-- Grossiste -->
+                        <div>
+                            <label for="grossiste" class="block text-sm font-medium text-gray-700 mb-2">
+                                Grossiste <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <select id="grossiste" required
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition appearance-none bg-white">
+                                    <option value="">Sélectionnez un grossiste</option>
+                                    <option value="1">CERP Rouen</option>
+                                    <option value="2">OCP</option>
+                                    <option value="3">Alliance Healthcare</option>
+                                </select>
+                                <i data-lucide="chevron-down" class="w-5 h-5 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none"></i>
+                            </div>
+                        </div>
+
+                        <!-- Numéro de facture -->
+                        <div>
+                            <label for="numero" class="block text-sm font-medium text-gray-700 mb-2">
+                                Numéro de facture <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" id="numero" required
+                                   placeholder="FAC-2026-001234"
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        </div>
+
+                        <!-- Date -->
+                        <div>
+                            <label for="date" class="block text-sm font-medium text-gray-700 mb-2">
+                                Date de la facture <span class="text-red-500">*</span>
+                            </label>
+                            <input type="date" id="date" required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Montant brut HT -->
+                            <div>
+                                <label for="montant-brut" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Montant brut HT <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <input type="number" id="montant-brut" required
+                                           placeholder="0,00"
+                                           min="0" step="0.01"
+                                           class="w-full px-4 py-3 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                                    <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">€</span>
+                                </div>
+                            </div>
+
+                            <!-- Remises ligne à ligne -->
+                            <div>
+                                <label for="remises-lignes" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Remises ligne à ligne
+                                </label>
+                                <div class="relative">
+                                    <input type="number" id="remises-lignes"
+                                           placeholder="0,00"
+                                           min="0" step="0.01"
+                                           class="w-full px-4 py-3 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                                    <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">€</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Remises pied de facture -->
+                            <div>
+                                <label for="remises-pied" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Remises pied de facture
+                                </label>
+                                <div class="relative">
+                                    <input type="number" id="remises-pied"
+                                           placeholder="0,00"
+                                           min="0" step="0.01"
+                                           class="w-full px-4 py-3 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                                    <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">€</span>
+                                </div>
+                            </div>
+
+                            <!-- Net à payer -->
+                            <div>
+                                <label for="net-a-payer" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Net à payer <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <input type="number" id="net-a-payer" required
+                                           placeholder="0,00"
+                                           min="0" step="0.01"
+                                           class="w-full px-4 py-3 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                                    <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">€</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bouton de vérification -->
+                        <div class="pt-4">
+                            <button type="submit" 
+                                    class="btn-verify w-full bg-blue-600 text-white px-6 py-4 rounded-lg font-semibold shadow-lg hover:bg-blue-700 flex items-center justify-center space-x-2">
+                                <i data-lucide="check-circle" class="w-6 h-6"></i>
+                                <span>Vérifier la facture</span>
+                            </button>
+                            <p class="mt-3 text-xs text-gray-500 text-center">
+                                <i data-lucide="shield-check" class="w-3 h-3 inline"></i>
+                                Vos données sont vérifiées localement et ne sont pas partagées
+                            </p>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- RÉSULTATS (initialement caché) -->
+                <div id="resultats" class="hidden">
+                    
+                    <!-- Résultat CONFORME -->
+                    <div id="resultat-conforme" class="hidden slide-in-up">
+                        <div class="bg-green-50 border-2 border-green-200 rounded-lg p-6">
+                            <div class="flex items-start space-x-4">
+                                <div class="bg-green-500 text-white p-3 rounded-full flex-shrink-0">
+                                    <i data-lucide="check-circle" class="w-8 h-8"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="text-2xl font-bold text-green-900 mb-2">
+                                        Facture conforme
+                                    </h3>
+                                    <p class="text-green-800 mb-4">
+                                        Aucune anomalie détectée. Les remises correspondent aux accords contractuels.
+                                    </p>
+                                    
+                                    <!-- Liste des vérifications OK -->
+                                    <div class="space-y-2 mb-4">
+                                        <div class="flex items-center space-x-2 text-green-700">
+                                            <i data-lucide="check" class="w-5 h-5"></i>
+                                            <span class="text-sm">Remise de base appliquée correctement</span>
+                                        </div>
+                                        <div class="flex items-center space-x-2 text-green-700">
+                                            <i data-lucide="check" class="w-5 h-5"></i>
+                                            <span class="text-sm">Coopération commerciale conforme</span>
+                                        </div>
+                                        <div class="flex items-center space-x-2 text-green-700">
+                                            <i data-lucide="check" class="w-5 h-5"></i>
+                                            <span class="text-sm">Escompte calculé correctement</span>
+                                        </div>
+                                        <div class="flex items-center space-x-2 text-green-700">
+                                            <i data-lucide="check" class="w-5 h-5"></i>
+                                            <span class="text-sm">Net à payer exact</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-6 flex flex-wrap gap-3">
+                                <button onclick="enregistrerFacture()" 
+                                        class="bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition flex items-center space-x-2">
+                                    <i data-lucide="save" class="w-5 h-5"></i>
+                                    <span>Enregistrer</span>
+                                </button>
+                                <button onclick="nouvelleVerification()" 
+                                        class="bg-white text-green-700 border-2 border-green-300 px-6 py-3 rounded-lg font-medium hover:bg-green-50 transition flex items-center space-x-2">
+                                    <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                                    <span>Nouvelle vérification</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Résultat avec ANOMALIES -->
+                    <div id="resultat-anomalies" class="hidden slide-in-up">
+                        <div class="bg-orange-50 border-2 border-orange-200 rounded-lg p-6 mb-6">
+                            <div class="flex items-start space-x-4">
+                                <div class="bg-orange-500 text-white p-3 rounded-full flex-shrink-0">
+                                    <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 id="anomalies-count" class="text-2xl font-bold text-orange-900 mb-2">
+                                        3 anomalie(s) détectée(s)
+                                    </h3>
+                                    <p class="text-orange-800 mb-4">
+                                        Des écarts ont été identifiés entre les remises attendues et celles appliquées.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Liste des anomalies -->
+                        <div id="anomalies-list" class="space-y-4 mb-6">
+                            <!-- Les anomalies seront injectées ici via JS -->
+                        </div>
+
+                        <!-- Total économies -->
+                        <div class="bg-red-50 border-2 border-red-200 rounded-lg p-6 mb-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-red-700 mb-1">Total économies potentielles</p>
+                                    <p id="total-economies" class="text-3xl font-bold text-red-900">
+                                        127,50 €
+                                    </p>
+                                </div>
+                                <div class="bg-red-200 text-red-700 p-4 rounded-full">
+                                    <i data-lucide="trending-up" class="w-10 h-10"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex flex-wrap gap-3">
+                            <button onclick="marquerContestation()" 
+                                    class="bg-orange-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-orange-600 transition flex items-center space-x-2">
+                                <i data-lucide="flag" class="w-5 h-5"></i>
+                                <span>Marquer pour contestation</span>
+                            </button>
+                            <button onclick="enregistrerQuandMeme()" 
+                                    class="bg-gray-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-600 transition flex items-center space-x-2">
+                                <i data-lucide="save" class="w-5 h-5"></i>
+                                <span>Enregistrer quand même</span>
+                            </button>
+                            <button onclick="nouvelleVerification()" 
+                                    class="bg-white text-gray-700 border-2 border-gray-300 px-6 py-3 rounded-lg font-medium hover:bg-gray-50 transition flex items-center space-x-2">
+                                <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                                <span>Nouvelle vérification</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER (même que index.html) -->
+    <footer class="bg-gray-900 text-white py-12 mt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <div class="bg-blue-600 p-2 rounded-lg">
+                            <i data-lucide="file-check" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">PharmaVerif</h3>
+                    </div>
+                    <p class="text-gray-400 text-sm">
+                        Solution de vérification intelligente des factures pharmaceutiques pour optimiser vos achats.
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-4">Liens rapides</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="/index.html" class="hover:text-white transition">Accueil</a></li>
+                        <li><a href="/verifier.html" class="hover:text-white transition">Vérifier une facture</a></li>
+                        <li><a href="/index.html#conditions" class="hover:text-white transition">Conditions grossistes</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-4">Contact</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li class="flex items-center space-x-2">
+                            <i data-lucide="mail" class="w-4 h-4"></i>
+                            <span>contact@pharmaverif.fr</span>
+                        </li>
+                        <li class="flex items-center space-x-2">
+                            <i data-lucide="phone" class="w-4 h-4"></i>
+                            <span>01 23 45 67 89</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
+                <p>&copy; 2026 PharmaVerif. Tous droits réservés. | Prototype de démonstration</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT -->
+    <script>
+        // Initialiser les icônes Lucide
+        lucide.createIcons();
+        
+        // ============================================================
+        // GESTION DU DRAG & DROP
+        // ============================================================
+        
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const filePreview = document.getElementById('file-preview');
+        const removeFileBtn = document.getElementById('remove-file');
+        
+        // Click sur la drop zone = ouvrir le file picker
+        dropZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        // Drag over
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+        
+        // Drop
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                handleFileUpload(files[0]);
+            } else {
+                alert('Veuillez uploader un fichier PDF valide.');
+            }
+        });
+        
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileUpload(e.target.files[0]);
+            }
+        });
+        
+        // Fonction pour gérer l'upload
+        function handleFileUpload(file) {
+            // Afficher le preview
+            document.getElementById('file-name').textContent = file.name;
+            document.getElementById('file-size').textContent = formatFileSize(file.size);
+            
+            dropZone.parentElement.classList.add('hidden');
+            filePreview.classList.remove('hidden');
+            filePreview.classList.add('slide-in-up');
+            
+            // TODO: Envoyer le fichier au backend pour OCR
+            console.log('Fichier uploadé:', file.name);
+        }
+        
+        // Supprimer le fichier
+        removeFileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.value = '';
+            filePreview.classList.add('hidden');
+            dropZone.parentElement.classList.remove('hidden');
+        });
+        
+        // Formatter la taille du fichier
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' o';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' Ko';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' Mo';
+        }
+        
+        // ============================================================
+        // GESTION DU FORMULAIRE
+        // ============================================================
+        
+        // Définir la date par défaut à aujourd'hui
+        document.getElementById('date').valueAsDate = new Date();
+        
+        const form = document.getElementById('verification-form');
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Récupérer les données du formulaire
+            const formData = {
+                grossiste_id: parseInt(document.getElementById('grossiste').value),
+                numero: document.getElementById('numero').value,
+                date: document.getElementById('date').value,
+                montant_brut_ht: parseFloat(document.getElementById('montant-brut').value) || 0,
+                remises_ligne: parseFloat(document.getElementById('remises-lignes').value) || 0,
+                remises_pied: parseFloat(document.getElementById('remises-pied').value) || 0,
+                net_a_payer: parseFloat(document.getElementById('net-a-payer').value) || 0
+            };
+            
+            // Validation
+            if (!formData.grossiste_id) {
+                alert('Veuillez sélectionner un grossiste');
+                return;
+            }
+            
+            // Désactiver le bouton pendant la vérification
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalContent = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mx-auto"></div>';
+            
+            try {
+                // Appeler l'API de vérification
+                const response = await fetch('/api/factures/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                // Attendre 1 seconde pour l'effet
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Afficher les résultats
+                afficherResultats(result.data || result);
+                
+                // Scroller vers les résultats
+                setTimeout(() => {
+                    document.getElementById('resultats').scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start' 
+                    });
+                }, 300);
+                
+            } catch (error) {
+                console.error('Erreur lors de la vérification:', error);
+                alert('Une erreur est survenue lors de la vérification. Veuillez réessayer.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalContent;
+                lucide.createIcons();
+            }
+        });
+        
+        // ============================================================
+        // AFFICHAGE DES RÉSULTATS
+        // ============================================================
+        
+        function afficherResultats(data) {
+            const resultatsDiv = document.getElementById('resultats');
+            const conformeDiv = document.getElementById('resultat-conforme');
+            const anomaliesDiv = document.getElementById('resultat-anomalies');
+            
+            // Afficher la section résultats
+            resultatsDiv.classList.remove('hidden');
+            
+            if (data.anomalies && data.anomalies.length > 0) {
+                // Afficher les anomalies
+                conformeDiv.classList.add('hidden');
+                anomaliesDiv.classList.remove('hidden');
+                
+                // Mettre à jour le compteur
+                const count = data.anomalies.length;
+                document.getElementById('anomalies-count').textContent = 
+                    `${count} anomalie${count > 1 ? 's' : ''} détectée${count > 1 ? 's' : ''}`;
+                
+                // Afficher la liste des anomalies
+                const anomaliesList = document.getElementById('anomalies-list');
+                anomaliesList.innerHTML = data.anomalies.map((anomalie, index) => `
+                    <div class="bg-white border-2 border-orange-200 rounded-lg p-5 slide-in-up" style="animation-delay: ${index * 0.1}s">
+                        <div class="flex items-start space-x-3">
+                            <div class="bg-orange-100 text-orange-600 p-2 rounded flex-shrink-0">
+                                <i data-lucide="alert-circle" class="w-6 h-6"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-gray-900 mb-1">${getAnomalieTitle(anomalie.type_anomalie)}</h4>
+                                <p class="text-sm text-gray-600 mb-2">${anomalie.description}</p>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xs text-gray-500">Écart:</span>
+                                    <span class="font-bold text-red-600">${formatEuro(anomalie.montant_ecart)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Mettre à jour le total des économies
+                const totalEconomies = data.anomalies.reduce((sum, a) => sum + a.montant_ecart, 0);
+                document.getElementById('total-economies').textContent = formatEuro(totalEconomies);
+                
+            } else {
+                // Facture conforme
+                anomaliesDiv.classList.add('hidden');
+                conformeDiv.classList.remove('hidden');
+            }
+            
+            // Réinitialiser les icônes
+            lucide.createIcons();
+        }
+        
+        function getAnomalieTitle(type) {
+            const titles = {
+                'remise_manquante': 'Remise manquante',
+                'remise_incorrecte': 'Remise incorrecte',
+                'ecart_calcul': 'Écart de calcul',
+                'franco_non_respecte': 'Franco non respecté',
+                'prix_suspect': 'Prix suspect'
+            };
+            return titles[type] || 'Anomalie détectée';
+        }
+        
+        function formatEuro(amount) {
+            return new Intl.NumberFormat('fr-FR', {
+                style: 'currency',
+                currency: 'EUR',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(amount);
+        }
+        
+        // ============================================================
+        // ACTIONS
+        // ============================================================
+        
+        function marquerContestation() {
+            alert('Facture marquée pour contestation. Un rapport détaillé sera généré.');
+            console.log('Action: Marquer pour contestation');
+        }
+        
+        function enregistrerFacture() {
+            alert('Facture enregistrée avec succès !');
+            console.log('Action: Enregistrer facture conforme');
+        }
+        
+        function enregistrerQuandMeme() {
+            if (confirm('Êtes-vous sûr de vouloir enregistrer cette facture malgré les anomalies détectées ?')) {
+                alert('Facture enregistrée avec anomalies.');
+                console.log('Action: Enregistrer malgré anomalies');
+            }
+        }
+        
+        function nouvelleVerification() {
+            // Réinitialiser le formulaire et masquer les résultats
+            document.getElementById('verification-form').reset();
+            document.getElementById('date').valueAsDate = new Date();
+            document.getElementById('resultats').classList.add('hidden');
+            
+            // Scroller vers le haut
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // ============================================================
+        // VALIDATION EN TEMPS RÉEL
+        // ============================================================
+        
+        const requiredInputs = document.querySelectorAll('input[required], select[required]');
+        
+        requiredInputs.forEach(input => {
+            input.addEventListener('blur', () => {
+                if (input.value.trim() === '') {
+                    input.classList.add('input-error');
+                    input.classList.remove('input-success');
+                } else {
+                    input.classList.remove('input-error');
+                    input.classList.add('input-success');
+                }
+            });
+            
+            input.addEventListener('input', () => {
+                if (input.classList.contains('input-error') && input.value.trim() !== '') {
+                    input.classList.remove('input-error');
+                    input.classList.add('input-success');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PharmaVerif - Vérification intelligente de factures pharmaceutiques</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/logo-icon.svg">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/style.css">
+    
+    <!-- Application JavaScript -->
+    <script src="/js/animations.js" defer></script>
+    <script src="/js/app.js" defer></script>
+</head>
+<body class="bg-gray-50 font-sans antialiased">
+    
+    <!-- HEADER -->
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <img src="/logo-icon.svg" alt="PharmaVerif Logo" class="w-12 h-12">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">PharmaVerif</h1>
+                        <p class="text-sm text-gray-500">Vérification intelligente de factures pharmaceutiques</p>
+                    </div>
+                </div>
+                
+                <nav class="hidden md:flex space-x-8 items-center">
+                    <a href="#" class="text-blue-600 font-medium hover:text-blue-700 transition">Accueil</a>
+                    <a href="/verifier.html" class="text-gray-600 hover:text-gray-900 transition">Vérifier</a>
+                    <a href="#conditions" class="text-gray-600 hover:text-gray-900 transition">Conditions</a>
+                    <!-- Dark mode toggle sera ajouté ici par JS -->
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- HERO SECTION -->
+    <section class="bg-gradient-to-br from-blue-600 to-blue-800 text-white py-20 fade-in-up">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-4xl md:text-5xl font-bold mb-6">
+                Récupérez vos remises manquantes en quelques clics
+            </h2>
+            <p class="text-xl md:text-2xl text-blue-100 mb-8 max-w-3xl mx-auto">
+                Notre outil détecte automatiquement les écarts de remises sur vos factures grossistes et vous aide à récupérer ce qui vous est dû.
+            </p>
+            <button 
+                onclick="window.location.href='#verifier'" 
+                class="btn-primary bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold shadow-lg hover:shadow-xl inline-flex items-center space-x-2"
+            >
+                <i data-lucide="file-check" class="w-6 h-6"></i>
+                <span>Vérifier une facture</span>
+            </button>
+            
+            <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+                <div class="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center">
+                    <i data-lucide="zap" class="w-12 h-12 mx-auto mb-3 text-yellow-300"></i>
+                    <h3 class="font-semibold text-lg mb-2">Analyse instantanée</h3>
+                    <p class="text-blue-100 text-sm">Résultats en quelques secondes</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center">
+                    <i data-lucide="shield-check" class="w-12 h-12 mx-auto mb-3 text-green-300"></i>
+                    <h3 class="font-semibold text-lg mb-2">Fiable et précis</h3>
+                    <p class="text-blue-100 text-sm">Algorithme validé par des pharmaciens</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center">
+                    <i data-lucide="trending-up" class="w-12 h-12 mx-auto mb-3 text-blue-300"></i>
+                    <h3 class="font-semibold text-lg mb-2">Économies garanties</h3>
+                    <p class="text-blue-100 text-sm">En moyenne 500€/mois récupérés</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- DASHBOARD STATS -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 mb-16">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Card 1: Total Factures -->
+            <div class="stat-card bg-white rounded-lg shadow-md p-6 border-t-4 border-blue-600">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="bg-blue-100 text-blue-600 p-3 rounded-lg">
+                        <i data-lucide="file-text" class="w-8 h-8"></i>
+                    </div>
+                </div>
+                <h3 class="text-gray-600 text-sm font-medium mb-1">Factures vérifiées ce mois</h3>
+                <p id="stat-factures" class="text-3xl font-bold text-gray-900 mb-2">
+                    <span class="inline-block animate-pulse">...</span>
+                </p>
+                <p class="text-sm text-gray-500">
+                    <span class="text-green-600 font-medium">↑ 12%</span> vs mois dernier
+                </p>
+            </div>
+
+            <!-- Card 2: Anomalies -->
+            <div class="stat-card bg-white rounded-lg shadow-md p-6 border-t-4 border-yellow-500">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="bg-yellow-100 text-yellow-600 p-3 rounded-lg">
+                        <i data-lucide="alert-circle" class="w-8 h-8"></i>
+                    </div>
+                </div>
+                <h3 class="text-gray-600 text-sm font-medium mb-1">Anomalies détectées</h3>
+                <p id="stat-anomalies" class="text-3xl font-bold text-gray-900 mb-2">
+                    <span class="inline-block animate-pulse">...</span>
+                </p>
+                <p class="text-sm text-gray-500">
+                    <span id="taux-conformite" class="text-blue-600 font-medium">...</span> de taux de conformité
+                </p>
+            </div>
+
+            <!-- Card 3: Économies -->
+            <div class="stat-card bg-white rounded-lg shadow-md p-6 border-t-4 border-green-500">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="bg-green-100 text-green-600 p-3 rounded-lg">
+                        <i data-lucide="trending-up" class="w-8 h-8"></i>
+                    </div>
+                </div>
+                <h3 class="text-gray-600 text-sm font-medium mb-1">Économies potentielles</h3>
+                <p id="stat-economies" class="text-3xl font-bold text-gray-900 mb-2">
+                    <span class="inline-block animate-pulse">...</span>
+                </p>
+                <p class="text-sm text-gray-500">
+                    Montant récupérable identifié
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- DERNIÈRES ANOMALIES -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                <h2 class="text-xl font-bold text-gray-900 flex items-center space-x-2">
+                    <i data-lucide="alert-triangle" class="w-6 h-6 text-yellow-500"></i>
+                    <span>Dernières anomalies détectées</span>
+                </h2>
+                <span id="badge-anomalies" class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-semibold">
+                    ...
+                </span>
+            </div>
+            
+            <!-- Table Desktop -->
+            <div class="hidden md:block overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Facture N°
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Grossiste
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Type d'anomalie
+                            </th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Montant
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Date
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="anomalies-table" class="bg-white divide-y divide-gray-200">
+                        <!-- Chargement... -->
+                        <tr>
+                            <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                                <div class="flex items-center justify-center space-x-2">
+                                    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                    <span>Chargement des données...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Liste Mobile -->
+            <div id="anomalies-mobile" class="md:hidden divide-y divide-gray-200">
+                <div class="px-6 py-8 text-center text-gray-500">
+                    <div class="flex items-center justify-center space-x-2">
+                        <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                        <span>Chargement...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                <a href="#" class="text-blue-600 hover:text-blue-700 font-medium text-sm inline-flex items-center space-x-1">
+                    <span>Voir toutes les anomalies</span>
+                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA SECTION -->
+    <section id="verifier" class="bg-blue-600 py-16">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-3xl font-bold text-white mb-4">
+                Prêt à optimiser vos achats pharmaceutiques ?
+            </h2>
+            <p class="text-xl text-blue-100 mb-8">
+                Rejoignez les centaines de pharmacies qui économisent grâce à PharmaVerif
+            </p>
+            <button 
+                onclick="alert('Fonctionnalité de vérification à venir - Utilisez l\'app React pour tester!')"
+                class="btn-primary bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold shadow-lg hover:shadow-xl inline-flex items-center space-x-2"
+            >
+                <i data-lucide="upload" class="w-6 h-6"></i>
+                <span>Télécharger une facture</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- CONDITIONS SECTION -->
+    <section id="conditions" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <h2 class="text-3xl font-bold text-gray-900 mb-8 text-center">
+            Conditions de remises par grossiste
+        </h2>
+        
+        <div id="grossistes-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Chargement... -->
+            <div class="col-span-3 text-center py-8">
+                <div class="inline-flex items-center space-x-2 text-gray-500">
+                    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    <span>Chargement des grossistes...</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-gray-900 text-white py-12 mt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <div class="bg-blue-600 p-2 rounded-lg">
+                            <i data-lucide="file-check" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">PharmaVerif</h3>
+                    </div>
+                    <p class="text-gray-400 text-sm">
+                        Solution de vérification intelligente des factures pharmaceutiques pour optimiser vos achats.
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-4">Liens rapides</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="#" class="hover:text-white transition">Accueil</a></li>
+                        <li><a href="#verifier" class="hover:text-white transition">Vérifier une facture</a></li>
+                        <li><a href="#conditions" class="hover:text-white transition">Conditions grossistes</a></li>
+                        <li><a href="#" class="hover:text-white transition">Documentation</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-4">Contact</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li class="flex items-center space-x-2">
+                            <i data-lucide="mail" class="w-4 h-4"></i>
+                            <span>contact@pharmaverif.fr</span>
+                        </li>
+                        <li class="flex items-center space-x-2">
+                            <i data-lucide="phone" class="w-4 h-4"></i>
+                            <span>01 23 45 67 89</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
+                <p>&copy; 2026 PharmaVerif. Tous droits réservés. | Prototype de démonstration</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- SCRIPT POUR CHARGER LES DONNÉES VIA L'API -->
+    <script>
+        // Initialiser les icônes Lucide
+        lucide.createIcons();
+        
+        // Fonction utilitaire pour formater les montants
+        function formatEuro(amount) {
+            return new Intl.NumberFormat('fr-FR', { 
+                style: 'currency', 
+                currency: 'EUR' 
+            }).format(amount);
+        }
+        
+        // Fonction utilitaire pour formater les dates
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString('fr-FR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        }
+        
+        // Fonction pour obtenir le badge de type d'anomalie
+        function getAnomalieBadge(type) {
+            const badges = {
+                'remise_manquante': '<span class="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded">Remise manquante</span>',
+                'remise_incorrecte': '<span class="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded">Remise incorrecte</span>',
+                'ecart_calcul': '<span class="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded">Écart de calcul</span>',
+                'franco_non_respecte': '<span class="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded">Franco non respecté</span>',
+                'prix_suspect': '<span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">Prix suspect</span>'
+            };
+            return badges[type] || '<span class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded">Autre</span>';
+        }
+        
+        // Charger les statistiques
+        async function loadStats() {
+            try {
+                // Simuler un appel API - dans un vrai contexte, ce serait fetch('/api/stats')
+                // Pour cette démo HTML, on utilise des données simulées
+                const stats = {
+                    total_factures: 5,
+                    total_anomalies: 3,
+                    economies_potentielles: 178.75,
+                    taux_conformite: 40,
+                    dernieres_anomalies: []
+                };
+                
+                // Mettre à jour les statistiques
+                document.getElementById('stat-factures').textContent = stats.total_factures;
+                document.getElementById('stat-anomalies').textContent = stats.total_anomalies;
+                document.getElementById('stat-economies').textContent = formatEuro(stats.economies_potentielles);
+                
+                const tauxConformite = (100 - stats.taux_conformite).toFixed(0);
+                document.getElementById('taux-conformite').textContent = `${tauxConformite}% `;
+                
+                document.getElementById('badge-anomalies').textContent = `${stats.total_anomalies} anomalies`;
+                
+            } catch (error) {
+                console.error('Erreur lors du chargement des stats:', error);
+            }
+        }
+        
+        // Charger les dernières anomalies
+        async function loadAnomalies() {
+            try {
+                // Données simulées pour la démo
+                const anomalies = [
+                    {
+                        id: 1,
+                        facture_numero: 'FAC-CERP-002',
+                        grossiste: 'CERP Rouen',
+                        type_anomalie: 'remise_manquante',
+                        montant_ecart: 94.75,
+                        date: '2026-01-22'
+                    },
+                    {
+                        id: 2,
+                        facture_numero: 'FAC-OCP-001',
+                        grossiste: 'OCP',
+                        type_anomalie: 'remise_manquante',
+                        montant_ecart: 61.00,
+                        date: '2026-02-01'
+                    },
+                    {
+                        id: 3,
+                        facture_numero: 'FAC-OCP-002',
+                        grossiste: 'OCP',
+                        type_anomalie: 'remise_manquante',
+                        montant_ecart: 23.00,
+                        date: '2026-02-08'
+                    }
+                ];
+                
+                // Table Desktop
+                const tableBody = document.getElementById('anomalies-table');
+                tableBody.innerHTML = anomalies.length === 0 
+                    ? '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">Aucune anomalie détectée</td></tr>'
+                    : anomalies.map(anomalie => `
+                        <tr class="hover:bg-gray-50 transition cursor-pointer">
+                            <td class="px-6 py-4">
+                                <span class="font-medium text-gray-900">${anomalie.facture_numero}</span>
+                            </td>
+                            <td class="px-6 py-4 text-gray-600">${anomalie.grossiste}</td>
+                            <td class="px-6 py-4">${getAnomalieBadge(anomalie.type_anomalie)}</td>
+                            <td class="px-6 py-4 text-right">
+                                <span class="font-semibold text-red-600">${formatEuro(anomalie.montant_ecart)}</span>
+                            </td>
+                            <td class="px-6 py-4 text-gray-600">${formatDate(anomalie.date)}</td>
+                        </tr>
+                    `).join('');
+                
+                // Liste Mobile
+                const mobileList = document.getElementById('anomalies-mobile');
+                mobileList.innerHTML = anomalies.length === 0
+                    ? '<div class="px-6 py-8 text-center text-gray-500">Aucune anomalie détectée</div>'
+                    : anomalies.map(anomalie => `
+                        <div class="px-6 py-4 hover:bg-gray-50 transition">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="font-medium text-gray-900">${anomalie.facture_numero}</span>
+                                <span class="font-semibold text-red-600">${formatEuro(anomalie.montant_ecart)}</span>
+                            </div>
+                            <div class="text-sm text-gray-600 mb-2">${anomalie.grossiste}</div>
+                            <div class="flex justify-between items-center">
+                                ${getAnomalieBadge(anomalie.type_anomalie)}
+                                <span class="text-xs text-gray-500">${formatDate(anomalie.date)}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                
+            } catch (error) {
+                console.error('Erreur lors du chargement des anomalies:', error);
+            }
+        }
+        
+        // Charger les grossistes
+        async function loadGrossistes() {
+            try {
+                // Données simulées pour la démo
+                const grossistes = [
+                    {
+                        id: 1,
+                        nom: 'CERP Rouen',
+                        remise_base: 3.0,
+                        cooperation_commerciale: 2.0,
+                        escompte: 0.5,
+                        franco: 1500.0
+                    },
+                    {
+                        id: 2,
+                        nom: 'OCP',
+                        remise_base: 2.5,
+                        cooperation_commerciale: 2.0,
+                        escompte: 0.5,
+                        franco: 1200.0
+                    },
+                    {
+                        id: 3,
+                        nom: 'Alliance Healthcare',
+                        remise_base: 3.5,
+                        cooperation_commerciale: 1.5,
+                        escompte: 0.0,
+                        franco: 1800.0
+                    }
+                ];
+                
+                const grid = document.getElementById('grossistes-grid');
+                grid.innerHTML = grossistes.map(g => `
+                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-600 hover:shadow-lg transition">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">${g.nom}</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-gray-600">Remise de base</span>
+                                <span class="font-semibold text-gray-900">${g.remise_base}%</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-gray-600">Coopération commerciale</span>
+                                <span class="font-semibold text-gray-900">${g.cooperation_commerciale}%</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-gray-600">Escompte</span>
+                                <span class="font-semibold text-gray-900">${g.escompte}%</span>
+                            </div>
+                            <div class="pt-3 border-t border-gray-200">
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="text-gray-600">Franco (port gratuit)</span>
+                                    <span class="font-semibold text-green-600">${formatEuro(g.franco)}</span>
+                                </div>
+                            </div>
+                            <div class="pt-3 border-t border-gray-200">
+                                <div class="text-sm">
+                                    <span class="text-gray-600">Remise totale : </span>
+                                    <span class="font-bold text-blue-600 text-lg">${(g.remise_base + g.cooperation_commerciale + g.escompte).toFixed(1)}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Réinitialiser les icônes après injection HTML
+                lucide.createIcons();
+                
+            } catch (error) {
+                console.error('Erreur lors du chargement des grossistes:', error);
+            }
+        }
+        
+        // Charger toutes les données au chargement de la page
+        document.addEventListener('DOMContentLoaded', async () => {
+            await Promise.all([
+                loadStats(),
+                loadAnomalies(),
+                loadGrossistes()
+            ]);
+        });
+        
+        // Smooth scroll pour les ancres
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

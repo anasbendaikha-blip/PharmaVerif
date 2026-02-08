@@ -1,0 +1,139 @@
+==============================================================================
+PHARMAVERIF - LICENCE ET DROITS D'AUTEUR
+==============================================================================
+
+Copyright (c) 2026 Anas BENDAIKHA
+Tous droits réservés.
+
+==============================================================================
+1. PROPRIÉTÉ INTELLECTUELLE
+==============================================================================
+
+Ce logiciel et toute la documentation associée (ci-après dénommés le "Logiciel") 
+sont la propriété exclusive de Anas BENDAIKHA et sont protégés par les lois 
+françaises et internationales sur le droit d'auteur et la propriété intellectuelle.
+
+Le Logiciel comprend, sans s'y limiter :
+- Le code source (JavaScript, TypeScript, CSS, HTML)
+- L'architecture et le design de l'application
+- Les algorithmes de vérification et de détection d'anomalies
+- L'interface utilisateur et l'expérience utilisateur
+- La documentation technique et utilisateur
+- Les logos, graphismes et éléments visuels
+- La base de données et les structures de données
+
+==============================================================================
+2. RESTRICTIONS D'UTILISATION
+==============================================================================
+
+INTERDICTIONS STRICTES :
+
+Sans autorisation écrite préalable de Anas BENDAIKHA, il est STRICTEMENT INTERDIT de :
+
+a) Copier, reproduire ou dupliquer tout ou partie du Logiciel
+b) Modifier, adapter, traduire ou créer des œuvres dérivées du Logiciel
+c) Distribuer, vendre, louer, prêter ou transférer le Logiciel à des tiers
+d) Décompiler, désassembler ou faire de l'ingénierie inverse du Logiciel
+e) Retirer, modifier ou masquer les avis de copyright et de propriété
+f) Utiliser le Logiciel à des fins commerciales sans licence appropriée
+g) Publier ou partager le code source sur des plateformes publiques
+h) Intégrer tout ou partie du Logiciel dans d'autres applications
+
+==============================================================================
+3. VERSION PROTOTYPE
+==============================================================================
+
+Cette version du Logiciel est fournie en tant que PROTOTYPE DE DÉMONSTRATION.
+
+Elle est destinée uniquement à :
+- Démonstration des fonctionnalités et du concept
+- Évaluation des capacités techniques
+- Présentation à des fins de portfolio
+
+AVERTISSEMENT :
+- Cette version ne doit PAS être utilisée en environnement de production
+- Aucune garantie n'est fournie quant à la fiabilité ou l'exactitude des résultats
+- Les données affichées sont simulées et ne doivent pas servir de base décisionnelle
+
+==============================================================================
+4. EXCLUSION DE GARANTIE
+==============================================================================
+
+LE LOGICIEL EST FOURNI "EN L'ÉTAT", SANS GARANTIE D'AUCUNE SORTE, EXPRESSE 
+OU IMPLICITE, Y COMPRIS, MAIS SANS S'Y LIMITER, LES GARANTIES IMPLICITES 
+DE QUALITÉ MARCHANDE, D'ADÉQUATION À UN USAGE PARTICULIER ET D'ABSENCE 
+DE CONTREFAÇON.
+
+L'auteur ne garantit pas que :
+- Le Logiciel fonctionnera sans interruption ou sans erreur
+- Les défauts seront corrigés
+- Les résultats obtenus seront précis ou fiables
+
+==============================================================================
+5. LIMITATION DE RESPONSABILITÉ
+==============================================================================
+
+EN AUCUN CAS ANAS BENDAIKHA NE POURRA ÊTRE TENU RESPONSABLE DE DOMMAGES 
+DIRECTS, INDIRECTS, ACCESSOIRES, SPÉCIAUX, EXEMPLAIRES OU CONSÉCUTIFS 
+DÉCOULANT DE L'UTILISATION OU DE L'IMPOSSIBILITÉ D'UTILISER LE LOGICIEL.
+
+Cela inclut, sans s'y limiter :
+- Perte de bénéfices ou de revenus
+- Perte de données
+- Interruption d'activité
+- Tout autre dommage commercial ou perte
+
+==============================================================================
+6. DEMANDE DE LICENCE
+==============================================================================
+
+Pour toute utilisation du Logiciel non couverte par les restrictions ci-dessus,
+veuillez contacter l'auteur pour obtenir une licence appropriée :
+
+Contact : contact@pharmaverif.demo
+Auteur  : Anas BENDAIKHA
+Web     : [Votre site web ou portfolio]
+
+Types de licences disponibles sur demande :
+- Licence d'utilisation personnelle
+- Licence commerciale
+- Licence entreprise
+- Licence de développement personnalisé
+
+==============================================================================
+7. LOI APPLICABLE
+==============================================================================
+
+Cette licence est régie par le droit français. Tout litige relatif à 
+l'interprétation ou à l'exécution de la présente licence sera soumis 
+aux tribunaux français compétents.
+
+==============================================================================
+8. ACCEPTATION DES TERMES
+==============================================================================
+
+L'utilisation, même partielle, du Logiciel implique l'acceptation pleine 
+et entière des présentes conditions. Si vous n'acceptez pas ces termes, 
+vous devez immédiatement cesser toute utilisation du Logiciel.
+
+==============================================================================
+9. MODIFICATIONS
+==============================================================================
+
+Anas BENDAIKHA se réserve le droit de modifier les termes de cette licence 
+à tout moment. Les modifications entreront en vigueur dès leur publication.
+
+==============================================================================
+10. CONTACT
+==============================================================================
+
+Pour toute question concernant cette licence :
+
+Email    : contact@pharmaverif.demo
+Auteur   : Anas BENDAIKHA
+Date     : Février 2026
+Version  : Prototype 1.0
+
+==============================================================================
+© 2026 Anas BENDAIKHA - Tous droits réservés
+==============================================================================

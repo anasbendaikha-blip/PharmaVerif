@@ -1,0 +1,35 @@
+<svg width="180" height="40" viewBox="0 0 180 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shieldGradDark" x1="20" y1="5" x2="20" y2="35" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Icon: Shield with cross and checkmark -->
+  <g id="icon-dark">
+    <!-- Shield -->
+    <path d="M20 5C20 5 14.5 7 9 7C9 7 9 15 9 20C9 27 14.5 32.5 20 35C25.5 32.5 31 27 31 20C31 15 31 7 31 7C25.5 7 20 5 20 5Z" 
+          fill="url(#shieldGradDark)" 
+          stroke="#60A5FA" 
+          stroke-width="1.2"/>
+    
+    <!-- Cross -->
+    <rect x="18.5" y="12" width="3" height="11" rx="0.8" fill="#1F2937"/>
+    <rect x="14" y="16.5" width="11" height="3" rx="0.8" fill="#1F2937"/>
+    
+    <!-- Checkmark -->
+    <path d="M23 20L21.5 22L17.5 18" 
+          stroke="#34D399" 
+          stroke-width="2.2" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"/>
+  </g>
+  
+  <!-- Text: Single line (white for dark mode) -->
+  <text x="40" y="26" 
+        font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" 
+        font-size="20" 
+        font-weight="700" 
+        fill="#F9FAFB">Pharma<tspan fill="#60A5FA">Verif</tspan></text>
+</svg>
