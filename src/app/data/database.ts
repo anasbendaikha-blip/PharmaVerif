@@ -1,52 +1,107 @@
-// Simulation des opérations de base de données (équivalent de database.py)
-import { Grossiste, Facture, Anomalie, LigneFacture } from '../types';
-import {
-  grossistes as initialGrossistes,
-  facturesExemples as initialFactures,
-  anomaliesExemples as initialAnomalies,
-  lignesFactures as initialLignes,
-} from './mockData';
+/**
+ * PharmaVerif - Base de données avec persistance localStorage
+ * Copyright (c) 2026 Anas BENDAIKHA
+ * Tous droits réservés.
+ *
+ * Les données sont sauvegardées automatiquement dans localStorage
+ * pour survivre aux rechargements de page.
+ */
 
-// Base de données simulée en mémoire
-class InMemoryDatabase {
+import { Grossiste, Facture, Anomalie, LigneFacture } from '../types';
+
+const STORAGE_KEYS = {
+  grossistes: 'pharmaverif_grossistes',
+  factures: 'pharmaverif_factures',
+  anomalies: 'pharmaverif_anomalies',
+  lignes: 'pharmaverif_lignes',
+  counters: 'pharmaverif_counters',
+  initialized: 'pharmaverif_initialized',
+};
+
+class PersistentDatabase {
   private grossistes: Grossiste[] = [];
   private factures: Facture[] = [];
   private anomalies: Anomalie[] = [];
   private lignesFactures: LigneFacture[] = [];
-  
+
   private nextGrossisteId = 1;
   private nextFactureId = 1;
   private nextAnomalieId = 1;
   private nextLigneId = 1;
-  
+
   private initialized = false;
 
   constructor() {
-    // Ne pas initialiser automatiquement pour éviter les doubles initialisations
-    // L'initialisation sera faite explicitement via initDb()
+    this.loadFromStorage();
   }
 
-  // Équivalent de init_db() - Initialise la base avec les données par défaut
+  // ==================== PERSISTANCE ====================
+
+  private saveToStorage(): void {
+    try {
+      localStorage.setItem(STORAGE_KEYS.grossistes, JSON.stringify(this.grossistes));
+      localStorage.setItem(STORAGE_KEYS.factures, JSON.stringify(this.factures));
+      localStorage.setItem(STORAGE_KEYS.anomalies, JSON.stringify(this.anomalies));
+      localStorage.setItem(STORAGE_KEYS.lignes, JSON.stringify(this.lignesFactures));
+      localStorage.setItem(STORAGE_KEYS.counters, JSON.stringify({
+        grossiste: this.nextGrossisteId,
+        facture: this.nextFactureId,
+        anomalie: this.nextAnomalieId,
+        ligne: this.nextLigneId,
+      }));
+      localStorage.setItem(STORAGE_KEYS.initialized, 'true');
+    } catch (e) {
+      console.warn('⚠️ Impossible de sauvegarder dans localStorage:', e);
+    }
+  }
+
+  private loadFromStorage(): void {
+    try {
+      const wasInitialized = localStorage.getItem(STORAGE_KEYS.initialized) === 'true';
+      if (!wasInitialized) return;
+
+      const grossistes = localStorage.getItem(STORAGE_KEYS.grossistes);
+      const factures = localStorage.getItem(STORAGE_KEYS.factures);
+      const anomalies = localStorage.getItem(STORAGE_KEYS.anomalies);
+      const lignes = localStorage.getItem(STORAGE_KEYS.lignes);
+      const counters = localStorage.getItem(STORAGE_KEYS.counters);
+
+      if (grossistes) this.grossistes = JSON.parse(grossistes);
+      if (factures) this.factures = JSON.parse(factures);
+      if (anomalies) this.anomalies = JSON.parse(anomalies);
+      if (lignes) this.lignesFactures = JSON.parse(lignes);
+      if (counters) {
+        const c = JSON.parse(counters);
+        this.nextGrossisteId = c.grossiste;
+        this.nextFactureId = c.facture;
+        this.nextAnomalieId = c.anomalie;
+        this.nextLigneId = c.ligne;
+      }
+
+      this.initialized = true;
+      console.log('💾 Données restaurées depuis localStorage');
+    } catch (e) {
+      console.warn('⚠️ Impossible de charger depuis localStorage:', e);
+    }
+  }
+
+  // Initialise la base avec les grossistes par défaut
   initDb(): void {
-    // Ne pas réinitialiser si déjà fait (évite les doublons)
     if (this.initialized) {
       console.log('⚠️  Base déjà initialisée, skip');
       return;
     }
-    
-    // Réinitialiser les compteurs
+
     this.nextGrossisteId = 1;
     this.nextFactureId = 1;
     this.nextAnomalieId = 1;
     this.nextLigneId = 1;
-    
-    // Vider les arrays pour éviter les doublons
+
     this.grossistes = [];
     this.factures = [];
     this.anomalies = [];
     this.lignesFactures = [];
 
-    // Créer les 3 grossistes par défaut
     this.createGrossiste({
       nom: 'CERP Rouen',
       remise_base: 3.0,
@@ -73,10 +128,20 @@ class InMemoryDatabase {
 
     console.log('✅ Base de données initialisée avec 3 grossistes');
     this.initialized = true;
+    this.saveToStorage();
+  }
+
+  /**
+   * Réinitialise complètement la base de données (efface localStorage)
+   */
+  resetDb(): void {
+    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+    this.initialized = false;
+    this.initDb();
   }
 
   // ==================== GROSSISTES ====================
-  
+
   getAllGrossistes(): Grossiste[] {
     return [...this.grossistes];
   }
@@ -95,30 +160,33 @@ class InMemoryDatabase {
       id: this.nextGrossisteId++,
     };
     this.grossistes.push(newGrossiste);
+    this.saveToStorage();
     return newGrossiste;
   }
 
   updateGrossiste(id: number, data: Partial<Omit<Grossiste, 'id'>>): Grossiste | null {
     const index = this.grossistes.findIndex((g) => g.id === id);
     if (index === -1) return null;
-    
+
     this.grossistes[index] = {
       ...this.grossistes[index],
       ...data,
     };
+    this.saveToStorage();
     return this.grossistes[index];
   }
 
   deleteGrossiste(id: number): boolean {
     const index = this.grossistes.findIndex((g) => g.id === id);
     if (index === -1) return false;
-    
+
     this.grossistes.splice(index, 1);
+    this.saveToStorage();
     return true;
   }
 
   // ==================== FACTURES ====================
-  
+
   getAllFactures(): Facture[] {
     return this.factures.map((f) => this.enrichirFacture(f));
   }
@@ -147,33 +215,35 @@ class InMemoryDatabase {
       created_at: new Date().toISOString(),
     };
     this.factures.push(newFacture);
+    this.saveToStorage();
     return this.enrichirFacture(newFacture);
   }
 
   updateFacture(id: number, data: Partial<Omit<Facture, 'id' | 'created_at'>>): Facture | null {
     const index = this.factures.findIndex((f) => f.id === id);
     if (index === -1) return null;
-    
+
     this.factures[index] = {
       ...this.factures[index],
       ...data,
     };
+    this.saveToStorage();
     return this.enrichirFacture(this.factures[index]);
   }
 
   deleteFacture(id: number): boolean {
     const index = this.factures.findIndex((f) => f.id === id);
     if (index === -1) return false;
-    
-    // Supprimer aussi les anomalies et lignes associées
+
     this.anomalies = this.anomalies.filter((a) => a.facture_id !== id);
     this.lignesFactures = this.lignesFactures.filter((l) => l.facture_id !== id);
     this.factures.splice(index, 1);
+    this.saveToStorage();
     return true;
   }
 
   // ==================== LIGNES FACTURES ====================
-  
+
   getLignesByFactureId(factureId: number): LigneFacture[] {
     return this.lignesFactures.filter((l) => l.facture_id === factureId);
   }
@@ -184,11 +254,12 @@ class InMemoryDatabase {
       id: this.nextLigneId++,
     };
     this.lignesFactures.push(newLigne);
+    this.saveToStorage();
     return newLigne;
   }
 
   // ==================== ANOMALIES ====================
-  
+
   getAllAnomalies(): Anomalie[] {
     return this.anomalies.map((a) => this.enrichirAnomalie(a));
   }
@@ -217,25 +288,28 @@ class InMemoryDatabase {
       created_at: new Date().toISOString(),
     };
     this.anomalies.push(newAnomalie);
+    this.saveToStorage();
     return this.enrichirAnomalie(newAnomalie);
   }
 
   deleteAnomalie(id: number): boolean {
     const index = this.anomalies.findIndex((a) => a.id === id);
     if (index === -1) return false;
-    
+
     this.anomalies.splice(index, 1);
+    this.saveToStorage();
     return true;
   }
 
   deleteAnomaliesByFacture(factureId: number): number {
     const initialLength = this.anomalies.length;
     this.anomalies = this.anomalies.filter((a) => a.facture_id !== factureId);
+    this.saveToStorage();
     return initialLength - this.anomalies.length;
   }
 
   // ==================== HELPERS ====================
-  
+
   private enrichirFacture(facture: Facture): Facture {
     return {
       ...facture,
@@ -253,7 +327,7 @@ class InMemoryDatabase {
   }
 
   // ==================== STATS ====================
-  
+
   getStats() {
     const totalFactures = this.factures.length;
     const anomaliesDetectees = this.anomalies.length;
@@ -271,4 +345,4 @@ class InMemoryDatabase {
 }
 
 // Instance singleton de la base de données
-export const db = new InMemoryDatabase();
+export const db = new PersistentDatabase();

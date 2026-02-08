@@ -97,19 +97,21 @@ function verifierConditionsSpecifiques(facture: Facture, grossiste: Grossiste): 
   const anomalies: Anomalie[] = [];
   
   // Vérifier le franco (frais de port)
+  // Détection déterministe : si le montant brut dépasse le franco mais que le net à payer
+  // est supérieur au montant attendu (brut - remises), des frais de port sont probablement inclus
   if (facture.montant_brut_ht >= grossiste.franco) {
-    // Simulation : détecter si des frais de port sont présents dans le net à payer
-    // En pratique, cela nécessiterait d'avoir l'info "frais de port" dans la facture
-    // Pour la démo, on simule une détection aléatoire
-    if (Math.random() < 0.15) { // 15% de chance
-      const fraisPortEstimes = 12 + Math.random() * 15; // 12-27€
-      
+    const remiseReelle = facture.remises_ligne_a_ligne + facture.remises_pied_facture;
+    const netAttendu = facture.montant_brut_ht - remiseReelle;
+    const ecartNet = facture.net_a_payer - netAttendu;
+
+    // Si le net à payer est supérieur au net calculé de plus de 5€, des frais de port sont suspects
+    if (ecartNet > 5) {
       anomalies.push({
-        id: Date.now() + Math.random() + 2,
+        id: Date.now() + 2,
         facture_id: facture.id,
         type_anomalie: 'franco_non_respecte',
-        description: `Frais de port facturés (estimés à ${fraisPortEstimes.toFixed(2)}€) alors que le franco de ${grossiste.franco.toFixed(2)}€ est dépassé (montant brut : ${facture.montant_brut_ht.toFixed(2)}€)`,
-        montant_ecart: parseFloat(fraisPortEstimes.toFixed(2)),
+        description: `Frais de port suspects (${ecartNet.toFixed(2)}€) alors que le franco de ${grossiste.franco.toFixed(2)}€ est dépassé (montant brut : ${facture.montant_brut_ht.toFixed(2)}€)`,
+        montant_ecart: parseFloat(ecartNet.toFixed(2)),
         created_at: new Date().toISOString(),
       });
     }
