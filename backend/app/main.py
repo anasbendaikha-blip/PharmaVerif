@@ -309,10 +309,25 @@ async def startup_event():
     Path("logs").mkdir(exist_ok=True)
     
     logger.info("✅ Dossiers créés")
-    
-    # TODO: Initialiser la base de données
-    # TODO: Créer les tables si nécessaire
-    # TODO: Charger les données de démo
+
+    # Créer les tables si elles n'existent pas (PostgreSQL ou SQLite)
+    from app.database import engine, Base, SessionLocal
+    from app.models import User, Grossiste, Facture, LigneFacture, Anomalie, VerificationLog, Session as SessionModel
+    from app.models_labo import Laboratoire, AccordCommercial, FactureLabo, LigneFactureLabo
+
+    Base.metadata.create_all(bind=engine)
+    logger.info("✅ Tables créées/vérifiées")
+
+    # Seed données initiales si la DB est vide (admin, grossistes, Biogaran)
+    db = SessionLocal()
+    try:
+        from app.models import init_db_data
+        init_db_data(db)
+        logger.info("✅ Données initiales vérifiées")
+    except Exception as e:
+        logger.error(f"⚠️ Erreur lors du seed: {e}")
+    finally:
+        db.close()
 
 @app.on_event("shutdown")
 async def shutdown_event():
