@@ -14,7 +14,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Logo } from '../components/Logo';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { isApiMode } from '../api/config';
 import { toast } from 'sonner';
+
+// Règles de mot de passe selon le mode
+const passwordRules = isApiMode()
+  ? { minLength: 8, hint: 'Min. 8 caractères, 1 majuscule, 1 chiffre' }
+  : { minLength: 6, hint: 'Min. 6 caractères' };
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -195,11 +201,14 @@ export function LoginPage() {
                         value={registerPassword}
                         onChange={(e) => setRegisterPassword(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[44px]"
-                        placeholder="Min. 6 caractères"
+                        placeholder={passwordRules.hint}
                         required
-                        minLength={6}
+                        minLength={passwordRules.minLength}
                       />
                     </div>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {passwordRules.hint}
+                    </p>
                   </div>
 
                   <div>
@@ -216,7 +225,7 @@ export function LoginPage() {
                         className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[44px]"
                         placeholder="••••••••"
                         required
-                        minLength={6}
+                        minLength={passwordRules.minLength}
                       />
                     </div>
                   </div>
@@ -235,7 +244,9 @@ export function LoginPage() {
         </Card>
 
         <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-4">
-          Prototype — Données stockées localement dans votre navigateur
+          {isApiMode()
+            ? 'Connecté au serveur PharmaVerif'
+            : 'Prototype — Données stockées localement dans votre navigateur'}
         </p>
       </div>
     </div>

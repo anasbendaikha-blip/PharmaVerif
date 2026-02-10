@@ -14,6 +14,7 @@ import {
   Home,
   FileBarChart,
   Building2,
+  FlaskConical,
   LogIn,
   LogOut,
 } from 'lucide-react';
@@ -21,6 +22,7 @@ import { Logo } from './Logo';
 import { ThemeToggle } from './ThemeToggle';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { isApiMode } from '../api/config';
 import { Button } from './ui/button';
 
 interface NavLink {
@@ -35,6 +37,10 @@ const navLinks: NavLink[] = [
   { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
   { label: 'Rapports', path: '/reports', icon: <FileBarChart className="h-4 w-4" /> },
   { label: 'Fournisseurs', path: '/fournisseurs', icon: <Building2 className="h-4 w-4" /> },
+  // Lien visible uniquement en mode API (backend connecté)
+  ...(isApiMode()
+    ? [{ label: 'Factures Labo', path: '/factures-labo', icon: <FlaskConical className="h-4 w-4" /> }]
+    : []),
 ];
 
 export function Navbar() {

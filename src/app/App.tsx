@@ -18,6 +18,8 @@ import { Footer } from './components/Footer';
 import { Navbar } from './components/Navbar';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { initializeDatabase } from './api/endpoints';
+import { isApiMode } from './api/config';
+import { FacturesLaboPage } from './pages/FacturesLaboPage';
 import { Toaster } from './components/ui/sonner';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
@@ -46,6 +48,7 @@ function AppLayout() {
       dashboard: '/dashboard',
       reports: '/reports',
       fournisseurs: '/fournisseurs',
+      'factures-labo': '/factures-labo',
       'mentions-legales': '/mentions-legales',
       contact: '/contact',
       login: '/login',
@@ -93,6 +96,16 @@ function AppLayout() {
               </ProtectedRoute>
             }
           />
+          {isApiMode() && (
+            <Route
+              path="/factures-labo"
+              element={
+                <ProtectedRoute>
+                  <FacturesLaboPage onNavigate={handleNavigate} />
+                </ProtectedRoute>
+              }
+            />
+          )}
           <Route
             path="/mentions-legales"
             element={<MentionsLegalesPage onNavigate={handleNavigate} />}
