@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PharmaVerif - Vérification Factures Pharmaceutiques</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        [x-cloak] { display: none !important; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .toast-slide { animation: toastSlide 0.3s ease-out, toastFade 0.3s ease-in 2.7s forwards; }
+        @keyframes toastSlide { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes toastFade { to { opacity: 0; transform: translateX(100%); } }
+        .card-hover { transition: all 0.2s ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+        input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors duration-200">
+
+    <!-- ==================== NAVIGATION ==================== -->
+    <nav class="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <div class="flex items-center gap-2">
+                    <div class="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                    </div>
+                    <span class="text-xl font-bold text-gray-900 dark:text-white">Pharma<span class="text-blue-600">Verif</span></span>
+                </div>
+
+                <!-- Nav Tabs -->
+                <div class="hidden sm:flex items-center gap-1">
+                    <button data-page="page-dashboard" class="nav-tab px-4 py-2 text-sm font-medium rounded-lg transition-colors text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" onclick="showPage('page-dashboard')">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                            Dashboard
+                        </span>
+                    </button>
+                    <button data-page="page-verification" class="nav-tab px-4 py-2 text-sm font-medium rounded-lg transition-colors text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" onclick="showPage('page-verification')">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                            Vérification
+                        </span>
+                    </button>
+                    <button data-page="page-fournisseurs" class="nav-tab px-4 py-2 text-sm font-medium rounded-lg transition-colors text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" onclick="showPage('page-fournisseurs')">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                            Fournisseurs
+                        </span>
+                    </button>
+                </div>
+
+                <!-- Right side -->
+                <div class="flex items-center gap-3">
+                    <button id="dark-toggle" onclick="toggleDarkMode()" class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Mode sombre">
+                        <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                        <svg id="icon-moon" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                    </button>
+
+                    <!-- Mobile menu -->
+                    <button id="mobile-menu-btn" onclick="toggleMobileMenu()" class="sm:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile nav -->
+            <div id="mobile-menu" class="sm:hidden hidden pb-3 space-y-1">
+                <button data-page="page-dashboard" onclick="showPage('page-dashboard'); toggleMobileMenu();" class="nav-tab-mobile block w-full text-left px-3 py-2 text-sm rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Dashboard</button>
+                <button data-page="page-verification" onclick="showPage('page-verification'); toggleMobileMenu();" class="nav-tab-mobile block w-full text-left px-3 py-2 text-sm rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Vérification</button>
+                <button data-page="page-fournisseurs" onclick="showPage('page-fournisseurs'); toggleMobileMenu();" class="nav-tab-mobile block w-full text-left px-3 py-2 text-sm rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Fournisseurs</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ==================== PAGE: DASHBOARD ==================== -->
+    <div id="page-dashboard" class="fade-in">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Header -->
+            <div class="mb-8">
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Tableau de bord</h1>
+                <p class="text-gray-600 dark:text-gray-400 mt-1">Vue d'ensemble de vos vérifications</p>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 card-hover">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Factures vérifiées</p>
+                            <p id="kpi-factures" class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 card-hover">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Anomalies détectées</p>
+                            <p id="kpi-anomalies" class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 card-hover">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Montant récupérable</p>
+                            <p id="kpi-montant" class="text-2xl font-bold text-red-600">0,00 €</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 card-hover">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Taux de conformité</p>
+                            <p id="kpi-conformite" class="text-2xl font-bold text-green-600">0%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid lg:grid-cols-3 gap-8">
+                <!-- Factures table -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Factures récentes</h2>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="border-b border-gray-200 dark:border-gray-700">
+                                        <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Numéro</th>
+                                        <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fournisseur</th>
+                                        <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                                        <th class="text-right px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Net à payer</th>
+                                        <th class="text-center px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Statut</th>
+                                        <th class="text-center px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Anomalies</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboard-factures-body" class="divide-y divide-gray-200 dark:divide-gray-700">
+                                </tbody>
+                            </table>
+                            <div id="dashboard-factures-empty" class="hidden text-center py-12 text-gray-500 dark:text-gray-400">
+                                <svg class="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                                <p>Aucune facture vérifiée pour le moment</p>
+                                <button onclick="showPage('page-verification')" class="mt-3 text-blue-600 hover:text-blue-700 font-medium text-sm">Vérifier une facture</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Anomalies récentes -->
+                <div>
+                    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Dernières anomalies</h2>
+                        </div>
+                        <div id="dashboard-anomalies" class="p-4 space-y-3">
+                        </div>
+                        <div id="dashboard-anomalies-empty" class="hidden text-center py-12 text-gray-500 dark:text-gray-400 px-4">
+                            <svg class="w-10 h-10 mx-auto mb-3 text-green-300 dark:text-green-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <p class="text-sm">Aucune anomalie détectée</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== PAGE: VÉRIFICATION ==================== -->
+    <div id="page-verification" class="hidden fade-in">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="mb-8">
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Vérification de facture</h1>
+                <p class="text-gray-600 dark:text-gray-400 mt-1">Saisissez les montants de la facture pour vérifier les conditions contractuelles</p>
+            </div>
+
+            <div class="grid lg:grid-cols-3 gap-8">
+                <!-- Formulaire -->
+                <div class="lg:col-span-1 space-y-6">
+                    <!-- Step 1 : Fournisseur -->
+                    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-4">1. Sélectionner le fournisseur</h3>
+                        <select id="verif-fournisseur" onchange="onFournisseurChange()" class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <option value="">Choisir un fournisseur...</option>
+                        </select>
+                        <div id="verif-conditions" class="hidden mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        </div>
+                    </div>
+
+                    <!-- Step 2 : Formulaire -->
+                    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-4">2. Informations de la facture</h3>
+                        <form id="form-verification" onsubmit="handleVerification(event)" class="space-y-4">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">N° facture</label>
+                                    <input type="text" name="numero" required placeholder="FAC-001" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+                                    <input type="date" name="date" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Montant brut HT</label>
+                                <input type="number" name="montant_brut" step="0.01" min="0" required placeholder="0.00" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Remises ligne à ligne</label>
+                                    <input type="number" name="remises_ligne" step="0.01" min="0" value="0" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Remises pied facture</label>
+                                    <input type="number" name="remises_pied" step="0.01" min="0" value="0" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Frais de port</label>
+                                <input type="number" name="frais_port" step="0.01" min="0" value="0" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Net à payer</label>
+                                <input type="number" name="net_a_payer" step="0.01" min="0" required placeholder="0.00" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <button type="submit" id="btn-verifier" disabled class="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white font-medium rounded-lg transition-colors text-sm">
+                                Lancer la vérification
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Résultats -->
+                <div class="lg:col-span-2">
+                    <!-- État initial -->
+                    <div id="verif-empty" class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+                        <div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                        </div>
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">En attente de vérification</h3>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm">Sélectionnez un fournisseur et saisissez les montants de la facture pour lancer la vérification</p>
+                    </div>
+
+                    <!-- Résultats (hidden par défaut) -->
+                    <div id="verif-results" class="hidden space-y-6">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== PAGE: FOURNISSEURS ==================== -->
+    <div id="page-fournisseurs" class="hidden fade-in">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Fournisseurs</h1>
+                    <p class="text-gray-600 dark:text-gray-400 mt-1">Gérez vos fournisseurs et leurs conditions contractuelles</p>
+                </div>
+                <button onclick="openFournisseurModal()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 4v16m8-8H4"/></svg>
+                    Ajouter un fournisseur
+                </button>
+            </div>
+
+            <!-- Filtres -->
+            <div class="flex flex-wrap items-center gap-3 mb-6">
+                <div class="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
+                    <button onclick="setTypeFilter('tous')" data-filter="tous" class="filter-btn px-4 py-2 text-sm font-medium bg-blue-600 text-white">Tous</button>
+                    <button onclick="setTypeFilter('grossiste')" data-filter="grossiste" class="filter-btn px-4 py-2 text-sm font-medium bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-l border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">Grossistes</button>
+                    <button onclick="setTypeFilter('laboratoire')" data-filter="laboratoire" class="filter-btn px-4 py-2 text-sm font-medium bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-l border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">Laboratoires</button>
+                    <button onclick="setTypeFilter('autre')" data-filter="autre" class="filter-btn px-4 py-2 text-sm font-medium bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-l border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">Autres</button>
+                </div>
+                <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+                    <input type="checkbox" id="filter-actifs" checked onchange="renderFournisseurs()" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    Actifs uniquement
+                </label>
+            </div>
+
+            <!-- Grid -->
+            <div id="fournisseurs-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+            <div id="fournisseurs-empty" class="hidden text-center py-16 text-gray-500 dark:text-gray-400">
+                <svg class="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                <p class="text-lg font-medium">Aucun fournisseur trouvé</p>
+                <p class="mt-1 text-sm">Ajustez vos filtres ou ajoutez un nouveau fournisseur</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: FOURNISSEUR ==================== -->
+    <div id="modal-fournisseur" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/50" onclick="closeFournisseurModal()"></div>
+        <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <h3 id="modal-fournisseur-title" class="text-lg font-semibold text-gray-900 dark:text-white">Ajouter un fournisseur</h3>
+                <button onclick="closeFournisseurModal()" class="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <form id="form-fournisseur" onsubmit="saveFournisseur(event)" class="p-6 space-y-4">
+                <input type="hidden" name="id" value="">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom</label>
+                    <input type="text" name="nom" required placeholder="Nom du fournisseur" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                    <select name="type_fournisseur" onchange="onModalTypeChange(this.value)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500">
+                        <option value="grossiste">Grossiste</option>
+                        <option value="laboratoire">Laboratoire</option>
+                        <option value="autre">Autre</option>
+                    </select>
+                </div>
+
+                <!-- Grossiste fields -->
+                <div id="modal-grossiste-fields">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Remise de base (%)</label>
+                            <input type="number" name="remise_base" step="0.1" min="0" max="100" value="0" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Coopération (%)</label>
+                            <input type="number" name="cooperation_commerciale" step="0.1" min="0" max="100" value="0" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Escompte (%)</label>
+                            <input type="number" name="escompte" step="0.1" min="0" max="100" value="0" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Franco (€)</label>
+                            <input type="number" name="franco" step="1" min="0" value="0" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Laboratoire fields -->
+                <div id="modal-labo-fields" class="hidden space-y-3">
+                    <label class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg cursor-pointer">
+                        <input type="checkbox" name="remise_gamme_actif" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Remise gamme active</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg cursor-pointer">
+                        <input type="checkbox" name="remise_quantite_actif" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Remise quantité active</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg cursor-pointer">
+                        <input type="checkbox" name="rfa_actif" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">RFA (Remise de Fin d'Année) active</span>
+                    </label>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+                    <textarea name="notes" rows="2" placeholder="Notes éventuelles..." class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                </div>
+
+                <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                    <input type="checkbox" name="actif" checked class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    Fournisseur actif
+                </label>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeFournisseurModal()" class="flex-1 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium transition-colors">Annuler</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: CONFIRMATION SUPPRESSION ==================== -->
+    <div id="modal-delete" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/50" onclick="closeDeleteModal()"></div>
+        <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center">
+            <div class="w-14 h-14 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Supprimer ce fournisseur ?</h3>
+            <p id="delete-msg" class="text-sm text-gray-500 dark:text-gray-400 mb-6">Cette action est irréversible.</p>
+            <div class="flex gap-3">
+                <button onclick="closeDeleteModal()" class="flex-1 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium transition-colors">Annuler</button>
+                <button onclick="confirmDelete()" class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">Supprimer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TOAST CONTAINER ==================== -->
+    <div id="toast-container" class="fixed top-20 right-4 z-[100] space-y-2 w-80">
+    </div>
+
+    <!-- ==================== JAVASCRIPT ==================== -->
+    <script>
+    // ============================================================
+    // CONFIG
+    // ============================================================
+    const STORAGE_KEY = 'pharmaverif_standalone';
+    const DARK_KEY = 'pharmaverif_dark';
+    let currentTypeFilter = 'tous';
+    let deleteTargetId = null;
+
+    // ============================================================
+    // FORMATTING
+    // ============================================================
+    function formatEuro(v) {
+        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(v || 0);
+    }
+    function formatPourcent(v) {
+        return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v || 0) + '%';
+    }
+    function formatDate(d) {
+        if (!d) return '-';
+        return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    // ============================================================
+    // DATA LAYER
+    // ============================================================
+    const DEFAULT_DATA = {
+        fournisseurs: [
+            {
+                id: 1, nom: 'CERP Rouen', type_fournisseur: 'grossiste',
+                remise_base: 3.0, cooperation_commerciale: 2.0, escompte: 0.5, franco: 1500,
+                remise_gamme_actif: false, remise_quantite_actif: false, rfa_actif: false,
+                actif: true, notes: 'Fournisseur principal',
+                conditions_specifiques: [
+                    {
+                        id: 1, type_condition: 'remise_volume', nom: 'Palier volume mensuel',
+                        description: 'Remise supplémentaire selon le volume mensuel',
+                        parametres: { seuils: [{ min: 15000, taux: 0.5 }, { min: 25000, taux: 1.0 }] },
+                        actif: true
+                    }
+                ],
+                created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z'
+            },
+            {
+                id: 2, nom: 'OCP', type_fournisseur: 'grossiste',
+                remise_base: 2.5, cooperation_commerciale: 2.0, escompte: 0.5, franco: 1200,
+                remise_gamme_actif: false, remise_quantite_actif: false, rfa_actif: false,
+                actif: true, notes: '',
+                conditions_specifiques: [],
+                created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z'
+            },
+            {
+                id: 3, nom: 'Alliance Healthcare', type_fournisseur: 'grossiste',
+                remise_base: 3.5, cooperation_commerciale: 1.5, escompte: 0, franco: 1800,
+                remise_gamme_actif: false, remise_quantite_actif: false, rfa_actif: false,
+                actif: true, notes: '',
+                conditions_specifiques: [],
+                created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z'
+            },
+            {
+                id: 4, nom: 'Sanofi', type_fournisseur: 'laboratoire',
+                remise_base: 0, cooperation_commerciale: 0, escompte: 0, franco: 0,
+                remise_gamme_actif: true, remise_quantite_actif: true, rfa_actif: true,
+                actif: true, notes: 'Laboratoire partenaire',
+                conditions_specifiques: [],
+                created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z'
+            }
+        ],
+        factures: [
+            {
+                id: 1, numero: 'FAC-CERP-001', date: '2026-01-15', fournisseur_id: 1,
+                montant_brut_ht: 5230.00, remises_ligne_a_ligne: 157.00, remises_pied_facture: 80.00,
+                frais_port: 0, net_a_payer: 4993.00,
+                statut_verification: 'anomalie',
+                anomalies: [
+                    { type_anomalie: 'remise_manquante', description: 'Remise insuffisante de 50,65 € (attendu : 287,65 €, facturé : 237,00 €)', montant_ecart: 50.65, niveau_severite: 'warning' }
+                ],
+                created_at: '2026-01-15T10:00:00Z'
+            },
+            {
+                id: 2, numero: 'FAC-OCP-001', date: '2026-01-22', fournisseur_id: 2,
+                montant_brut_ht: 3200.00, remises_ligne_a_ligne: 80.00, remises_pied_facture: 80.00,
+                frais_port: 0, net_a_payer: 3040.00,
+                statut_verification: 'conforme',
+                anomalies: [],
+                created_at: '2026-01-22T14:30:00Z'
+            }
+        ],
+        nextFournisseurId: 5,
+        nextFactureId: 3
+    };
+
+    function initData() {
+        if (!localStorage.getItem(STORAGE_KEY)) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_DATA));
+        }
+    }
+
+    function getData() {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY));
+    }
+
+    function saveData(data) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function getFournisseurs() {
+        return getData().fournisseurs;
+    }
+
+    function getActiveFournisseurs() {
+        return getFournisseurs().filter(f => f.actif);
+    }
+
+    function getFournisseurById(id) {
+        return getFournisseurs().find(f => f.id === id);
+    }
+
+    function getFactures() {
+        return getData().factures;
+    }
+
+    function saveFacture(facture) {
+        const data = getData();
+        if (!facture.id) {
+            facture.id = data.nextFactureId++;
+            facture.created_at = new Date().toISOString();
+        }
+        const idx = data.factures.findIndex(f => f.id === facture.id);
+        if (idx >= 0) {
+            data.factures[idx] = facture;
+        } else {
+            data.factures.push(facture);
+        }
+        saveData(data);
+        return facture;
+    }
+
+    function saveFournisseurData(fournisseur) {
+        const data = getData();
+        if (!fournisseur.id) {
+            fournisseur.id = data.nextFournisseurId++;
+            fournisseur.created_at = new Date().toISOString();
+            fournisseur.conditions_specifiques = fournisseur.conditions_specifiques || [];
+        }
+        fournisseur.updated_at = new Date().toISOString();
+        const idx = data.fournisseurs.findIndex(f => f.id === fournisseur.id);
+        if (idx >= 0) {
+            // Preserve conditions_specifiques if not provided
+            if (!fournisseur.conditions_specifiques) {
+                fournisseur.conditions_specifiques = data.fournisseurs[idx].conditions_specifiques || [];
+            }
+            data.fournisseurs[idx] = fournisseur;
+        } else {
+            data.fournisseurs.push(fournisseur);
+        }
+        saveData(data);
+        return fournisseur;
+    }
+
+    function deleteFournisseurData(id) {
+        const data = getData();
+        data.fournisseurs = data.fournisseurs.filter(f => f.id !== id);
+        saveData(data);
+    }
+
+    // ============================================================
+    // BUSINESS LOGIC - VÉRIFICATION
+    // ============================================================
+    function verifierFacture(facture, fournisseur) {
+        const anomalies = [];
+
+        // 1. Cohérence calculs
+        const remiseTotale = (facture.remises_ligne_a_ligne || 0) + (facture.remises_pied_facture || 0);
+        const netCalcule = facture.montant_brut_ht - remiseTotale;
+
+        if (Math.abs(netCalcule - facture.net_a_payer) > 1.0) {
+            anomalies.push({
+                type_anomalie: 'ecart_calcul',
+                description: `Incohérence de calcul : net calculé ${formatEuro(netCalcule)} vs facturé ${formatEuro(facture.net_a_payer)}`,
+                montant_ecart: Math.abs(netCalcule - facture.net_a_payer),
+                niveau_severite: 'erreur'
+            });
+        }
+
+        // 2. Vérification selon type fournisseur
+        if (fournisseur.type_fournisseur === 'grossiste') {
+            verifierGrossiste(facture, fournisseur, anomalies);
+        } else if (fournisseur.type_fournisseur === 'laboratoire') {
+            verifierLaboratoire(facture, fournisseur, anomalies);
+        }
+
+        // 3. Conditions spécifiques
+        if (fournisseur.conditions_specifiques && fournisseur.conditions_specifiques.length > 0) {
+            verifierConditions(facture, fournisseur, anomalies);
+        }
+
+        return anomalies;
+    }
+
+    function verifierGrossiste(facture, fournisseur, anomalies) {
+        const tauxTotal = (fournisseur.remise_base || 0) + (fournisseur.cooperation_commerciale || 0) + (fournisseur.escompte || 0);
+        const remiseAttendue = facture.montant_brut_ht * tauxTotal / 100;
+        const remiseReelle = (facture.remises_ligne_a_ligne || 0) + (facture.remises_pied_facture || 0);
+        const ecart = remiseAttendue - remiseReelle;
+
+        if (ecart > 5.0) {
+            anomalies.push({
+                type_anomalie: 'remise_manquante',
+                description: `Remise insuffisante de ${formatEuro(ecart)} (attendu : ${formatEuro(remiseAttendue)}, facturé : ${formatEuro(remiseReelle)})`,
+                montant_ecart: ecart,
+                niveau_severite: ecart > 100 ? 'erreur' : 'warning'
+            });
+        } else if (ecart < -5.0) {
+            anomalies.push({
+                type_anomalie: 'remise_incorrecte',
+                description: `Remise supérieure aux conditions : ${formatEuro(remiseReelle)} au lieu de ${formatEuro(remiseAttendue)}`,
+                montant_ecart: 0,
+                niveau_severite: 'warning'
+            });
+        }
+
+        // Franco
+        if (fournisseur.franco > 0 && facture.montant_brut_ht >= fournisseur.franco && (facture.frais_port || 0) > 5) {
+            anomalies.push({
+                type_anomalie: 'franco_non_respecte',
+                description: `Frais de port de ${formatEuro(facture.frais_port)} facturés alors que le franco de ${formatEuro(fournisseur.franco)} est atteint`,
+                montant_ecart: facture.frais_port || 0,
+                niveau_severite: 'warning'
+            });
+        }
+    }
+
+    function verifierLaboratoire(facture, fournisseur, anomalies) {
+        const remiseTotale = (facture.remises_ligne_a_ligne || 0) + (facture.remises_pied_facture || 0);
+        if (facture.montant_brut_ht > 5000 && remiseTotale === 0) {
+            anomalies.push({
+                type_anomalie: 'remise_manquante',
+                description: `Commande de ${formatEuro(facture.montant_brut_ht)} sans aucune remise appliquée`,
+                montant_ecart: 0,
+                niveau_severite: 'warning'
+            });
+        }
+    }
+
+    function verifierConditions(facture, fournisseur, anomalies) {
+        fournisseur.conditions_specifiques.forEach(condition => {
+            if (!condition.actif) return;
+
+            if (condition.type_condition === 'remise_volume' && condition.parametres && condition.parametres.seuils) {
+                const palier = condition.parametres.seuils
+                    .filter(s => facture.montant_brut_ht >= s.min)
+                    .sort((a, b) => b.min - a.min)[0];
+
+                if (palier) {
+                    const remiseVolume = facture.montant_brut_ht * palier.taux / 100;
+                    anomalies.push({
+                        type_anomalie: 'condition_non_respectee',
+                        description: `${condition.nom} : palier ${formatEuro(palier.min)} atteint (+${palier.taux}%), remise supplémentaire attendue ~${formatEuro(remiseVolume)}`,
+                        montant_ecart: 0,
+                        niveau_severite: 'info'
+                    });
+                }
+            }
+
+            if (condition.type_condition === 'franco_seuil' && condition.parametres) {
+                const seuil = condition.parametres.seuil_montant || 0;
+                if (facture.montant_brut_ht >= seuil && (facture.frais_port || 0) > 5) {
+                    anomalies.push({
+                        type_anomalie: 'condition_non_respectee',
+                        description: `${condition.nom} : seuil de ${formatEuro(seuil)} atteint, frais de port injustifiés`,
+                        montant_ecart: facture.frais_port || 0,
+                        niveau_severite: 'warning'
+                    });
+                }
+            }
+
+            if (condition.type_condition === 'rfa' && condition.parametres) {
+                anomalies.push({
+                    type_anomalie: 'rfa_non_appliquee',
+                    description: `${condition.nom} : vérifier l'atteinte de l'objectif annuel de ${formatEuro(condition.parametres.objectif_annuel || 0)} (RFA ${condition.parametres.taux_rfa || 0}%)`,
+                    montant_ecart: 0,
+                    niveau_severite: 'info'
+                });
+            }
+        });
+    }
+
+    // ============================================================
+    // TOAST NOTIFICATIONS
+    // ============================================================
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const colors = {
+            success: 'bg-green-500',
+            error: 'bg-red-500',
+            warning: 'bg-amber-500',
+            info: 'bg-blue-500'
+        };
+        const icons = {
+            success: '<path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
+            error: '<path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
+            warning: '<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>',
+            info: '<path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'
+        };
+
+        const toast = document.createElement('div');
+        toast.className = `toast-slide flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white text-sm ${colors[type]}`;
+        toast.innerHTML = `
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">${icons[type]}</svg>
+            <span>${message}</span>
+        `;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // ============================================================
+    // NAVIGATION
+    // ============================================================
+    function showPage(pageId) {
+        document.querySelectorAll('[id^="page-"]').forEach(p => {
+            p.classList.add('hidden');
+            p.classList.remove('fade-in');
+        });
+        const page = document.getElementById(pageId);
+        page.classList.remove('hidden');
+        // Trigger reflow for animation
+        void page.offsetWidth;
+        page.classList.add('fade-in');
+
+        // Update nav tabs
+        document.querySelectorAll('.nav-tab, .nav-tab-mobile').forEach(btn => {
+            const isActive = btn.dataset.page === pageId;
+            if (isActive) {
+                btn.classList.add('bg-blue-50', 'dark:bg-blue-900/20', 'text-blue-600', 'dark:text-blue-400');
+                btn.classList.remove('text-gray-600', 'dark:text-gray-300');
+            } else {
+                btn.classList.remove('bg-blue-50', 'dark:bg-blue-900/20', 'text-blue-600', 'dark:text-blue-400');
+                btn.classList.add('text-gray-600', 'dark:text-gray-300');
+            }
+        });
+
+        // Re-render pages
+        if (pageId === 'page-dashboard') renderDashboard();
+        if (pageId === 'page-fournisseurs') renderFournisseurs();
+        if (pageId === 'page-verification') populateFournisseurSelect();
+    }
+
+    function toggleMobileMenu() {
+        document.getElementById('mobile-menu').classList.toggle('hidden');
+    }
+
+    // ============================================================
+    // DARK MODE
+    // ============================================================
+    function initDarkMode() {
+        const stored = localStorage.getItem(DARK_KEY);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDark = stored === 'true' || (stored === null && prefersDark);
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+        }
+        updateDarkIcons();
+    }
+
+    function toggleDarkMode() {
+        document.documentElement.classList.toggle('dark');
+        const isDark = document.documentElement.classList.contains('dark');
+        localStorage.setItem(DARK_KEY, isDark);
+        updateDarkIcons();
+    }
+
+    function updateDarkIcons() {
+        const isDark = document.documentElement.classList.contains('dark');
+        document.getElementById('icon-sun').classList.toggle('hidden', !isDark);
+        document.getElementById('icon-moon').classList.toggle('hidden', isDark);
+    }
+
+    // ============================================================
+    // RENDER: DASHBOARD
+    // ============================================================
+    function renderDashboard() {
+        const factures = getFactures();
+        const fournisseurs = getFournisseurs();
+
+        // KPIs
+        const totalFactures = factures.filter(f => f.statut_verification !== 'non_verifie').length;
+        let totalAnomalies = 0;
+        let totalMontant = 0;
+        let conformes = 0;
+
+        factures.forEach(f => {
+            if (f.anomalies) {
+                totalAnomalies += f.anomalies.length;
+                f.anomalies.forEach(a => { totalMontant += a.montant_ecart || 0; });
+            }
+            if (f.statut_verification === 'conforme') conformes++;
+        });
+
+        const tauxConformite = totalFactures > 0 ? (conformes / totalFactures * 100) : 0;
+
+        document.getElementById('kpi-factures').textContent = totalFactures;
+        document.getElementById('kpi-anomalies').textContent = totalAnomalies;
+        document.getElementById('kpi-montant').textContent = formatEuro(totalMontant);
+        document.getElementById('kpi-conformite').textContent = formatPourcent(tauxConformite);
+
+        // Factures table
+        const tbody = document.getElementById('dashboard-factures-body');
+        const emptyEl = document.getElementById('dashboard-factures-empty');
+
+        if (factures.length === 0) {
+            tbody.innerHTML = '';
+            emptyEl.classList.remove('hidden');
+        } else {
+            emptyEl.classList.add('hidden');
+            tbody.innerHTML = factures.slice().reverse().slice(0, 10).map(f => {
+                const fournisseur = getFournisseurById(f.fournisseur_id);
+                const statutClass = f.statut_verification === 'conforme'
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                    : f.statut_verification === 'anomalie'
+                    ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400';
+                const statutLabel = f.statut_verification === 'conforme' ? 'Conforme'
+                    : f.statut_verification === 'anomalie' ? 'Anomalie' : 'Non vérifié';
+                const nbAnomalies = f.anomalies ? f.anomalies.length : 0;
+
+                return `<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">${f.numero}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">${fournisseur ? fournisseur.nom : '-'}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">${formatDate(f.date)}</td>
+                    <td class="px-6 py-4 text-sm text-right font-medium text-gray-900 dark:text-white">${formatEuro(f.net_a_payer)}</td>
+                    <td class="px-6 py-4 text-center"><span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${statutClass}">${statutLabel}</span></td>
+                    <td class="px-6 py-4 text-center text-sm ${nbAnomalies > 0 ? 'text-red-600 font-semibold' : 'text-gray-400'}">${nbAnomalies}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // Anomalies récentes
+        const anomContainer = document.getElementById('dashboard-anomalies');
+        const anomEmpty = document.getElementById('dashboard-anomalies-empty');
+        const allAnomalies = [];
+        factures.forEach(f => {
+            if (f.anomalies) {
+                f.anomalies.forEach(a => {
+                    allAnomalies.push({ ...a, facture_numero: f.numero, facture_date: f.date });
+                });
+            }
+        });
+
+        if (allAnomalies.length === 0) {
+            anomContainer.innerHTML = '';
+            anomEmpty.classList.remove('hidden');
+        } else {
+            anomEmpty.classList.add('hidden');
+            anomContainer.innerHTML = allAnomalies.slice(-5).reverse().map(a => {
+                const sevColors = {
+                    erreur: 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20',
+                    warning: 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20',
+                    info: 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
+                };
+                const sevBadge = {
+                    erreur: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
+                    warning: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
+                    info: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'
+                };
+                const sevLabel = { erreur: 'Erreur', warning: 'Attention', info: 'Info' };
+                const typeLabels = {
+                    remise_manquante: 'Remise manquante', ecart_calcul: 'Écart de calcul',
+                    remise_incorrecte: 'Remise incorrecte', franco_non_respecte: 'Franco non respecté',
+                    prix_suspect: 'Prix suspect', remise_volume_manquante: 'Remise volume',
+                    condition_non_respectee: 'Condition non respectée', rfa_non_appliquee: 'RFA non appliquée'
+                };
+
+                return `<div class="rounded-lg border p-3 ${sevColors[a.niveau_severite] || sevColors.info}">
+                    <div class="flex items-start justify-between gap-2 mb-1">
+                        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">${a.facture_numero}</span>
+                        <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${sevBadge[a.niveau_severite] || sevBadge.info}">${sevLabel[a.niveau_severite] || a.niveau_severite}</span>
+                    </div>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">${typeLabels[a.type_anomalie] || a.type_anomalie}</p>
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">${a.description}</p>
+                    ${a.montant_ecart > 0 ? `<p class="text-sm font-bold text-red-600 mt-2">${formatEuro(a.montant_ecart)}</p>` : ''}
+                </div>`;
+            }).join('');
+        }
+    }
+
+    // ============================================================
+    // RENDER: VÉRIFICATION
+    // ============================================================
+    function populateFournisseurSelect() {
+        const select = document.getElementById('verif-fournisseur');
+        const current = select.value;
+        const fournisseurs = getActiveFournisseurs();
+
+        // Preserve first option
+        select.innerHTML = '<option value="">Choisir un fournisseur...</option>';
+        fournisseurs.forEach(f => {
+            const typeBadge = f.type_fournisseur === 'grossiste' ? '(G)' : f.type_fournisseur === 'laboratoire' ? '(L)' : '(A)';
+            const opt = document.createElement('option');
+            opt.value = f.id;
+            opt.textContent = `${f.nom} ${typeBadge}`;
+            select.appendChild(opt);
+        });
+
+        if (current) select.value = current;
+        updateVerifButton();
+    }
+
+    function onFournisseurChange() {
+        const id = parseInt(document.getElementById('verif-fournisseur').value);
+        const condDiv = document.getElementById('verif-conditions');
+
+        if (!id) {
+            condDiv.classList.add('hidden');
+            updateVerifButton();
+            return;
+        }
+
+        const f = getFournisseurById(id);
+        if (!f) { condDiv.classList.add('hidden'); return; }
+
+        let html = `<p class="text-sm font-medium text-gray-900 dark:text-white mb-2">Conditions contractuelles :</p><ul class="text-sm text-gray-700 dark:text-gray-300 space-y-1">`;
+
+        if (f.type_fournisseur === 'grossiste') {
+            html += `<li>• Remise de base : ${f.remise_base}%</li>`;
+            html += `<li>• Coopération commerciale : ${f.cooperation_commerciale}%</li>`;
+            html += `<li>• Escompte : ${f.escompte}%</li>`;
+            html += `<li>• Franco : ${formatEuro(f.franco)}</li>`;
+            const total = f.remise_base + f.cooperation_commerciale + f.escompte;
+            html += `<li class="font-semibold pt-1 border-t border-blue-200 dark:border-blue-700 mt-2">Total : ${total.toFixed(1)}%</li>`;
+        } else if (f.type_fournisseur === 'laboratoire') {
+            if (f.remise_gamme_actif) html += `<li>• Remise gamme active</li>`;
+            if (f.remise_quantite_actif) html += `<li>• Remise quantité active</li>`;
+            if (f.rfa_actif) html += `<li>• RFA active</li>`;
+            if (!f.remise_gamme_actif && !f.remise_quantite_actif && !f.rfa_actif) {
+                html += `<li class="text-gray-400 italic">Aucune condition spécifique</li>`;
+            }
+        } else {
+            html += `<li class="text-gray-400 italic">Conditions spécifiques uniquement</li>`;
+        }
+
+        if (f.conditions_specifiques && f.conditions_specifiques.length > 0) {
+            html += `<li class="pt-1 border-t border-blue-200 dark:border-blue-700 mt-2 font-medium">${f.conditions_specifiques.filter(c => c.actif).length} condition(s) paramétrée(s)</li>`;
+        }
+
+        html += '</ul>';
+        condDiv.innerHTML = html;
+        condDiv.classList.remove('hidden');
+        updateVerifButton();
+    }
+
+    function updateVerifButton() {
+        const fId = document.getElementById('verif-fournisseur').value;
+        document.getElementById('btn-verifier').disabled = !fId;
+    }
+
+    function handleVerification(e) {
+        e.preventDefault();
+        const fId = parseInt(document.getElementById('verif-fournisseur').value);
+        if (!fId) return;
+
+        const fournisseur = getFournisseurById(fId);
+        if (!fournisseur) { showToast('Fournisseur introuvable', 'error'); return; }
+
+        const form = e.target;
+        const facture = {
+            numero: form.numero.value,
+            date: form.date.value,
+            fournisseur_id: fId,
+            montant_brut_ht: parseFloat(form.montant_brut.value) || 0,
+            remises_ligne_a_ligne: parseFloat(form.remises_ligne.value) || 0,
+            remises_pied_facture: parseFloat(form.remises_pied.value) || 0,
+            frais_port: parseFloat(form.frais_port.value) || 0,
+            net_a_payer: parseFloat(form.net_a_payer.value) || 0
+        };
+
+        const anomalies = verifierFacture(facture, fournisseur);
+        facture.anomalies = anomalies;
+        facture.statut_verification = anomalies.filter(a => a.niveau_severite !== 'info').length > 0 ? 'anomalie' : 'conforme';
+
+        saveFacture(facture);
+        displayResults(facture, anomalies, fournisseur);
+
+        if (facture.statut_verification === 'conforme') {
+            showToast('Facture conforme ! Aucune anomalie détectée.', 'success');
+        } else {
+            showToast(`${anomalies.length} anomalie(s) détectée(s)`, 'warning');
+        }
+    }
+
+    function displayResults(facture, anomalies, fournisseur) {
+        document.getElementById('verif-empty').classList.add('hidden');
+        const container = document.getElementById('verif-results');
+        container.classList.remove('hidden');
+
+        const isConforme = facture.statut_verification === 'conforme';
+        const totalEcart = anomalies.reduce((s, a) => s + (a.montant_ecart || 0), 0);
+        const typeLabels = {
+            remise_manquante: 'Remise manquante', ecart_calcul: 'Écart de calcul',
+            remise_incorrecte: 'Remise incorrecte', franco_non_respecte: 'Franco non respecté',
+            prix_suspect: 'Prix suspect', remise_volume_manquante: 'Remise volume',
+            condition_non_respectee: 'Condition non respectée', rfa_non_appliquee: 'RFA non appliquée'
+        };
+        const sevLabel = { erreur: 'Erreur', warning: 'Attention', info: 'Info' };
+
+        let html = '';
+
+        // Status banner
+        if (isConforme) {
+            html += `<div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 flex items-center gap-4">
+                <div class="w-14 h-14 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-green-800 dark:text-green-300">Facture conforme</h3>
+                    <p class="text-green-700 dark:text-green-400 text-sm mt-1">Les montants facturés correspondent aux conditions contractuelles négociées avec ${fournisseur.nom}.</p>
+                </div>
+            </div>`;
+        } else {
+            html += `<div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-6">
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 bg-amber-100 dark:bg-amber-900/40 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg class="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold text-amber-800 dark:text-amber-300">${anomalies.length} anomalie(s) détectée(s)</h3>
+                        <p class="text-amber-700 dark:text-amber-400 text-sm mt-1">Des écarts ont été identifiés par rapport aux conditions négociées.</p>
+                    </div>
+                    ${totalEcart > 0 ? `<div class="text-right"><p class="text-sm text-gray-500 dark:text-gray-400">Montant récupérable</p><p class="text-2xl font-bold text-red-600">${formatEuro(totalEcart)}</p></div>` : ''}
+                </div>
+            </div>`;
+        }
+
+        // Summary
+        html += `<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h4 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Récapitulatif</h4>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                <div><p class="text-gray-500 dark:text-gray-400">Numéro</p><p class="font-medium text-gray-900 dark:text-white">${facture.numero}</p></div>
+                <div><p class="text-gray-500 dark:text-gray-400">Fournisseur</p><p class="font-medium text-gray-900 dark:text-white">${fournisseur.nom}</p></div>
+                <div><p class="text-gray-500 dark:text-gray-400">Montant brut HT</p><p class="font-medium text-gray-900 dark:text-white">${formatEuro(facture.montant_brut_ht)}</p></div>
+                <div><p class="text-gray-500 dark:text-gray-400">Net à payer</p><p class="font-medium text-gray-900 dark:text-white">${formatEuro(facture.net_a_payer)}</p></div>
+            </div>
+        </div>`;
+
+        // Anomalies detail
+        if (anomalies.length > 0) {
+            html += `<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                    <h4 class="text-base font-semibold text-gray-900 dark:text-white">Détail des anomalies</h4>
+                </div>
+                <div class="p-4 space-y-3">`;
+
+            anomalies.forEach((a, i) => {
+                const sevColors = {
+                    erreur: 'border-l-red-500 bg-red-50 dark:bg-red-900/10',
+                    warning: 'border-l-amber-500 bg-amber-50 dark:bg-amber-900/10',
+                    info: 'border-l-blue-500 bg-blue-50 dark:bg-blue-900/10'
+                };
+                const sevBadge = {
+                    erreur: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
+                    warning: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
+                    info: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'
+                };
+
+                html += `<div class="rounded-lg border-l-4 p-4 ${sevColors[a.niveau_severite] || sevColors.info}">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm font-semibold text-gray-900 dark:text-white">${typeLabels[a.type_anomalie] || a.type_anomalie}</span>
+                                <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${sevBadge[a.niveau_severite] || sevBadge.info}">${sevLabel[a.niveau_severite] || a.niveau_severite}</span>
+                            </div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">${a.description}</p>
+                        </div>
+                        ${a.montant_ecart > 0 ? `<p class="text-lg font-bold text-red-600 flex-shrink-0">${formatEuro(a.montant_ecart)}</p>` : ''}
+                    </div>
+                </div>`;
+            });
+
+            html += `</div></div>`;
+        }
+
+        // New verification button
+        html += `<div class="flex justify-center">
+            <button onclick="resetVerification()" class="inline-flex items-center gap-2 px-6 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Nouvelle vérification
+            </button>
+        </div>`;
+
+        container.innerHTML = html;
+    }
+
+    function resetVerification() {
+        document.getElementById('form-verification').reset();
+        document.getElementById('verif-fournisseur').value = '';
+        document.getElementById('verif-conditions').classList.add('hidden');
+        document.getElementById('verif-results').classList.add('hidden');
+        document.getElementById('verif-results').innerHTML = '';
+        document.getElementById('verif-empty').classList.remove('hidden');
+        updateVerifButton();
+    }
+
+    // ============================================================
+    // RENDER: FOURNISSEURS
+    // ============================================================
+    function setTypeFilter(type) {
+        currentTypeFilter = type;
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            const isActive = btn.dataset.filter === type;
+            if (isActive) {
+                btn.classList.add('bg-blue-600', 'text-white');
+                btn.classList.remove('bg-white', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-50', 'dark:hover:bg-gray-700');
+            } else {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('bg-white', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-50', 'dark:hover:bg-gray-700');
+            }
+        });
+        renderFournisseurs();
+    }
+
+    function renderFournisseurs() {
+        let fournisseurs = getFournisseurs();
+        const actifsOnly = document.getElementById('filter-actifs').checked;
+
+        if (currentTypeFilter !== 'tous') {
+            fournisseurs = fournisseurs.filter(f => f.type_fournisseur === currentTypeFilter);
+        }
+        if (actifsOnly) {
+            fournisseurs = fournisseurs.filter(f => f.actif);
+        }
+
+        const grid = document.getElementById('fournisseurs-grid');
+        const empty = document.getElementById('fournisseurs-empty');
+
+        if (fournisseurs.length === 0) {
+            grid.innerHTML = '';
+            empty.classList.remove('hidden');
+            return;
+        }
+
+        empty.classList.add('hidden');
+
+        grid.innerHTML = fournisseurs.map(f => {
+            const typeBadgeClass = f.type_fournisseur === 'grossiste'
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                : f.type_fournisseur === 'laboratoire'
+                ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
+                : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+            const typeLabel = f.type_fournisseur === 'grossiste' ? 'Grossiste'
+                : f.type_fournisseur === 'laboratoire' ? 'Laboratoire' : 'Autre';
+
+            let conditionsHtml = '';
+            if (f.type_fournisseur === 'grossiste') {
+                const total = (f.remise_base || 0) + (f.cooperation_commerciale || 0) + (f.escompte || 0);
+                conditionsHtml = `
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div><span class="text-gray-500 dark:text-gray-400">Remise base</span><p class="font-medium text-gray-900 dark:text-white">${f.remise_base}%</p></div>
+                        <div><span class="text-gray-500 dark:text-gray-400">Coopération</span><p class="font-medium text-gray-900 dark:text-white">${f.cooperation_commerciale}%</p></div>
+                        <div><span class="text-gray-500 dark:text-gray-400">Escompte</span><p class="font-medium text-gray-900 dark:text-white">${f.escompte}%</p></div>
+                        <div><span class="text-gray-500 dark:text-gray-400">Franco</span><p class="font-medium text-gray-900 dark:text-white">${formatEuro(f.franco)}</p></div>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 text-sm">
+                        <span class="text-gray-500 dark:text-gray-400">Remise totale :</span>
+                        <span class="font-bold text-blue-600 ml-1">${total.toFixed(1)}%</span>
+                    </div>`;
+            } else if (f.type_fournisseur === 'laboratoire') {
+                const toggles = [];
+                if (f.remise_gamme_actif) toggles.push('Remise gamme');
+                if (f.remise_quantite_actif) toggles.push('Remise quantité');
+                if (f.rfa_actif) toggles.push('RFA');
+                conditionsHtml = toggles.length > 0
+                    ? `<div class="flex flex-wrap gap-2">${toggles.map(t => `<span class="inline-flex px-2 py-1 rounded-md text-xs font-medium bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400">${t}</span>`).join('')}</div>`
+                    : `<p class="text-sm text-gray-400 italic">Aucune condition active</p>`;
+            } else {
+                conditionsHtml = `<p class="text-sm text-gray-400 italic">Conditions spécifiques</p>`;
+            }
+
+            const nbConditions = f.conditions_specifiques ? f.conditions_specifiques.filter(c => c.actif).length : 0;
+
+            return `<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 card-hover">
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${f.nom}</h3>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${typeBadgeClass}">${typeLabel}</span>
+                            ${!f.actif ? '<span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">Inactif</span>' : ''}
+                            ${nbConditions > 0 ? `<span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400">${nbConditions} cond.</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-4">${conditionsHtml}</div>
+                ${f.notes ? `<p class="text-xs text-gray-400 dark:text-gray-500 mb-4 italic">${f.notes}</p>` : ''}
+                <div class="flex gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <button onclick="openFournisseurModal(${f.id})" class="flex-1 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">Modifier</button>
+                    <button onclick="openDeleteModal(${f.id})" class="flex-1 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Supprimer</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // ============================================================
+    // MODAL: FOURNISSEUR (CREATE / EDIT)
+    // ============================================================
+    function openFournisseurModal(id) {
+        const modal = document.getElementById('modal-fournisseur');
+        const form = document.getElementById('form-fournisseur');
+        const title = document.getElementById('modal-fournisseur-title');
+
+        form.reset();
+
+        if (id) {
+            const f = getFournisseurById(id);
+            if (!f) return;
+            title.textContent = 'Modifier le fournisseur';
+            form.id_field_value = id;
+            form.querySelector('[name="id"]').value = id;
+            form.querySelector('[name="nom"]').value = f.nom;
+            form.querySelector('[name="type_fournisseur"]').value = f.type_fournisseur;
+            form.querySelector('[name="remise_base"]').value = f.remise_base || 0;
+            form.querySelector('[name="cooperation_commerciale"]').value = f.cooperation_commerciale || 0;
+            form.querySelector('[name="escompte"]').value = f.escompte || 0;
+            form.querySelector('[name="franco"]').value = f.franco || 0;
+            form.querySelector('[name="remise_gamme_actif"]').checked = f.remise_gamme_actif || false;
+            form.querySelector('[name="remise_quantite_actif"]').checked = f.remise_quantite_actif || false;
+            form.querySelector('[name="rfa_actif"]').checked = f.rfa_actif || false;
+            form.querySelector('[name="notes"]').value = f.notes || '';
+            form.querySelector('[name="actif"]').checked = f.actif !== false;
+            onModalTypeChange(f.type_fournisseur);
+        } else {
+            title.textContent = 'Ajouter un fournisseur';
+            form.querySelector('[name="id"]').value = '';
+            form.querySelector('[name="actif"]').checked = true;
+            onModalTypeChange('grossiste');
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    function closeFournisseurModal() {
+        document.getElementById('modal-fournisseur').classList.add('hidden');
+    }
+
+    function onModalTypeChange(type) {
+        const grossisteFields = document.getElementById('modal-grossiste-fields');
+        const laboFields = document.getElementById('modal-labo-fields');
+
+        if (type === 'grossiste') {
+            grossisteFields.classList.remove('hidden');
+            laboFields.classList.add('hidden');
+        } else if (type === 'laboratoire') {
+            grossisteFields.classList.add('hidden');
+            laboFields.classList.remove('hidden');
+        } else {
+            grossisteFields.classList.add('hidden');
+            laboFields.classList.add('hidden');
+        }
+    }
+
+    function saveFournisseur(e) {
+        e.preventDefault();
+        const form = e.target;
+        const idVal = form.querySelector('[name="id"]').value;
+
+        const existing = idVal ? getFournisseurById(parseInt(idVal)) : null;
+
+        const fournisseur = {
+            id: idVal ? parseInt(idVal) : undefined,
+            nom: form.querySelector('[name="nom"]').value.trim(),
+            type_fournisseur: form.querySelector('[name="type_fournisseur"]').value,
+            remise_base: parseFloat(form.querySelector('[name="remise_base"]').value) || 0,
+            cooperation_commerciale: parseFloat(form.querySelector('[name="cooperation_commerciale"]').value) || 0,
+            escompte: parseFloat(form.querySelector('[name="escompte"]').value) || 0,
+            franco: parseFloat(form.querySelector('[name="franco"]').value) || 0,
+            remise_gamme_actif: form.querySelector('[name="remise_gamme_actif"]').checked,
+            remise_quantite_actif: form.querySelector('[name="remise_quantite_actif"]').checked,
+            rfa_actif: form.querySelector('[name="rfa_actif"]').checked,
+            notes: form.querySelector('[name="notes"]').value.trim(),
+            actif: form.querySelector('[name="actif"]').checked,
+            conditions_specifiques: existing ? existing.conditions_specifiques : [],
+            created_at: existing ? existing.created_at : undefined
+        };
+
+        if (!fournisseur.nom) {
+            showToast('Le nom est obligatoire', 'error');
+            return;
+        }
+
+        saveFournisseurData(fournisseur);
+        closeFournisseurModal();
+        renderFournisseurs();
+        showToast(idVal ? 'Fournisseur modifié' : 'Fournisseur ajouté', 'success');
+    }
+
+    // ============================================================
+    // MODAL: SUPPRESSION
+    // ============================================================
+    function openDeleteModal(id) {
+        deleteTargetId = id;
+        const f = getFournisseurById(id);
+        document.getElementById('delete-msg').textContent = `Voulez-vous vraiment supprimer "${f ? f.nom : ''}" ? Cette action est irréversible.`;
+        document.getElementById('modal-delete').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('modal-delete').classList.add('hidden');
+        deleteTargetId = null;
+    }
+
+    function confirmDelete() {
+        if (deleteTargetId) {
+            deleteFournisseurData(deleteTargetId);
+            closeDeleteModal();
+            renderFournisseurs();
+            showToast('Fournisseur supprimé', 'info');
+        }
+    }
+
+    // ============================================================
+    // INITIALIZATION
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        initData();
+        initDarkMode();
+
+        // Set default date
+        const dateInput = document.querySelector('#form-verification [name="date"]');
+        if (dateInput) {
+            dateInput.value = new Date().toISOString().split('T')[0];
+        }
+
+        showPage('page-dashboard');
+    });
+    </script>
+</body>
+</html>

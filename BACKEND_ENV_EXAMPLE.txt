@@ -1,0 +1,203 @@
+# ========================================
+# FICHIER .env POUR BACKEND FASTAPI
+# Copyright (c) 2026 Anas BENDAIKHA
+# ========================================
+#
+# À copier dans : backend/.env
+#
+# IMPORTANT : Ne JAMAIS commiter ce fichier avec de vraies valeurs !
+# Créez un fichier .env.example pour les templates
+#
+
+# ========================================
+# APPLICATION
+# ========================================
+APP_NAME=PharmaVerif API
+APP_VERSION=1.0.0
+DEBUG=True
+ENVIRONMENT=development
+
+# ========================================
+# API CONFIGURATION
+# ========================================
+API_V1_PREFIX=/api/v1
+HOST=0.0.0.0
+PORT=8000
+
+# CORS - Origines autorisées (séparées par des virgules)
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173
+
+# ========================================
+# BASE DE DONNÉES
+# ========================================
+
+# PostgreSQL local
+DATABASE_URL=postgresql+asyncpg://pharmaverif:pharmaverif_password@localhost:5432/pharmaverif_db
+
+# Ou Supabase (remplacer avec vos vraies credentials)
+# DATABASE_URL=postgresql+asyncpg://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT].supabase.co:5432/postgres
+
+# Pool de connexions
+DB_POOL_SIZE=20
+DB_MAX_OVERFLOW=0
+
+# ========================================
+# SÉCURITÉ
+# ========================================
+
+# Clé secrète pour JWT (générer avec : python -c "import secrets; print(secrets.token_urlsafe(32))")
+SECRET_KEY=CHANGEZ_CETTE_CLE_EN_PRODUCTION_utilisez_secrets_token_urlsafe_32
+
+# Algorithme de cryptage
+ALGORITHM=HS256
+
+# Durée de validité du token (en minutes)
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+
+# Mot de passe minimum
+PASSWORD_MIN_LENGTH=8
+
+# ========================================
+# UPLOAD DE FICHIERS
+# ========================================
+
+# Taille maximale des fichiers (en bytes)
+# 10 MB = 10 * 1024 * 1024 = 10485760
+MAX_FILE_SIZE=10485760
+
+# Dossier de stockage temporaire
+UPLOAD_DIR=uploads
+
+# Extensions autorisées (séparées par des virgules)
+ALLOWED_EXTENSIONS=.pdf,.xlsx,.xls,.csv
+
+# Durée de conservation des fichiers uploadés (en heures)
+FILE_RETENTION_HOURS=24
+
+# ========================================
+# OCR CONFIGURATION
+# ========================================
+
+# Chemin vers l'exécutable Tesseract
+# macOS (brew) : /usr/local/bin/tesseract ou /opt/homebrew/bin/tesseract
+# Linux : /usr/bin/tesseract
+# Windows : C:\Program Files\Tesseract-OCR\tesseract.exe
+TESSERACT_PATH=/usr/bin/tesseract
+
+# Langue OCR (fra = français, eng = anglais, fra+eng = les deux)
+OCR_LANGUAGE=fra
+
+# DPI pour conversion PDF -> Image (plus élevé = meilleure qualité mais plus lent)
+OCR_DPI=300
+
+# Mode OCR Tesseract
+# 0 = Orientation et script detection (OSD) only
+# 1 = Automatic page segmentation with OSD
+# 3 = Fully automatic page segmentation (default)
+# 6 = Assume a single uniform block of text
+OCR_PSM_MODE=6
+
+# ========================================
+# REDIS (Pour cache et queue - optionnel)
+# ========================================
+
+# URL Redis
+# REDIS_URL=redis://localhost:6379/0
+
+# Expiration du cache (en secondes)
+# CACHE_EXPIRATION=3600
+
+# ========================================
+# CELERY (Pour tâches asynchrones - optionnel)
+# ========================================
+
+# Broker URL
+# CELERY_BROKER_URL=redis://localhost:6379/0
+
+# Backend URL
+# CELERY_RESULT_BACKEND=redis://localhost:6379/0
+
+# ========================================
+# EMAIL (Pour notifications - optionnel)
+# ========================================
+
+# Configuration SMTP
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=votre-email@gmail.com
+# SMTP_PASSWORD=votre-mot-de-passe-app
+# SMTP_FROM=noreply@pharmaverif.com
+
+# ========================================
+# LOGGING
+# ========================================
+
+# Niveau de log (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+LOG_LEVEL=INFO
+
+# Dossier des logs
+LOG_DIR=logs
+
+# Format des logs
+LOG_FORMAT=[%(asctime)s] %(levelname)s - %(name)s - %(message)s
+
+# ========================================
+# RATE LIMITING
+# ========================================
+
+# Nombre de requêtes max par minute
+# RATE_LIMIT_PER_MINUTE=60
+
+# ========================================
+# MONITORING (Optionnel)
+# ========================================
+
+# Sentry DSN pour error tracking
+# SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
+
+# ========================================
+# DÉVELOPPEMENT
+# ========================================
+
+# Activer le rechargement auto
+AUTO_RELOAD=True
+
+# Activer les docs Swagger
+ENABLE_DOCS=True
+
+# ========================================
+# PRODUCTION
+# ========================================
+
+# En production, configurez :
+# DEBUG=False
+# ENVIRONMENT=production
+# SECRET_KEY=<clé vraiment sécurisée>
+# DATABASE_URL=<URL production>
+# ALLOWED_ORIGINS=https://votre-domaine.com
+
+# ========================================
+# VARIABLES SPÉCIFIQUES À PHARMAVERIF
+# ========================================
+
+# Taux de TVA par défaut (%)
+DEFAULT_TVA_RATE=2.1
+
+# Tolérance pour détection d'anomalies (€)
+ANOMALY_TOLERANCE=5.0
+
+# Nombre de jours de conservation des factures
+INVOICE_RETENTION_DAYS=365
+
+# ========================================
+# FIN DU FICHIER .env
+# ========================================
+
+# INSTRUCTIONS :
+# 1. Copiez ce fichier vers backend/.env
+# 2. Modifiez les valeurs selon votre environnement
+# 3. Générez une vraie SECRET_KEY avec :
+#    python -c "import secrets; print(secrets.token_urlsafe(32))"
+# 4. Configurez votre base de données
+# 5. Ajustez le TESSERACT_PATH selon votre OS
+# 6. Ne commitez JAMAIS le fichier .env sur Git !
