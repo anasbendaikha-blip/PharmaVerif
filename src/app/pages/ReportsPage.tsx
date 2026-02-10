@@ -35,8 +35,9 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+import { Badge } from '../components/ui/badge';
 import { db } from '../data/database';
-import { Facture, Anomalie } from '../types';
+import { Facture, Anomalie, Fournisseur } from '../types';
 import { formatCurrency, formatPercentage } from '../utils/formatNumber';
 
 interface ReportsPageProps {
@@ -113,11 +114,11 @@ export function ReportsPage({ onNavigate: _onNavigate }: ReportsPageProps) {
     });
   }, [timelineData]);
 
-  // Stats by grossiste
-  const grossisteStats = useMemo(() => {
-    const grossistes = db.getAllGrossistes();
-    return grossistes.map((g) => {
-      const gFactures = filteredFactures.filter((f) => f.grossiste_id === g.id);
+  // Stats by fournisseur
+  const fournisseurStats = useMemo(() => {
+    const fournisseurs = db.getAllFournisseurs();
+    return fournisseurs.map((g) => {
+      const gFactures = filteredFactures.filter((f) => f.fournisseur_id === g.id);
       const gAnomalies = filteredAnomalies.filter((a) =>
         gFactures.some((f) => f.id === a.facture_id)
       );
@@ -126,7 +127,9 @@ export function ReportsPage({ onNavigate: _onNavigate }: ReportsPageProps) {
       const taux = gFactures.length > 0 ? (conformes / gFactures.length) * 100 : 0;
 
       return {
+        id: g.id,
         nom: g.nom,
+        type_fournisseur: (g as any).type_fournisseur || 'grossiste',
         factures: gFactures.length,
         anomalies: gAnomalies.length,
         montant: parseFloat(montant.toFixed(2)),
@@ -277,17 +280,18 @@ export function ReportsPage({ onNavigate: _onNavigate }: ReportsPageProps) {
           </Card>
         </div>
 
-        {/* Table by grossiste */}
+        {/* Table by fournisseur */}
         <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>
-            <CardTitle className="text-base dark:text-white">Récapitulatif par grossiste</CardTitle>
+            <CardTitle className="text-base dark:text-white">Récapitulatif par fournisseur</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="dark:text-gray-300">Grossiste</TableHead>
+                    <TableHead className="dark:text-gray-300">Fournisseur</TableHead>
+                    <TableHead className="dark:text-gray-300">Type</TableHead>
                     <TableHead className="text-right dark:text-gray-300">Factures</TableHead>
                     <TableHead className="text-right dark:text-gray-300">Anomalies</TableHead>
                     <TableHead className="text-right dark:text-gray-300">
@@ -297,9 +301,18 @@ export function ReportsPage({ onNavigate: _onNavigate }: ReportsPageProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {grossisteStats.map((g) => (
+                  {fournisseurStats.map((g) => (
                     <TableRow key={g.nom}>
                       <TableCell className="font-medium dark:text-white">{g.nom}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={
+                          g.type_fournisseur === 'grossiste' ? 'text-blue-700 border-blue-300 bg-blue-50' :
+                          g.type_fournisseur === 'laboratoire' ? 'text-violet-700 border-violet-300 bg-violet-50' :
+                          'text-gray-700 border-gray-300 bg-gray-50'
+                        }>
+                          {g.type_fournisseur}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-right dark:text-gray-300">{g.factures}</TableCell>
                       <TableCell className="text-right dark:text-gray-300">{g.anomalies}</TableCell>
                       <TableCell className="text-right font-medium text-red-600">
@@ -320,10 +333,10 @@ export function ReportsPage({ onNavigate: _onNavigate }: ReportsPageProps) {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {grossisteStats.length === 0 && (
+                  {fournisseurStats.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={6}
                         className="text-center text-gray-500 dark:text-gray-400 py-8"
                       >
                         Aucune donnée disponible

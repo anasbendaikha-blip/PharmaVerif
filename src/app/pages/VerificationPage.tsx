@@ -57,7 +57,7 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
 
   // Single mode state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedGrossisteId, setSelectedGrossisteId] = useState<string>('');
+  const [selectedFournisseurId, setSelectedFournisseurId] = useState<string>('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [verificationComplete, setVerificationComplete] = useState(false);
@@ -72,7 +72,7 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
   const [batchComplete, setBatchComplete] = useState(false);
   const [batchResults, setBatchResults] = useState<BatchResultItem[]>([]);
 
-  const grossistes = db.getAllGrossistes();
+  const fournisseurs = db.getActiveFournisseurs();
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
@@ -104,10 +104,10 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
       }
 
       const savedFacture = db.createFacture(facture);
-      const grossiste = db.getGrossisteById(savedFacture.grossiste_id);
-      if (!grossiste) throw new Error('Grossiste non trouvé');
+      const fournisseur = db.getFournisseurById(savedFacture.fournisseur_id);
+      if (!fournisseur) throw new Error('Fournisseur non trouvé');
 
-      const anomalies = verifyFacture(savedFacture, grossiste);
+      const anomalies = verifyFacture(savedFacture, fournisseur);
 
       anomalies.forEach((anomalie) => {
         db.createAnomalie({ ...anomalie, facture_id: savedFacture.id });
@@ -131,7 +131,7 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
   };
 
   const handleVerification = async () => {
-    if (!selectedFile || !selectedGrossisteId) return;
+    if (!selectedFile || !selectedFournisseurId) return;
 
     setIsVerifying(true);
     setVerificationComplete(false);
@@ -155,7 +155,7 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
           description: `${parsingResult.data.metadata.lignes_total} lignes détectées • Format: ${parsingResult.data.metadata.format_detecte.toUpperCase()}`,
         });
 
-        facture = convertParsedToFacture(parsingResult.data, parseInt(selectedGrossisteId));
+        facture = convertParsedToFacture(parsingResult.data, parseInt(selectedFournisseurId));
       } else {
         if (parsingResult.warnings && parsingResult.warnings.length > 0) {
           toast.error(parsingResult.error || 'Erreur de parsing', {
@@ -169,14 +169,14 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
           description: 'Uploadez un fichier Excel ou CSV pour analyser vos vraies données',
         });
 
-        facture = genererFactureAleatoire(parseInt(selectedGrossisteId));
+        facture = genererFactureAleatoire(parseInt(selectedFournisseurId));
       }
 
       const savedFacture = db.createFacture(facture);
-      const grossiste = db.getGrossisteById(savedFacture.grossiste_id);
-      if (!grossiste) throw new Error('Grossiste non trouvé');
+      const fournisseur = db.getFournisseurById(savedFacture.fournisseur_id);
+      if (!fournisseur) throw new Error('Fournisseur non trouvé');
 
-      const anomalies = verifyFacture(savedFacture, grossiste);
+      const anomalies = verifyFacture(savedFacture, fournisseur);
 
       anomalies.forEach((anomalie) => {
         db.createAnomalie({ ...anomalie, facture_id: savedFacture.id });
@@ -210,7 +210,7 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
   };
 
   const handleBatchVerification = async () => {
-    if (batchFiles.length === 0 || !selectedGrossisteId) return;
+    if (batchFiles.length === 0 || !selectedFournisseurId) return;
 
     setBatchProcessing(true);
     setBatchComplete(false);
@@ -239,7 +239,7 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
       statuses[i] = { ...statuses[i], status: 'verifying' };
       setBatchFileStatuses([...statuses]);
 
-      const result = await processFile(batchFiles[i], parseInt(selectedGrossisteId));
+      const result = await processFile(batchFiles[i], parseInt(selectedFournisseurId));
       results.push(result);
 
       // Update status to done or error
@@ -281,18 +281,18 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
   };
 
   const handleExportPDF = async () => {
-    if (!currentFacture || !selectedGrossisteId) return;
+    if (!currentFacture || !selectedFournisseurId) return;
 
     setIsExporting(true);
 
     try {
-      const grossiste = db.getGrossisteById(parseInt(selectedGrossisteId));
-      if (!grossiste) throw new Error('Grossiste non trouvé');
+      const fournisseur = db.getFournisseurById(parseInt(selectedFournisseurId));
+      if (!fournisseur) throw new Error('Fournisseur non trouvé');
 
       await exportVerificationReport({
         facture: currentFacture,
         anomalies: anomaliesDetectees,
-        grossiste: grossiste,
+        grossiste: fournisseur,
       });
 
       toast.success('Rapport PDF téléchargé avec succès !', {
@@ -310,7 +310,7 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
 
   const handleReset = () => {
     setSelectedFile(null);
-    setSelectedGrossisteId('');
+    setSelectedFournisseurId('');
     setVerificationComplete(false);
     setCurrentFacture(null);
     setAnomaliesDetectees([]);
@@ -376,17 +376,17 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
           <div className="lg:col-span-1 space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>1. Sélectionner le grossiste</CardTitle>
+                <CardTitle>1. Sélectionner le fournisseur</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <Label htmlFor="grossiste">Grossiste pharmaceutique</Label>
-                  <Select value={selectedGrossisteId} onValueChange={setSelectedGrossisteId}>
-                    <SelectTrigger id="grossiste">
-                      <SelectValue placeholder="Choisir un grossiste" />
+                  <Label htmlFor="fournisseur">Fournisseur</Label>
+                  <Select value={selectedFournisseurId} onValueChange={setSelectedFournisseurId}>
+                    <SelectTrigger id="fournisseur">
+                      <SelectValue placeholder="Choisir un fournisseur" />
                     </SelectTrigger>
                     <SelectContent>
-                      {grossistes.map((g) => (
+                      {fournisseurs.map((g) => (
                         <SelectItem key={g.id} value={g.id.toString()}>
                           {g.nom}
                         </SelectItem>
@@ -395,27 +395,40 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
                   </Select>
                 </div>
 
-                {selectedGrossisteId && (
+                {selectedFournisseurId && (
                   <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <p className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                      Remises standard :
+                      Conditions :
                     </p>
                     <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
                       {(() => {
-                        const grossiste = grossistes.find(
-                          (g) => g.id.toString() === selectedGrossisteId
-                        );
-                        if (!grossiste) return null;
-                        return (
-                          <>
-                            <li>• Remise de base : {grossiste.remise_base}%</li>
-                            <li>
-                              • Coopération commerciale : {grossiste.cooperation_commerciale}%
-                            </li>
-                            <li>• Escompte : {grossiste.escompte}%</li>
-                            <li>• Franco : {grossiste.franco}€</li>
-                          </>
-                        );
+                        const fournisseur = fournisseurs.find(
+                          (g) => g.id.toString() === selectedFournisseurId
+                        ) as any;
+                        if (!fournisseur) return null;
+                        const typeFourn = fournisseur.type_fournisseur || 'grossiste';
+                        if (typeFourn === 'grossiste') {
+                          return (
+                            <>
+                              <li>• Remise de base : {fournisseur.remise_base}%</li>
+                              <li>
+                                • Coopération commerciale : {fournisseur.cooperation_commerciale}%
+                              </li>
+                              <li>• Escompte : {fournisseur.escompte}%</li>
+                              <li>• Franco : {fournisseur.franco}€</li>
+                            </>
+                          );
+                        } else if (typeFourn === 'laboratoire') {
+                          return (
+                            <>
+                              {fournisseur.remise_gamme_actif && <li>• Remise gamme active</li>}
+                              {fournisseur.remise_quantite_actif && <li>• Remise quantité active</li>}
+                              {fournisseur.rfa_actif && <li>• RFA active</li>}
+                            </>
+                          );
+                        } else {
+                          return <li>• Conditions spécifiques uniquement</li>;
+                        }
                       })()}
                     </ul>
                   </div>
@@ -445,7 +458,7 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
             {mode === 'single' ? (
               <Button
                 onClick={handleVerification}
-                disabled={!selectedFile || !selectedGrossisteId || isVerifying}
+                disabled={!selectedFile || !selectedFournisseurId || isVerifying}
                 className="w-full bg-blue-600 hover:bg-blue-700"
                 size="lg"
               >
@@ -461,7 +474,7 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
             ) : (
               <Button
                 onClick={handleBatchVerification}
-                disabled={batchFiles.length === 0 || !selectedGrossisteId || batchProcessing}
+                disabled={batchFiles.length === 0 || !selectedFournisseurId || batchProcessing}
                 className="w-full bg-blue-600 hover:bg-blue-700"
                 size="lg"
               >
@@ -501,7 +514,7 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
                         En attente de vérification
                       </h3>
                       <p className="text-gray-600 dark:text-gray-400">
-                        Sélectionnez un grossiste et importez une facture pour commencer
+                        Sélectionnez un fournisseur et importez une facture pour commencer
                       </p>
                     </CardContent>
                   </Card>

@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   Home,
   FileBarChart,
+  Building2,
   LogIn,
   LogOut,
 } from 'lucide-react';
@@ -33,6 +34,7 @@ const navLinks: NavLink[] = [
   { label: 'Vérification', path: '/verification', icon: <FileCheck className="h-4 w-4" /> },
   { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
   { label: 'Rapports', path: '/reports', icon: <FileBarChart className="h-4 w-4" /> },
+  { label: 'Fournisseurs', path: '/fournisseurs', icon: <Building2 className="h-4 w-4" /> },
 ];
 
 export function Navbar() {

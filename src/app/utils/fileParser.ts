@@ -28,6 +28,7 @@ export interface FactureParsee {
   numero: string;
   date: string;
   grossiste?: string;
+  fournisseur?: string;
   lignes: LigneFactureParsee[];
   total_brut_ht: number;
   total_remises_lignes: number;
@@ -261,6 +262,7 @@ async function parseExcelFile(file: File): Promise<ParsingResult> {
     let numero = `FAC-${Date.now()}`;
     let dateFacture = new Date().toISOString().split('T')[0];
     let grossiste = '';
+    let fournisseur = '';
 
     // Scanner les premières lignes pour trouver numéro et date
     for (let i = 0; i < Math.min(10, headerRowIndex); i++) {
@@ -279,8 +281,12 @@ async function parseExcelFile(file: File): Promise<ParsingResult> {
         dateFacture = parseDate(row[1] || row[0]);
       }
 
-      if (firstCell.includes('grossiste') || firstCell.includes('fournisseur')) {
+      if (firstCell.includes('grossiste')) {
         grossiste = String(row[1] || row[0] || '');
+      }
+
+      if (firstCell.includes('fournisseur')) {
+        fournisseur = String(row[1] || row[0] || '');
       }
     }
 
@@ -307,6 +313,7 @@ async function parseExcelFile(file: File): Promise<ParsingResult> {
         numero,
         date: dateFacture,
         grossiste,
+        fournisseur: fournisseur || grossiste,
         lignes,
         total_brut_ht,
         total_remises_lignes,

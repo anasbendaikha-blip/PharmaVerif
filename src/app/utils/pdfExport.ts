@@ -8,7 +8,7 @@
 
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { Facture, Anomalie, Grossiste } from '../types';
+import type { Facture, Anomalie, Grossiste, Fournisseur } from '../types';
 
 // Déclaration des types pour jsPDF AutoTable
 declare module 'jspdf' {
@@ -136,6 +136,9 @@ function getAnomalieTypeLabel(type: string): string {
     franco_non_respecte: 'Franco non respecté',
     ecart_calcul: 'Écart de calcul',
     prix_suspect: 'Prix suspect',
+    remise_volume_manquante: 'Remise volume manquante',
+    condition_non_respectee: 'Condition non respectée',
+    rfa_non_appliquee: 'RFA non appliquée',
   };
   return labels[type] || type;
 }
@@ -147,13 +150,15 @@ export interface PDFExportOptions {
   facture: Facture;
   anomalies: Anomalie[];
   grossiste: Grossiste;
+  fournisseur?: Fournisseur;
 }
 
 /**
  * Génère un PDF de rapport de vérification
  */
 export async function generateVerificationPDF(options: PDFExportOptions): Promise<jsPDF> {
-  const { facture, anomalies, grossiste } = options;
+  const { facture, anomalies, grossiste: rawGrossiste, fournisseur } = options;
+  const grossiste = (fournisseur || rawGrossiste) as Grossiste;
 
   // Créer le document PDF (A4)
   const doc = new jsPDF({
@@ -185,7 +190,7 @@ export async function generateVerificationPDF(options: PDFExportOptions): Promis
 
   const infoData = [
     ['Numéro de facture:', facture.numero],
-    ['Grossiste:', grossiste.nom],
+    ['Fournisseur:', grossiste.nom],
     ['Date de facture:', formatDate(facture.date)],
     ['Montant brut HT:', formatEuro(facture.montant_brut_ht)],
   ];

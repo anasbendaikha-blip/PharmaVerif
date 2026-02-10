@@ -1,5 +1,5 @@
 import { Anomalie } from '../types';
-import { AlertTriangle, TrendingDown, DollarSign, Calculator, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, TrendingDown, DollarSign, Calculator, ShieldAlert, Package, FileX } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { formatCurrency } from '../utils/formatNumber';
@@ -15,7 +15,9 @@ export function AnomalieCard({ anomalie }: AnomalieCardProps) {
     return 'faible';
   };
 
-  const gravite = getGraviteFromMontant(anomalie.montant_ecart);
+  const gravite = anomalie.niveau_severite
+    ? (anomalie.niveau_severite === 'erreur' ? 'elevee' : anomalie.niveau_severite === 'warning' ? 'moyenne' : 'faible')
+    : getGraviteFromMontant(anomalie.montant_ecart);
 
   const getGraviteColor = (gravite: string) => {
     switch (gravite) {
@@ -42,6 +44,12 @@ export function AnomalieCard({ anomalie }: AnomalieCardProps) {
         return <Calculator className="h-5 w-5" />;
       case 'franco_non_respecte':
         return <ShieldAlert className="h-5 w-5" />;
+      case 'remise_volume_manquante':
+        return <Package className="h-5 w-5" />;
+      case 'condition_non_respectee':
+        return <ShieldAlert className="h-5 w-5" />;
+      case 'rfa_non_appliquee':
+        return <FileX className="h-5 w-5" />;
       default:
         return <AlertTriangle className="h-5 w-5" />;
     }
@@ -59,6 +67,12 @@ export function AnomalieCard({ anomalie }: AnomalieCardProps) {
         return 'Écart de calcul';
       case 'franco_non_respecte':
         return 'Franco non respecté';
+      case 'remise_volume_manquante':
+        return 'Remise volume manquante';
+      case 'condition_non_respectee':
+        return 'Condition non respectée';
+      case 'rfa_non_appliquee':
+        return 'RFA non appliquée';
       default:
         return type;
     }
@@ -83,7 +97,7 @@ export function AnomalieCard({ anomalie }: AnomalieCardProps) {
               </div>
               {anomalie.facture && (
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {anomalie.facture.numero} - {anomalie.facture.grossiste?.nom}
+                  {anomalie.facture.numero} - {anomalie.facture.fournisseur?.nom || anomalie.facture.grossiste?.nom}
                 </p>
               )}
             </div>

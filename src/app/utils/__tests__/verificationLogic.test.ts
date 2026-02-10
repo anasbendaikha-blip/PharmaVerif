@@ -10,10 +10,18 @@ import { Facture, Grossiste } from '../../types';
 const grossisteTest: Grossiste = {
   id: 1,
   nom: 'CERP Rouen',
+  type_fournisseur: 'grossiste',
   remise_base: 3.0,
   cooperation_commerciale: 2.0,
   escompte: 0.5,
   franco: 1500.0,
+  remise_gamme_actif: false,
+  remise_quantite_actif: false,
+  rfa_actif: false,
+  actif: true,
+  notes: '',
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
 };
 
 function createFacture(overrides: Partial<Facture> = {}): Facture {
@@ -21,6 +29,7 @@ function createFacture(overrides: Partial<Facture> = {}): Facture {
     id: 1,
     numero: 'FAC-TEST-001',
     date: '2026-01-15',
+    fournisseur_id: 1,
     grossiste_id: 1,
     montant_brut_ht: 10000,
     remises_ligne_a_ligne: 300, // 3% base

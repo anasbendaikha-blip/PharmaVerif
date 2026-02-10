@@ -13,6 +13,7 @@ import { MentionsLegalesPage } from './pages/MentionsLegalesPage';
 import { ContactPage } from './pages/ContactPage';
 import { LoginPage } from './pages/LoginPage';
 import { ReportsPage } from './pages/ReportsPage';
+import { FournisseursPage } from './pages/FournisseursPage';
 import { Footer } from './components/Footer';
 import { Navbar } from './components/Navbar';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -44,6 +45,7 @@ function AppLayout() {
       verification: '/verification',
       dashboard: '/dashboard',
       reports: '/reports',
+      fournisseurs: '/fournisseurs',
       'mentions-legales': '/mentions-legales',
       contact: '/contact',
       login: '/login',
@@ -80,6 +82,14 @@ function AppLayout() {
             element={
               <ProtectedRoute>
                 <ReportsPage onNavigate={handleNavigate} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/fournisseurs"
+            element={
+              <ProtectedRoute>
+                <FournisseursPage onNavigate={handleNavigate} />
               </ProtectedRoute>
             }
           />

@@ -1,33 +1,60 @@
 // Données simulées pour PharmaVerif (équivalent de la base de données)
-import { Grossiste, Facture, Anomalie, StatsGlobal, LigneFacture } from '../types';
+import { Fournisseur, Grossiste, Facture, Anomalie, StatsGlobal, LigneFacture } from '../types';
 
-// Grossistes par défaut (équivalent de init_db())
-export const grossistes: Grossiste[] = [
+// Fournisseurs par défaut (équivalent de init_db())
+export const fournisseurs: Fournisseur[] = [
   {
     id: 1,
     nom: 'CERP Rouen',
+    type_fournisseur: 'grossiste',
     remise_base: 3.0,
     cooperation_commerciale: 1.5,
     escompte: 1.0,
     franco: 1500.0,
+    remise_gamme_actif: false,
+    remise_quantite_actif: false,
+    rfa_actif: false,
+    actif: true,
+    notes: '',
+    created_at: '2026-01-01T00:00:00',
+    updated_at: '2026-01-01T00:00:00',
   },
   {
     id: 2,
     nom: 'OCP',
+    type_fournisseur: 'grossiste',
     remise_base: 2.5,
     cooperation_commerciale: 2.0,
     escompte: 1.0,
     franco: 2000.0,
+    remise_gamme_actif: false,
+    remise_quantite_actif: false,
+    rfa_actif: false,
+    actif: true,
+    notes: '',
+    created_at: '2026-01-01T00:00:00',
+    updated_at: '2026-01-01T00:00:00',
   },
   {
     id: 3,
     nom: 'Alliance Healthcare',
+    type_fournisseur: 'grossiste',
     remise_base: 3.5,
     cooperation_commerciale: 1.0,
     escompte: 0.5,
     franco: 1800.0,
+    remise_gamme_actif: false,
+    remise_quantite_actif: false,
+    rfa_actif: false,
+    actif: true,
+    notes: '',
+    created_at: '2026-01-01T00:00:00',
+    updated_at: '2026-01-01T00:00:00',
   },
 ];
+
+/** @deprecated Utiliser fournisseurs */
+export const grossistes: Grossiste[] = fournisseurs;
 
 // Lignes de facture exemples
 export const lignesFactures: LigneFacture[] = [
@@ -79,7 +106,8 @@ export const facturesExemples: Facture[] = [
     id: 1,
     numero: 'FAC2026-00234',
     date: '2026-02-05',
-    grossiste_id: 2, // OCP
+    fournisseur_id: 2, // OCP
+    grossiste_id: 2,
     montant_brut_ht: 5500.0,
     remises_ligne_a_ligne: 110.0,
     remises_pied_facture: 82.5,
@@ -92,7 +120,8 @@ export const facturesExemples: Facture[] = [
     id: 2,
     numero: 'FAC2026-00235',
     date: '2026-02-04',
-    grossiste_id: 1, // CERP Rouen
+    fournisseur_id: 1, // CERP Rouen
+    grossiste_id: 1,
     montant_brut_ht: 3200.0,
     remises_ligne_a_ligne: 64.0,
     remises_pied_facture: 48.0,
@@ -105,7 +134,8 @@ export const facturesExemples: Facture[] = [
     id: 3,
     numero: 'FAC2026-00180',
     date: '2026-02-03',
-    grossiste_id: 3, // Alliance Healthcare
+    fournisseur_id: 3, // Alliance Healthcare
+    grossiste_id: 3,
     montant_brut_ht: 2800.0,
     remises_ligne_a_ligne: 98.0,
     remises_pied_facture: 42.0,
@@ -123,6 +153,7 @@ export const anomaliesExemples: Anomalie[] = [
     type_anomalie: 'remise_manquante',
     description: 'Remise base OCP (2.5%) non appliquée sur certaines lignes',
     montant_ecart: 124.51,
+    niveau_severite: 'warning',
     created_at: '2026-02-06T08:00:00',
   },
   {
@@ -131,6 +162,7 @@ export const anomaliesExemples: Anomalie[] = [
     type_anomalie: 'ecart_calcul',
     description: 'Écart entre remises pied de facture attendues et appliquées',
     montant_ecart: 62.25,
+    niveau_severite: 'erreur',
     created_at: '2026-02-06T08:00:00',
   },
   {
@@ -139,6 +171,7 @@ export const anomaliesExemples: Anomalie[] = [
     type_anomalie: 'remise_manquante',
     description: 'Coopération commerciale CERP (1.5%) non appliquée',
     montant_ecart: 48.0,
+    niveau_severite: 'warning',
     created_at: '2026-02-05T10:30:00',
   },
   {
@@ -147,6 +180,7 @@ export const anomaliesExemples: Anomalie[] = [
     type_anomalie: 'franco_non_respecte',
     description: 'Frais de port facturés alors que franco (1500€) dépassé',
     montant_ecart: 15.0,
+    niveau_severite: 'info',
     created_at: '2026-02-05T10:30:00',
   },
 ];
@@ -159,22 +193,39 @@ export const statsGlobales: StatsGlobal = {
   tauxConformite: 85.8,
 };
 
-// Fonction utilitaire pour obtenir un grossiste par ID
+// Fonction utilitaire pour obtenir un fournisseur par ID
+export function getFournisseurById(id: number): Fournisseur | undefined {
+  return fournisseurs.find((g) => g.id === id);
+}
+
+/** @deprecated Utiliser getFournisseurById */
 export function getGrossisteById(id: number): Grossiste | undefined {
-  return grossistes.find((g) => g.id === id);
+  return getFournisseurById(id);
 }
 
-// Fonction utilitaire pour obtenir un grossiste par nom
+// Fonction utilitaire pour obtenir un fournisseur par nom
+export function getFournisseurByNom(nom: string): Fournisseur | undefined {
+  return fournisseurs.find((g) => g.nom === nom);
+}
+
+/** @deprecated Utiliser getFournisseurByNom */
 export function getGrossisteByNom(nom: string): Grossiste | undefined {
-  return grossistes.find((g) => g.nom === nom);
+  return getFournisseurByNom(nom);
 }
 
-// Fonction utilitaire pour enrichir les factures avec les données du grossiste
-export function enrichirFactureAvecGrossiste(facture: Facture): Facture {
+// Fonction utilitaire pour enrichir les factures avec les données du fournisseur
+export function enrichirFactureAvecFournisseur(facture: Facture): Facture {
+  const fournisseur = getFournisseurById(facture.fournisseur_id);
   return {
     ...facture,
-    grossiste: getGrossisteById(facture.grossiste_id),
+    fournisseur,
+    grossiste: fournisseur,
   };
+}
+
+/** @deprecated Utiliser enrichirFactureAvecFournisseur */
+export function enrichirFactureAvecGrossiste(facture: Facture): Facture {
+  return enrichirFactureAvecFournisseur(facture);
 }
 
 // Fonction utilitaire pour enrichir les anomalies avec les données de facture
@@ -182,6 +233,6 @@ export function enrichirAnomalieAvecFacture(anomalie: Anomalie): Anomalie {
   const facture = facturesExemples.find((f) => f.id === anomalie.facture_id);
   return {
     ...anomalie,
-    facture: facture ? enrichirFactureAvecGrossiste(facture) : undefined,
+    facture: facture ? enrichirFactureAvecFournisseur(facture) : undefined,
   };
 }

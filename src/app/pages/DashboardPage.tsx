@@ -60,6 +60,9 @@ const ANOMALIE_COLORS: Record<string, string> = {
   remise_incorrecte: '#8b5cf6',
   franco_non_respecte: '#3b82f6',
   prix_suspect: '#ec4899',
+  remise_volume_manquante: '#14b8a6',
+  condition_non_respectee: '#6366f1',
+  rfa_non_appliquee: '#a855f7',
 };
 
 const ANOMALIE_LABELS: Record<string, string> = {
@@ -68,6 +71,9 @@ const ANOMALIE_LABELS: Record<string, string> = {
   remise_incorrecte: 'Remise incorrecte',
   franco_non_respecte: 'Franco non respecté',
   prix_suspect: 'Prix suspect',
+  remise_volume_manquante: 'Remise volume manquante',
+  condition_non_respectee: 'Condition non respectée',
+  rfa_non_appliquee: 'RFA non appliquée',
 };
 
 interface DashboardPageProps {
@@ -125,9 +131,9 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
 
   // Donnees pour le graphique Montants par grossiste (BarChart)
   const barData = useMemo(() => {
-    const grossistes = db.getAllGrossistes();
-    return grossistes.map((g) => {
-      const gFactures = factures.filter((f) => f.grossiste_id === g.id);
+    const fournisseurs = db.getAllFournisseurs();
+    return fournisseurs.map((g) => {
+      const gFactures = factures.filter((f) => f.fournisseur_id === g.id);
       const gAnomalies = anomalies.filter((a) => gFactures.some((f) => f.id === a.facture_id));
       const montantRecuperable = gAnomalies.reduce((sum, a) => sum + a.montant_ecart, 0);
 
@@ -147,15 +153,15 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       const facture = factures.find((f) => f.id === factureId);
       if (!facture) throw new Error('Facture non trouvée');
 
-      const grossiste = db.getGrossisteById(facture.grossiste_id);
-      if (!grossiste) throw new Error('Grossiste non trouvé');
+      const fournisseur = db.getFournisseurById(facture.fournisseur_id);
+      if (!fournisseur) throw new Error('Fournisseur non trouvé');
 
       const factureAnomalies = anomalies.filter((a) => a.facture_id === factureId);
 
       await exportVerificationReport({
         facture,
         anomalies: factureAnomalies,
-        grossiste,
+        grossiste: fournisseur,
       });
 
       toast.success('Rapport PDF téléchargé !', {
@@ -199,7 +205,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
             </div>
             <Button className="gap-2 bg-blue-600 hover:bg-blue-700">
               <Download className="h-4 w-4" />
-              <span>Exporter le rapport</span>
+              <span>Exporter</span>
             </Button>
           </div>
         </div>
@@ -280,7 +286,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
             {/* Montants par grossiste */}
             <Card>
               <CardHeader>
-                <CardTitle>Montants récupérables par grossiste</CardTitle>
+                <CardTitle>Montants récupérables par fournisseur</CardTitle>
               </CardHeader>
               <CardContent>
                 {barData.some((d) => d.montant > 0) ? (
@@ -338,6 +344,9 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                       <SelectItem value="remise_incorrecte">Remise incorrecte</SelectItem>
                       <SelectItem value="franco_non_respecte">Franco non respecté</SelectItem>
                       <SelectItem value="prix_suspect">Prix suspect</SelectItem>
+                      <SelectItem value="remise_volume_manquante">Remise volume manquante</SelectItem>
+                      <SelectItem value="condition_non_respectee">Condition non respectée</SelectItem>
+                      <SelectItem value="rfa_non_appliquee">RFA non appliquée</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -385,7 +394,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Numéro</TableHead>
-                        <TableHead>Grossiste</TableHead>
+                        <TableHead>Fournisseur</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead className="text-right">Montant</TableHead>
                         <TableHead className="text-right">Anomalies</TableHead>
@@ -401,7 +410,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                         return (
                           <TableRow key={facture.id}>
                             <TableCell className="font-medium">{facture.numero}</TableCell>
-                            <TableCell>{facture.grossiste?.nom}</TableCell>
+                            <TableCell>{facture.fournisseur?.nom || facture.grossiste?.nom}</TableCell>
                             <TableCell>
                               {new Date(facture.date).toLocaleDateString('fr-FR')}
                             </TableCell>

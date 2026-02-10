@@ -6,35 +6,101 @@
  * Définitions des types et interfaces pour l'application.
  */
 
-// Modèle Grossiste
-export interface Grossiste {
-  id: number;
-  nom: string; // unique
-  remise_base: number; // taux de remise de base en %
-  cooperation_commerciale: number; // taux coopération en %
-  escompte: number; // taux escompte en %
-  franco: number; // montant minimum sans frais de port
+// ==================== ENUMS / UNIONS ====================
+
+export type TypeFournisseur = 'grossiste' | 'laboratoire' | 'autre';
+
+export type TypeCondition =
+  | 'remise_volume'
+  | 'remise_gamme'
+  | 'remise_produit'
+  | 'escompte_conditionnel'
+  | 'franco_seuil'
+  | 'rfa'
+  | 'autre';
+
+export type NiveauSeverite = 'info' | 'warning' | 'erreur';
+
+// ==================== CONDITION SPECIFIQUE ====================
+
+export interface ConditionParametres {
+  seuils?: Array<{ min: number; max?: number; taux: number }>;
+  gammes?: Array<{ nom: string; taux: number }>;
+  taux?: number;
+  produits?: Array<{ cip: string; nom: string; taux: number }>;
+  seuil_montant?: number;
+  delai_jours?: number;
+  objectif_annuel?: number;
+  taux_rfa?: number;
+  [key: string]: unknown;
 }
 
-// Modèle Facture
+export interface ConditionSpecifique {
+  id: number;
+  fournisseur_id: number;
+  type_condition: TypeCondition;
+  nom: string;
+  description: string;
+  parametres: ConditionParametres;
+  actif: boolean;
+  date_debut?: string;
+  date_fin?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ==================== FOURNISSEUR ====================
+
+export interface Fournisseur {
+  id: number;
+  nom: string;
+  type_fournisseur: TypeFournisseur;
+  // Conditions de base (grossiste)
+  remise_base: number;
+  cooperation_commerciale: number;
+  escompte: number;
+  franco: number;
+  // Activation labo
+  remise_gamme_actif: boolean;
+  remise_quantite_actif: boolean;
+  rfa_actif: boolean;
+  // Commun
+  actif: boolean;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  conditions_specifiques?: ConditionSpecifique[];
+}
+
+/** @deprecated Utiliser Fournisseur */
+export type Grossiste = Fournisseur;
+
+// ==================== FACTURE ====================
+
 export interface Facture {
   id: number;
   numero: string;
-  date: string; // ISO date string
-  grossiste_id: number; // foreign key vers Grossiste
+  date: string;
+  fournisseur_id: number;
+  /** @deprecated Utiliser fournisseur_id */
+  grossiste_id?: number;
   montant_brut_ht: number;
   remises_ligne_a_ligne: number;
   remises_pied_facture: number;
   net_a_payer: number;
   statut_verification: 'non_verifie' | 'conforme' | 'anomalie';
-  created_at: string; // ISO datetime string
+  created_at: string;
   // Relations
-  grossiste?: Grossiste;
+  fournisseur?: Fournisseur;
+  /** @deprecated Utiliser fournisseur */
+  grossiste?: Fournisseur;
   lignes?: LigneFacture[];
   anomalies?: Anomalie[];
 }
 
-// Modèle LigneFacture (pour détail des lignes)
+// ==================== LIGNE FACTURE ====================
+
 export interface LigneFacture {
   id: number;
   facture_id: number;
@@ -46,24 +112,31 @@ export interface LigneFacture {
   montant_ht: number;
 }
 
-// Modèle Anomalie
+// ==================== ANOMALIE ====================
+
 export interface Anomalie {
   id: number;
-  facture_id: number; // foreign key vers Facture
+  facture_id: number;
   type_anomalie:
     | 'remise_manquante'
     | 'ecart_calcul'
     | 'remise_incorrecte'
     | 'prix_suspect'
-    | 'franco_non_respecte';
+    | 'franco_non_respecte'
+    | 'remise_volume_manquante'
+    | 'condition_non_respectee'
+    | 'rfa_non_appliquee';
   description: string;
   montant_ecart: number;
-  created_at: string; // ISO datetime string
+  niveau_severite: NiveauSeverite;
+  condition_id?: number;
+  created_at: string;
   // Relations
   facture?: Facture;
 }
 
-// Stats globales
+// ==================== STATS ====================
+
 export interface StatsGlobal {
   totalFactures: number;
   anomaliesDetectees: number;
