@@ -59,6 +59,7 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://localhost:8000",
         "https://pharmaverif.vercel.app",
+        "https://pharma-verif.vercel.app",
         "https://pharmaverif.netlify.app",
     ]
     
