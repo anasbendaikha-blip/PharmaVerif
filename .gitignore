@@ -26,3 +26,23 @@ npm-debug.log*
 
 # Vercel
 .vercel
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Database
+*.db
+*.sqlite3
+
+# Backend uploads/exports
+backend/uploads/
+backend/exports/
+backend/logs/
+backend/.env
