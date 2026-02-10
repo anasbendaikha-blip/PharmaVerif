@@ -161,7 +161,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       await exportVerificationReport({
         facture,
         anomalies: factureAnomalies,
-        grossiste: fournisseur,
+        fournisseur,
       });
 
       toast.success('Rapport PDF téléchargé !', {

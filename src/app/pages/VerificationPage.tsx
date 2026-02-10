@@ -292,7 +292,7 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
       await exportVerificationReport({
         facture: currentFacture,
         anomalies: anomaliesDetectees,
-        grossiste: fournisseur,
+        fournisseur,
       });
 
       toast.success('Rapport PDF téléchargé avec succès !', {

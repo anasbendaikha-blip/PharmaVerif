@@ -149,16 +149,17 @@ function getAnomalieTypeLabel(type: string): string {
 export interface PDFExportOptions {
   facture: Facture;
   anomalies: Anomalie[];
-  grossiste: Grossiste;
-  fournisseur?: Fournisseur;
+  fournisseur: Fournisseur;
+  /** @deprecated Utiliser fournisseur */
+  grossiste?: Grossiste;
 }
 
 /**
  * Génère un PDF de rapport de vérification
  */
 export async function generateVerificationPDF(options: PDFExportOptions): Promise<jsPDF> {
-  const { facture, anomalies, grossiste: rawGrossiste, fournisseur } = options;
-  const grossiste = (fournisseur || rawGrossiste) as Grossiste;
+  const { facture, anomalies, fournisseur: rawFournisseur, grossiste: rawGrossiste } = options;
+  const fournisseur = (rawFournisseur || rawGrossiste) as Fournisseur;
 
   // Créer le document PDF (A4)
   const doc = new jsPDF({
@@ -190,7 +191,7 @@ export async function generateVerificationPDF(options: PDFExportOptions): Promis
 
   const infoData = [
     ['Numéro de facture:', facture.numero],
-    ['Fournisseur:', grossiste.nom],
+    ['Fournisseur:', fournisseur.nom],
     ['Date de facture:', formatDate(facture.date)],
     ['Montant brut HT:', formatEuro(facture.montant_brut_ht)],
   ];
@@ -275,16 +276,26 @@ export async function generateVerificationPDF(options: PDFExportOptions): Promis
     currentY += 8;
 
     // Tableau des anomalies
+    const getSeveriteLabel = (severite: string): string => {
+      switch (severite) {
+        case 'erreur': return 'Erreur';
+        case 'warning': return 'Attention';
+        case 'info': return 'Info';
+        default: return severite;
+      }
+    };
+
     const anomaliesData = anomalies.map((anomalie, index) => [
       `${index + 1}`,
       getAnomalieTypeLabel(anomalie.type_anomalie),
       anomalie.description,
+      getSeveriteLabel(anomalie.niveau_severite),
       formatEuro(anomalie.montant_ecart),
     ]);
 
     autoTable(doc, {
       startY: currentY,
-      head: [['#', 'Type', 'Description', 'Écart']],
+      head: [['#', 'Type', 'Description', 'Sévérité', 'Écart']],
       body: anomaliesData,
       theme: 'grid',
       headStyles: {
@@ -299,9 +310,10 @@ export async function generateVerificationPDF(options: PDFExportOptions): Promis
       },
       columnStyles: {
         0: { cellWidth: 10, halign: 'center' },
-        1: { cellWidth: 40 },
-        2: { cellWidth: 90 },
-        3: { cellWidth: 30, halign: 'right', fontStyle: 'bold' },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 75 },
+        3: { cellWidth: 22, halign: 'center' },
+        4: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
       },
       margin: { left: 15, right: 15 },
       alternateRowStyles: {
@@ -340,7 +352,7 @@ export async function generateVerificationPDF(options: PDFExportOptions): Promis
     doc.setTextColor(...COLORS.gray.medium);
 
     const recommendations = [
-      "• Contacter votre grossiste pour demander un avoir sur le montant de l'écart détecté.",
+      "• Contacter votre fournisseur pour demander un avoir sur le montant de l'écart détecté.",
       '• Conserver ce rapport comme justificatif pour votre contestation.',
       '• Vérifier que les conditions contractuelles sont à jour dans notre système.',
       '• Suivre régulièrement vos factures pour éviter la récurrence de ces anomalies.',
@@ -375,24 +387,54 @@ export async function generateVerificationPDF(options: PDFExportOptions): Promis
   }
 
   // ========== SECTION: CONDITIONS CONTRACTUELLES ==========
+  const typeLabel = fournisseur.type_fournisseur === 'grossiste' ? 'Grossiste'
+    : fournisseur.type_fournisseur === 'laboratoire' ? 'Laboratoire' : 'Autre';
+
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...COLORS.gray.dark);
-  doc.text('Conditions contractuelles de référence', 15, currentY);
+  doc.text(`Conditions contractuelles — ${typeLabel}`, 15, currentY);
   currentY += 8;
 
-  const conditionsData = [
-    ['Remise de base', `${grossiste.remise_base}%`],
-    ['Coopération commerciale', `${grossiste.cooperation_commerciale}%`],
-    ['Escompte', `${grossiste.escompte}%`],
-    ['Franco (port gratuit)', formatEuro(grossiste.franco)],
-    [
-      'Remise totale théorique',
-      `${(grossiste.remise_base + grossiste.cooperation_commerciale + grossiste.escompte).toFixed(
-        2
-      )}%`,
-    ],
-  ];
+  let conditionsData: string[][] = [];
+
+  if (fournisseur.type_fournisseur === 'grossiste') {
+    conditionsData = [
+      ['Remise de base', `${fournisseur.remise_base}%`],
+      ['Coopération commerciale', `${fournisseur.cooperation_commerciale}%`],
+      ['Escompte', `${fournisseur.escompte}%`],
+      ['Franco (port gratuit)', formatEuro(fournisseur.franco)],
+      [
+        'Remise totale théorique',
+        `${(fournisseur.remise_base + fournisseur.cooperation_commerciale + fournisseur.escompte).toFixed(2)}%`,
+      ],
+    ];
+  } else if (fournisseur.type_fournisseur === 'laboratoire') {
+    conditionsData = [
+      ['Remise gamme', fournisseur.remise_gamme_actif ? 'Active' : 'Inactive'],
+      ['Remise quantité', fournisseur.remise_quantite_actif ? 'Active' : 'Inactive'],
+      ['RFA (Remise de Fin d\'Année)', fournisseur.rfa_actif ? 'Active' : 'Inactive'],
+    ];
+    if (fournisseur.conditions_specifiques && fournisseur.conditions_specifiques.length > 0) {
+      fournisseur.conditions_specifiques.forEach((c) => {
+        if (c.actif) {
+          conditionsData.push([c.nom, c.description]);
+        }
+      });
+    }
+  } else {
+    conditionsData = [
+      ['Type', 'Autre fournisseur'],
+      ['Conditions', 'Conditions spécifiques uniquement'],
+    ];
+    if (fournisseur.conditions_specifiques && fournisseur.conditions_specifiques.length > 0) {
+      fournisseur.conditions_specifiques.forEach((c) => {
+        if (c.actif) {
+          conditionsData.push([c.nom, c.description]);
+        }
+      });
+    }
+  }
 
   autoTable(doc, {
     startY: currentY,
