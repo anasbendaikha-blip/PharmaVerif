@@ -259,27 +259,6 @@ async def health_check():
         "environment": settings.ENVIRONMENT,
     }
 
-@app.get("/debug/token", tags=["🏠 Root"])
-async def debug_token(token: str = None):
-    """
-    DEBUG TEMPORAIRE - Vérifier un token JWT
-    À SUPPRIMER en production.
-    """
-    from jose import jwt, JWTError
-    result = {
-        "secret_key_length": len(settings.SECRET_KEY),
-        "secret_key_prefix": settings.SECRET_KEY[:8] + "...",
-        "algorithm": settings.ALGORITHM,
-    }
-    if token:
-        try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-            result["decode_success"] = True
-            result["payload"] = payload
-        except JWTError as e:
-            result["decode_success"] = False
-            result["decode_error"] = str(e)
-    return result
 
 @app.get("/api/info", tags=["🏠 Root"])
 async def api_info():

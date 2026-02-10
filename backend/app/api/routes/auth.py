@@ -93,14 +93,14 @@ async def get_current_user(
     
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id: int = payload.get("sub")
-        
-        if user_id is None:
+        user_id_str: str = payload.get("sub")
+
+        if user_id_str is None:
             raise credentials_exception
-        
-        token_data = TokenData(user_id=user_id)
-        
-    except JWTError:
+
+        token_data = TokenData(user_id=int(user_id_str))
+
+    except (JWTError, ValueError):
         raise credentials_exception
     
     user = db.query(User).filter(User.id == token_data.user_id).first()
@@ -196,10 +196,10 @@ async def login(
     # Créer le token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.id, "email": user.email},
+        data={"sub": str(user.id), "email": user.email},
         expires_delta=access_token_expires
     )
-    
+
     # Mettre à jour last_login
     user.last_login = datetime.utcnow()
     db.commit()
@@ -234,7 +234,7 @@ async def login_form(
     
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.id, "email": user.email},
+        data={"sub": str(user.id), "email": user.email},
         expires_delta=access_token_expires
     )
     
@@ -305,7 +305,7 @@ async def refresh_token(
     """
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": current_user.id, "email": current_user.email},
+        data={"sub": str(current_user.id), "email": current_user.email},
         expires_delta=access_token_expires
     )
     
