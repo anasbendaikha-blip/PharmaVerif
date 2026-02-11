@@ -320,7 +320,7 @@ async def upload_facture_labo(
         delai_paiement=meta.delai_paiement if meta and hasattr(meta, 'delai_paiement') else None,
         fichier_pdf=str(file_path),
         nb_lignes=len(result.lignes) if result.lignes else 0,
-        nb_pages=0,  # Non disponible dans le parser
+        nb_pages=meta.page_count if meta and hasattr(meta, 'page_count') else 0,
         warnings=result.warnings if result.warnings else None,
         statut="analysee",
     )
