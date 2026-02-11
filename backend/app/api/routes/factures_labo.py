@@ -254,7 +254,7 @@ async def upload_facture_labo(
     # Calculer la RFA attendue
     rfa_attendue = 0.0
     if analyse:
-        rfa_attendue = analyse.rfa_totale if hasattr(analyse, 'rfa_totale') else 0.0
+        rfa_attendue = analyse.total_rfa_attendue if hasattr(analyse, 'total_rfa_attendue') else 0.0
 
     # Parser les dates
     date_facture = None
@@ -302,26 +302,26 @@ async def upload_facture_labo(
         numero_client=meta.numero_client if meta else None,
         nom_client=meta.nom_client if meta else None,
         canal=None,
-        montant_brut_ht=result.montant_brut_ht if hasattr(result, 'montant_brut_ht') else 0.0,
-        total_remise_facture=result.total_remise if hasattr(result, 'total_remise') else 0.0,
-        montant_net_ht=result.montant_net_ht if hasattr(result, 'montant_net_ht') else 0.0,
-        montant_ttc=result.montant_ttc if hasattr(result, 'montant_ttc') else None,
-        total_tva=result.total_tva if hasattr(result, 'total_tva') else None,
-        tranche_a_brut=analyse.tranche_a_brut if analyse and hasattr(analyse, 'tranche_a_brut') else 0.0,
-        tranche_a_remise=analyse.tranche_a_remise if analyse and hasattr(analyse, 'tranche_a_remise') else 0.0,
-        tranche_a_pct_reel=analyse.tranche_a_pct if analyse and hasattr(analyse, 'tranche_a_pct') else 0.0,
-        tranche_b_brut=analyse.tranche_b_brut if analyse and hasattr(analyse, 'tranche_b_brut') else 0.0,
-        tranche_b_remise=analyse.tranche_b_remise if analyse and hasattr(analyse, 'tranche_b_remise') else 0.0,
-        tranche_b_pct_reel=analyse.tranche_b_pct if analyse and hasattr(analyse, 'tranche_b_pct') else 0.0,
-        otc_brut=analyse.otc_brut if analyse and hasattr(analyse, 'otc_brut') else 0.0,
-        otc_remise=analyse.otc_remise if analyse and hasattr(analyse, 'otc_remise') else 0.0,
+        montant_brut_ht=analyse.total_brut if analyse else 0.0,
+        total_remise_facture=analyse.total_remise_facture if analyse else 0.0,
+        montant_net_ht=analyse.total_net if analyse else 0.0,
+        montant_ttc=None,  # Non extrait par le parser
+        total_tva=meta.total_tva if meta and hasattr(meta, 'total_tva') else None,
+        tranche_a_brut=analyse.tranche_a_brut if analyse else 0.0,
+        tranche_a_remise=analyse.tranche_a_remise_facture if analyse else 0.0,
+        tranche_a_pct_reel=analyse.tranche_a_pct_du_total if analyse else 0.0,
+        tranche_b_brut=analyse.tranche_b_brut if analyse else 0.0,
+        tranche_b_remise=analyse.tranche_b_remise_facture if analyse else 0.0,
+        tranche_b_pct_reel=analyse.tranche_b_pct_du_total if analyse else 0.0,
+        otc_brut=analyse.otc_brut if analyse else 0.0,
+        otc_remise=analyse.otc_remise_facture if analyse else 0.0,
         rfa_attendue=rfa_attendue,
         mode_paiement=meta.mode_paiement if meta and hasattr(meta, 'mode_paiement') else None,
         delai_paiement=meta.delai_paiement if meta and hasattr(meta, 'delai_paiement') else None,
         fichier_pdf=str(file_path),
         nb_lignes=len(result.lignes) if result.lignes else 0,
-        nb_pages=result.nb_pages if hasattr(result, 'nb_pages') else 0,
-        warnings=result.warnings if hasattr(result, 'warnings') else None,
+        nb_pages=0,  # Non disponible dans le parser
+        warnings=result.warnings if result.warnings else None,
         statut="analysee",
     )
 
