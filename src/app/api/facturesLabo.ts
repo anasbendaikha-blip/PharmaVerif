@@ -11,6 +11,7 @@ import { http } from './httpClient';
 import type {
   FactureLaboResponse,
   FactureLaboListResponse,
+  LigneFactureLaboResponse,
   UploadLaboResponse,
   AnalyseRemiseResponse,
   RFAUpdateResponse,
@@ -85,6 +86,16 @@ export const facturesLaboApi = {
    */
   async getById(id: number): Promise<FactureLaboResponse> {
     return http.get<FactureLaboResponse>(`/factures-labo/${id}`);
+  },
+
+  /**
+   * Lignes de produits d'une facture labo
+   *
+   * GET /api/v1/factures-labo/{id}/lignes
+   */
+  async getLignes(id: number, tranche?: string): Promise<LigneFactureLaboResponse[]> {
+    const params = tranche ? `?tranche=${tranche}` : '';
+    return http.get<LigneFactureLaboResponse[]>(`/factures-labo/${id}/lignes${params}`);
   },
 
   /**

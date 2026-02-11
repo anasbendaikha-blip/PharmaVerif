@@ -68,13 +68,18 @@ export interface LigneFactureLaboResponse {
   facture_id: number;
   cip13: string;
   designation: string;
+  numero_lot: string | null;
   quantite: number;
   prix_unitaire_ht: number;
   remise_pct: number;
+  prix_unitaire_apres_remise: number;
   montant_ht: number;
+  taux_tva: number;
   montant_brut: number;
   montant_remise: number;
+  categorie: string | null;
   tranche: string | null;
+  created_at: string;
 }
 
 export interface FactureLaboResponse {

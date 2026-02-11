@@ -7,7 +7,7 @@
  * Fonctionnalité API-only (nécessite le backend FastAPI).
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Upload,
   FileText,
@@ -25,6 +25,9 @@ import {
   X,
   Loader2,
   ArrowUpDown,
+  ChevronDown,
+  ChevronUp,
+  Info,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -32,6 +35,7 @@ import { toast } from 'sonner';
 import { facturesLaboApi } from '../api/facturesLabo';
 import type {
   FactureLaboResponse,
+  LigneFactureLaboResponse,
   AnalyseRemiseResponse,
   UploadLaboResponse,
 } from '../api/types';
@@ -245,6 +249,83 @@ function UploadSection({ onUploadSuccess }: { onUploadSuccess: () => void }) {
 }
 
 // ========================================
+// VÉRIFICATIONS LIGNE PAR LIGNE
+// ========================================
+
+interface LigneVerification {
+  ligne: LigneFactureLaboResponse;
+  anomalies: string[];
+  isOk: boolean;
+}
+
+function verifyLigne(l: LigneFactureLaboResponse): LigneVerification {
+  const anomalies: string[] = [];
+
+  // 1. Vérifier PU × (1 - remise%) ≈ PU après remise (tolérance 0.01€)
+  const expectedPuAr = l.prix_unitaire_ht * (1 - l.remise_pct / 100);
+  if (Math.abs(expectedPuAr - l.prix_unitaire_apres_remise) > 0.02) {
+    anomalies.push(
+      `PU après remise: attendu ${expectedPuAr.toFixed(4)}€, affiché ${l.prix_unitaire_apres_remise.toFixed(4)}€`
+    );
+  }
+
+  // 2. Vérifier PU après remise × Qté ≈ Montant HT (tolérance 0.02€)
+  const expectedMontantHt = l.prix_unitaire_apres_remise * l.quantite;
+  if (Math.abs(expectedMontantHt - l.montant_ht) > 0.02) {
+    anomalies.push(
+      `Montant HT: attendu ${expectedMontantHt.toFixed(2)}€, affiché ${l.montant_ht.toFixed(2)}€`
+    );
+  }
+
+  // 3. Vérifier montant_brut = PU HT × Qté
+  const expectedBrut = l.prix_unitaire_ht * l.quantite;
+  if (Math.abs(expectedBrut - l.montant_brut) > 0.02) {
+    anomalies.push(
+      `Montant brut: attendu ${expectedBrut.toFixed(2)}€, calculé ${l.montant_brut.toFixed(2)}€`
+    );
+  }
+
+  // 4. Vérifier cohérence TVA et tranche
+  if (l.taux_tva === 2.1 && l.tranche === 'OTC') {
+    anomalies.push(`TVA 2.10% classée OTC (devrait être A ou B)`);
+  }
+  if ((l.taux_tva === 5.5 || l.taux_tva === 10.0) && (l.tranche === 'A' || l.tranche === 'B')) {
+    anomalies.push(`TVA ${l.taux_tva}% classée ${l.tranche} (devrait être OTC)`);
+  }
+
+  return {
+    ligne: l,
+    anomalies,
+    isOk: anomalies.length === 0,
+  };
+}
+
+interface TvaDetail {
+  taux: number;
+  nbLignes: number;
+  baseHt: number;
+  montantTva: number;
+}
+
+function computeTvaBreakdown(lignes: LigneFactureLaboResponse[]): TvaDetail[] {
+  const map = new Map<number, { nbLignes: number; baseHt: number }>();
+  for (const l of lignes) {
+    const existing = map.get(l.taux_tva) || { nbLignes: 0, baseHt: 0 };
+    existing.nbLignes += 1;
+    existing.baseHt += l.montant_ht;
+    map.set(l.taux_tva, existing);
+  }
+  return Array.from(map.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([taux, data]) => ({
+      taux,
+      nbLignes: data.nbLignes,
+      baseHt: data.baseHt,
+      montantTva: data.baseHt * (taux / 100),
+    }));
+}
+
+// ========================================
 // COMPOSANT DÉTAIL / ANALYSE
 // ========================================
 
@@ -258,23 +339,59 @@ function FactureDetail({
   onRefresh: () => void;
 }) {
   const [analyse, setAnalyse] = useState<AnalyseRemiseResponse | null>(null);
+  const [lignes, setLignes] = useState<LigneFactureLaboResponse[]>([]);
   const [isLoadingAnalyse, setIsLoadingAnalyse] = useState(true);
+  const [isLoadingLignes, setIsLoadingLignes] = useState(true);
   const [rfaInput, setRfaInput] = useState('');
   const [isUpdatingRfa, setIsUpdatingRfa] = useState(false);
+  const [showLignes, setShowLignes] = useState(false);
+  const [lignesFilter, setLignesFilter] = useState<string>('all');
 
   useEffect(() => {
-    async function loadAnalyse() {
+    async function loadData() {
       try {
-        const data = await facturesLaboApi.getAnalyse(facture.id);
-        setAnalyse(data);
+        const [analyseData, lignesData] = await Promise.all([
+          facturesLaboApi.getAnalyse(facture.id),
+          facturesLaboApi.getLignes(facture.id),
+        ]);
+        setAnalyse(analyseData);
+        setLignes(lignesData);
       } catch {
         toast.error("Erreur lors du chargement de l'analyse");
       } finally {
         setIsLoadingAnalyse(false);
+        setIsLoadingLignes(false);
       }
     }
-    loadAnalyse();
+    loadData();
   }, [facture.id]);
+
+  // Vérifications ligne par ligne
+  const verifications = useMemo(() => lignes.map(verifyLigne), [lignes]);
+
+  const anomalyCount = useMemo(
+    () => verifications.filter((v) => !v.isOk).length,
+    [verifications]
+  );
+
+  // Totaux recalculés depuis les lignes
+  const recalcTotals = useMemo(() => {
+    if (lignes.length === 0) return null;
+    const brut = lignes.reduce((s, l) => s + l.montant_brut, 0);
+    const remise = lignes.reduce((s, l) => s + l.montant_remise, 0);
+    const net = lignes.reduce((s, l) => s + l.montant_ht, 0);
+    return { brut, remise, net };
+  }, [lignes]);
+
+  // TVA breakdown
+  const tvaBreakdown = useMemo(() => computeTvaBreakdown(lignes), [lignes]);
+
+  // Filtrage des lignes affichées
+  const filteredVerifications = useMemo(() => {
+    if (lignesFilter === 'all') return verifications;
+    if (lignesFilter === 'anomalies') return verifications.filter((v) => !v.isOk);
+    return verifications.filter((v) => v.ligne.tranche === lignesFilter);
+  }, [verifications, lignesFilter]);
 
   const handleUpdateRfa = async () => {
     const rfaValue = parseFloat(rfaInput);
@@ -298,9 +415,9 @@ function FactureDetail({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
+        <div className="sticky top-0 z-10 bg-white dark:bg-gray-800 flex items-center justify-between p-6 border-b dark:border-gray-700">
           <div>
             <h2 className="text-xl font-bold dark:text-white">
               Facture {facture.numero_facture}
@@ -308,6 +425,11 @@ function FactureDetail({
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {formatDate(facture.date_facture)} • {facture.nb_lignes} lignes • {facture.nb_pages}{' '}
               pages
+              {anomalyCount > 0 && (
+                <span className="ml-2 text-amber-600 dark:text-amber-400 font-medium">
+                  • {anomalyCount} anomalie{anomalyCount > 1 ? 's' : ''}
+                </span>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -318,25 +440,40 @@ function FactureDetail({
           </div>
         </div>
 
-        {/* Résumé financier */}
+        {/* Résumé financier — avec comparaison lignes */}
         <div className="p-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
             <p className="text-xs text-gray-500 dark:text-gray-400">Montant brut HT</p>
             <p className="text-lg font-bold dark:text-white">
               {formatCurrency(facture.montant_brut_ht)}
             </p>
+            {recalcTotals && Math.abs(recalcTotals.brut - facture.montant_brut_ht) > 0.05 && (
+              <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5" title="Somme recalculée depuis les lignes">
+                Lignes : {formatCurrency(recalcTotals.brut)}
+              </p>
+            )}
           </div>
           <div className="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
             <p className="text-xs text-gray-500 dark:text-gray-400">Total remises</p>
             <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
               {formatCurrency(facture.total_remise_facture)}
             </p>
+            {recalcTotals && Math.abs(recalcTotals.remise - facture.total_remise_facture) > 0.05 && (
+              <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5" title="Somme recalculée depuis les lignes">
+                Lignes : {formatCurrency(recalcTotals.remise)}
+              </p>
+            )}
           </div>
           <div className="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
             <p className="text-xs text-gray-500 dark:text-gray-400">Net HT</p>
             <p className="text-lg font-bold dark:text-white">
               {formatCurrency(facture.montant_net_ht)}
             </p>
+            {recalcTotals && Math.abs(recalcTotals.net - facture.montant_net_ht) > 0.05 && (
+              <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5" title="Somme recalculée depuis les lignes">
+                Lignes : {formatCurrency(recalcTotals.net)}
+              </p>
+            )}
           </div>
           <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
             <p className="text-xs text-gray-500 dark:text-gray-400">RFA attendue</p>
@@ -363,22 +500,36 @@ function FactureDetail({
                   className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-sm"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="font-semibold text-gray-700 dark:text-gray-300 w-24">
-                      {t.tranche}
+                    <span className="font-semibold text-gray-700 dark:text-gray-300 w-16">
+                      {t.tranche === 'A' ? 'Tranche A' : t.tranche === 'B' ? 'Tranche B' : 'OTC'}
                     </span>
                     <span className="text-gray-500 dark:text-gray-400">
-                      {t.nb_lignes} lignes
+                      {t.nb_lignes} lignes • {formatPercent(t.pct_ca)} du CA
                     </span>
                   </div>
-                  <div className="flex items-center gap-6 text-right">
+                  <div className="flex items-center gap-4 text-right">
                     <div>
                       <p className="text-xs text-gray-400">Brut</p>
                       <p className="font-medium dark:text-white">{formatCurrency(t.montant_brut)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-400">Remise</p>
-                      <p className="font-medium text-orange-600 dark:text-orange-400">
+                      <p className="font-medium dark:text-white">{formatCurrency(t.montant_remise)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">Taux réel</p>
+                      <p className={`font-medium ${
+                        Math.abs(t.ecart_taux) > 2
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-green-600 dark:text-green-400'
+                      }`}>
                         {formatPercent(t.taux_remise_reel)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">Cible</p>
+                      <p className="font-medium text-gray-500 dark:text-gray-400">
+                        {formatPercent(t.taux_remise_cible)}
                       </p>
                     </div>
                     <div>
@@ -394,16 +545,24 @@ function FactureDetail({
               {/* Total */}
               <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm font-semibold border border-blue-200 dark:border-blue-800">
                 <span className="text-blue-700 dark:text-blue-300">TOTAL</span>
-                <div className="flex items-center gap-6 text-right">
+                <div className="flex items-center gap-4 text-right">
                   <div>
                     <p className="dark:text-white">
                       {formatCurrency(analyse.montant_brut_total)}
                     </p>
                   </div>
                   <div>
+                    <p className="dark:text-white">
+                      {formatCurrency(analyse.montant_remise_total)}
+                    </p>
+                  </div>
+                  <div>
                     <p className="text-orange-600 dark:text-orange-400">
                       {formatPercent(analyse.taux_remise_global)}
                     </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">—</p>
                   </div>
                   <div>
                     <p className="text-blue-600 dark:text-blue-400">
@@ -415,6 +574,206 @@ function FactureDetail({
             </div>
           ) : (
             <p className="text-sm text-gray-500 dark:text-gray-400">Analyse non disponible</p>
+          )}
+        </div>
+
+        {/* Détail TVA */}
+        {tvaBreakdown.length > 0 && (
+          <div className="px-6 pb-4">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+              <Info className="h-4 w-4" />
+              Détail TVA
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b dark:border-gray-700">
+                    <th className="text-left py-2 px-3 font-medium text-gray-500 dark:text-gray-400">Taux TVA</th>
+                    <th className="text-center py-2 px-3 font-medium text-gray-500 dark:text-gray-400">Lignes</th>
+                    <th className="text-right py-2 px-3 font-medium text-gray-500 dark:text-gray-400">Base HT</th>
+                    <th className="text-right py-2 px-3 font-medium text-gray-500 dark:text-gray-400">Montant TVA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tvaBreakdown.map((tv) => (
+                    <tr key={tv.taux} className="border-b dark:border-gray-700/50">
+                      <td className="py-2 px-3 font-medium dark:text-white">{tv.taux.toFixed(2)} %</td>
+                      <td className="py-2 px-3 text-center text-gray-600 dark:text-gray-400">{tv.nbLignes}</td>
+                      <td className="py-2 px-3 text-right dark:text-white">{formatCurrency(tv.baseHt)}</td>
+                      <td className="py-2 px-3 text-right dark:text-white">{formatCurrency(tv.montantTva)}</td>
+                    </tr>
+                  ))}
+                  <tr className="font-semibold bg-gray-50 dark:bg-gray-700/30">
+                    <td className="py-2 px-3 dark:text-white">Total</td>
+                    <td className="py-2 px-3 text-center text-gray-600 dark:text-gray-400">{lignes.length}</td>
+                    <td className="py-2 px-3 text-right dark:text-white">
+                      {formatCurrency(tvaBreakdown.reduce((s, t) => s + t.baseHt, 0))}
+                    </td>
+                    <td className="py-2 px-3 text-right dark:text-white">
+                      {formatCurrency(tvaBreakdown.reduce((s, t) => s + t.montantTva, 0))}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Tableau détaillé des lignes */}
+        <div className="px-6 pb-4">
+          <button
+            onClick={() => setShowLignes(!showLignes)}
+            className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Détail des lignes ({lignes.length})
+              {anomalyCount > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                  <AlertTriangle className="h-3 w-3" />
+                  {anomalyCount} anomalie{anomalyCount > 1 ? 's' : ''}
+                </span>
+              )}
+            </span>
+            {showLignes ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+
+          {showLignes && (
+            <div className="mt-3">
+              {/* Filtres */}
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                {['all', 'A', 'B', 'OTC', 'anomalies'].map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setLignesFilter(f)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                      lignesFilter === f
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {f === 'all'
+                      ? `Toutes (${lignes.length})`
+                      : f === 'anomalies'
+                        ? `Anomalies (${anomalyCount})`
+                        : f === 'A'
+                          ? `Tranche A (${lignes.filter((l) => l.tranche === 'A').length})`
+                          : f === 'B'
+                            ? `Tranche B (${lignes.filter((l) => l.tranche === 'B').length})`
+                            : `OTC (${lignes.filter((l) => l.tranche === 'OTC').length})`}
+                  </button>
+                ))}
+              </div>
+
+              {isLoadingLignes ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                </div>
+              ) : (
+                <div className="overflow-x-auto border dark:border-gray-700 rounded-lg">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-gray-100 dark:bg-gray-700 border-b dark:border-gray-600">
+                        <th className="text-left py-2 px-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">CIP13</th>
+                        <th className="text-left py-2 px-2 font-medium text-gray-500 dark:text-gray-400">Désignation</th>
+                        <th className="text-center py-2 px-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Qté</th>
+                        <th className="text-right py-2 px-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">PU HT</th>
+                        <th className="text-right py-2 px-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Rem %</th>
+                        <th className="text-right py-2 px-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">PU apr. rem.</th>
+                        <th className="text-right py-2 px-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Mt HT</th>
+                        <th className="text-center py-2 px-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">TVA</th>
+                        <th className="text-center py-2 px-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Tranche</th>
+                        <th className="text-center py-2 px-2 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredVerifications.map((v, idx) => (
+                        <tr
+                          key={v.ligne.id}
+                          className={`border-b dark:border-gray-700/50 ${
+                            !v.isOk
+                              ? 'bg-amber-50 dark:bg-amber-900/10'
+                              : idx % 2 === 0
+                                ? 'bg-white dark:bg-gray-800'
+                                : 'bg-gray-50/50 dark:bg-gray-800/50'
+                          }`}
+                          title={v.anomalies.length > 0 ? v.anomalies.join('\n') : 'OK'}
+                        >
+                          <td className="py-1.5 px-2 font-mono text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                            {v.ligne.cip13}
+                          </td>
+                          <td className="py-1.5 px-2 dark:text-white max-w-[200px] truncate" title={v.ligne.designation}>
+                            {v.ligne.designation}
+                          </td>
+                          <td className="py-1.5 px-2 text-center dark:text-white">{v.ligne.quantite}</td>
+                          <td className="py-1.5 px-2 text-right dark:text-white">{v.ligne.prix_unitaire_ht.toFixed(2)}</td>
+                          <td className="py-1.5 px-2 text-right font-medium">
+                            <span className={
+                              v.ligne.remise_pct > 2.5
+                                ? 'text-green-600 dark:text-green-400'
+                                : v.ligne.remise_pct > 0
+                                  ? 'text-orange-600 dark:text-orange-400'
+                                  : 'text-gray-400'
+                            }>
+                              {v.ligne.remise_pct.toFixed(2)}%
+                            </span>
+                          </td>
+                          <td className="py-1.5 px-2 text-right dark:text-white">{v.ligne.prix_unitaire_apres_remise.toFixed(4)}</td>
+                          <td className="py-1.5 px-2 text-right font-medium dark:text-white">{v.ligne.montant_ht.toFixed(2)}</td>
+                          <td className="py-1.5 px-2 text-center text-gray-600 dark:text-gray-400">{v.ligne.taux_tva.toFixed(2)}%</td>
+                          <td className="py-1.5 px-2 text-center">
+                            <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              v.ligne.tranche === 'A'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                : v.ligne.tranche === 'B'
+                                  ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                                  : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                            }`}>
+                              {v.ligne.tranche}
+                            </span>
+                          </td>
+                          <td className="py-1.5 px-2 text-center">
+                            {v.isOk ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mx-auto" />
+                            ) : (
+                              <div className="group relative">
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mx-auto cursor-help" />
+                                <div className="absolute bottom-full right-0 mb-1 w-64 p-2 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 shadow-lg">
+                                  {v.anomalies.map((a, i) => (
+                                    <p key={i} className="mb-0.5">• {a}</p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    {/* Totaux des lignes */}
+                    {filteredVerifications.length > 0 && lignesFilter === 'all' && recalcTotals && (
+                      <tfoot>
+                        <tr className="bg-gray-100 dark:bg-gray-700 font-semibold text-xs">
+                          <td className="py-2 px-2 dark:text-white" colSpan={2}>
+                            Total ({lignes.length} lignes)
+                          </td>
+                          <td className="py-2 px-2 text-center dark:text-white">
+                            {lignes.reduce((s, l) => s + l.quantite, 0)}
+                          </td>
+                          <td className="py-2 px-2" colSpan={2}></td>
+                          <td className="py-2 px-2 text-right dark:text-white">
+                            Brut : {formatCurrency(recalcTotals.brut)}
+                          </td>
+                          <td className="py-2 px-2 text-right dark:text-white">
+                            {formatCurrency(recalcTotals.net)}
+                          </td>
+                          <td className="py-2 px-2" colSpan={3}></td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
@@ -594,6 +953,12 @@ export function FacturesLaboPage({ onNavigate }: FacturesLaboPageProps) {
                         Brut HT
                       </th>
                       <th className="text-right py-3 px-3 font-medium text-gray-500 dark:text-gray-400">
+                        Remises
+                      </th>
+                      <th className="text-right py-3 px-3 font-medium text-gray-500 dark:text-gray-400">
+                        Net HT
+                      </th>
+                      <th className="text-right py-3 px-3 font-medium text-gray-500 dark:text-gray-400">
                         RFA attendue
                       </th>
                       <th className="text-center py-3 px-3 font-medium text-gray-500 dark:text-gray-400">
@@ -621,6 +986,12 @@ export function FacturesLaboPage({ onNavigate }: FacturesLaboPageProps) {
                         </td>
                         <td className="py-3 px-3 text-right dark:text-white">
                           {formatCurrency(f.montant_brut_ht)}
+                        </td>
+                        <td className="py-3 px-3 text-right text-orange-600 dark:text-orange-400">
+                          {formatCurrency(f.total_remise_facture)}
+                        </td>
+                        <td className="py-3 px-3 text-right dark:text-white">
+                          {formatCurrency(f.montant_net_ht)}
                         </td>
                         <td className="py-3 px-3 text-right font-medium text-blue-600 dark:text-blue-400">
                           {formatCurrency(f.rfa_attendue)}
