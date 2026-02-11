@@ -151,6 +151,18 @@ export interface AnalyseRemiseResponse {
 }
 
 // ========================================
+// FOURNISSEUR DÉTECTÉ
+// ========================================
+
+export interface FournisseurDetecte {
+  nom: string;
+  type: string;
+  detecte_auto: boolean;
+  parser_id: string;
+  confiance: number;
+}
+
+// ========================================
 // UPLOAD
 // ========================================
 
@@ -159,6 +171,7 @@ export interface UploadLaboResponse {
   message: string;
   facture: FactureLaboResponse | null;
   analyse: AnalyseRemiseResponse | null;
+  fournisseur: FournisseurDetecte | null;
   warnings: string[] | null;
 }
 

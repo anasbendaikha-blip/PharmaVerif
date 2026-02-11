@@ -323,6 +323,19 @@ class StatsMonthlyResponse(BaseModel):
 
 
 # ========================================
+# SCHEMAS FOURNISSEUR DETECTE
+# ========================================
+
+class FournisseurDetecte(BaseModel):
+    """Informations sur le fournisseur detecte automatiquement"""
+    nom: str = Field(description="Nom du fournisseur")
+    type: str = Field(default="laboratoire", description="Type: laboratoire, grossiste, inconnu")
+    detecte_auto: bool = Field(default=True, description="True si detecte automatiquement")
+    parser_id: str = Field(default="generic", description="ID du parser utilise")
+    confiance: float = Field(default=1.0, ge=0, le=1, description="Score de confiance 0-1")
+
+
+# ========================================
 # SCHEMAS UPLOAD LABO
 # ========================================
 
@@ -332,7 +345,27 @@ class UploadLaboResponse(BaseModel):
     message: str
     facture: Optional[FactureLaboResponse] = None
     analyse: Optional[AnalyseRemiseResponse] = None
+    fournisseur: Optional[FournisseurDetecte] = None
     warnings: Optional[List[str]] = None
+
+
+# ========================================
+# SCHEMAS PARSERS DISPONIBLES
+# ========================================
+
+class ParserInfo(BaseModel):
+    """Informations sur un parser disponible"""
+    id: str
+    name: str
+    version: str
+    type: str
+    keywords: List[str] = Field(default_factory=list)
+    dedicated: bool = True
+
+
+class ParsersListResponse(BaseModel):
+    """Liste des parsers disponibles"""
+    parsers: List[ParserInfo] = Field(default_factory=list)
 
 
 # ========================================
@@ -367,6 +400,9 @@ __all__ = [
     "RFAUpdateResponse",
     "StatsMonthlyItem",
     "StatsMonthlyResponse",
+    "FournisseurDetecte",
     "UploadLaboResponse",
+    "ParserInfo",
+    "ParsersListResponse",
     "MessageResponse",
 ]

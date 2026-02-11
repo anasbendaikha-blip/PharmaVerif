@@ -26,6 +26,7 @@ from app.schemas_labo import (
     RFAUpdateResponse,
     StatsMonthlyItem,
     StatsMonthlyResponse,
+    FournisseurDetecte,
     UploadLaboResponse,
     StatutFactureLabo,
     MessageResponse,
@@ -42,6 +43,20 @@ router = APIRouter()
 # ========================================
 # HELPERS
 # ========================================
+
+def _parse_date(date_str) -> Optional[date]:
+    """Parse une date string (DD/MM/YYYY) en objet date."""
+    if not date_str:
+        return None
+    if isinstance(date_str, date):
+        return date_str
+    if isinstance(date_str, str):
+        try:
+            return datetime.strptime(date_str, "%d/%m/%Y").date()
+        except (ValueError, TypeError):
+            return None
+    return None
+
 
 def _build_analyse_response(facture: FactureLabo, accord: Optional[AccordCommercial] = None) -> AnalyseRemiseResponse:
     """
@@ -205,23 +220,20 @@ async def upload_facture_labo(
     with open(file_path, "wb") as buffer:
         buffer.write(content)
 
-    # 4. Parser le PDF avec BiogranInvoiceParser
+    # 4. Parser le PDF avec la factory multi-fournisseurs
     try:
-        from app.services.biogaran_parser import BiogranInvoiceParser
+        from app.services.parsers import parse_invoice
 
-        parser = BiogranInvoiceParser()
-        result = parser.parse(str(file_path))
+        result = parse_invoice(str(file_path))
 
-    except ImportError:
-        # Nettoyer le fichier uploade
+    except ImportError as e:
         if file_path.exists():
             file_path.unlink()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Module biogaran_parser non disponible. Verifier l'installation."
+            detail=f"Module parsers non disponible: {e}"
         )
     except Exception as e:
-        # Nettoyer le fichier uploade
         if file_path.exists():
             file_path.unlink()
         raise HTTPException(
@@ -230,10 +242,10 @@ async def upload_facture_labo(
         )
 
     # 5. Verifier doublon (numero_facture unique)
-    numero = result.metadata.numero_facture if result.metadata else "INCONNU"
+    meta = result.metadata
+    numero = meta.numero_facture if meta and meta.numero_facture else "INCONNU"
     existing = db.query(FactureLabo).filter(FactureLabo.numero_facture == numero).first()
     if existing:
-        # Nettoyer le fichier uploade
         if file_path.exists():
             file_path.unlink()
         raise HTTPException(
@@ -241,9 +253,10 @@ async def upload_facture_labo(
             detail=f"Une facture avec le numero {numero} existe deja (ID: {existing.id})"
         )
 
-    # 6. Mapper les donnees parsees vers les modeles SQLAlchemy
-    meta = result.metadata
-    analyse = result.analyse
+    # 6. Mapper les donnees normalisees vers les modeles SQLAlchemy
+    totaux = result.totaux
+    tranches = result.tranches
+    fournisseur = result.fournisseur
 
     # Recuperer l'accord commercial actif pour ce labo
     accord = db.query(AccordCommercial).filter(
@@ -251,77 +264,47 @@ async def upload_facture_labo(
         AccordCommercial.actif == True
     ).first()
 
-    # Calculer la RFA attendue
-    rfa_attendue = 0.0
-    if analyse:
-        rfa_attendue = analyse.total_rfa_attendue if hasattr(analyse, 'total_rfa_attendue') else 0.0
-
     # Parser les dates
-    date_facture = None
-    if meta and meta.date_facture:
-        if isinstance(meta.date_facture, str):
-            try:
-                date_facture = datetime.strptime(meta.date_facture, "%d/%m/%Y").date()
-            except (ValueError, TypeError):
-                date_facture = date.today()
-        elif isinstance(meta.date_facture, date):
-            date_facture = meta.date_facture
-        else:
-            date_facture = date.today()
-    else:
-        date_facture = date.today()
+    date_facture = _parse_date(meta.date_facture) if meta else date.today()
+    date_commande = _parse_date(meta.date_commande) if meta else None
+    date_livraison = _parse_date(meta.date_livraison) if meta else None
 
-    date_commande = None
-    if meta and hasattr(meta, 'date_commande') and meta.date_commande:
-        if isinstance(meta.date_commande, str):
-            try:
-                date_commande = datetime.strptime(meta.date_commande, "%d/%m/%Y").date()
-            except (ValueError, TypeError):
-                pass
-        elif isinstance(meta.date_commande, date):
-            date_commande = meta.date_commande
-
-    date_livraison = None
-    if meta and hasattr(meta, 'date_livraison') and meta.date_livraison:
-        if isinstance(meta.date_livraison, str):
-            try:
-                date_livraison = datetime.strptime(meta.date_livraison, "%d/%m/%Y").date()
-            except (ValueError, TypeError):
-                pass
-        elif isinstance(meta.date_livraison, date):
-            date_livraison = meta.date_livraison
+    # Extraire les donnees par tranche
+    tranche_a = tranches.get("A")
+    tranche_b = tranches.get("B")
+    otc = tranches.get("OTC")
 
     # Creer la facture
     db_facture = FactureLabo(
         user_id=current_user.id,
         laboratoire_id=laboratoire_id,
         numero_facture=numero,
-        date_facture=date_facture,
+        date_facture=date_facture or date.today(),
         date_commande=date_commande,
         date_livraison=date_livraison,
         numero_client=meta.numero_client if meta else None,
         nom_client=meta.nom_client if meta else None,
-        canal=None,
-        montant_brut_ht=analyse.total_brut if analyse else 0.0,
-        total_remise_facture=analyse.total_remise_facture if analyse else 0.0,
-        montant_net_ht=analyse.total_net if analyse else 0.0,
-        montant_ttc=None,  # Non extrait par le parser
-        total_tva=meta.total_tva if meta and hasattr(meta, 'total_tva') else None,
-        tranche_a_brut=analyse.tranche_a_brut if analyse else 0.0,
-        tranche_a_remise=analyse.tranche_a_remise_facture if analyse else 0.0,
-        tranche_a_pct_reel=analyse.tranche_a_pct_du_total if analyse else 0.0,
-        tranche_b_brut=analyse.tranche_b_brut if analyse else 0.0,
-        tranche_b_remise=analyse.tranche_b_remise_facture if analyse else 0.0,
-        tranche_b_pct_reel=analyse.tranche_b_pct_du_total if analyse else 0.0,
-        otc_brut=analyse.otc_brut if analyse else 0.0,
-        otc_remise=analyse.otc_remise_facture if analyse else 0.0,
-        rfa_attendue=rfa_attendue,
-        mode_paiement=meta.mode_paiement if meta and hasattr(meta, 'mode_paiement') else None,
-        delai_paiement=meta.delai_paiement if meta and hasattr(meta, 'delai_paiement') else None,
+        canal=fournisseur.parser_id if fournisseur else None,
+        montant_brut_ht=totaux.brut_ht,
+        total_remise_facture=totaux.remises,
+        montant_net_ht=totaux.net_ht,
+        montant_ttc=totaux.ttc,
+        total_tva=totaux.total_tva,
+        tranche_a_brut=tranche_a.montant_brut if tranche_a else 0.0,
+        tranche_a_remise=tranche_a.montant_remise if tranche_a else 0.0,
+        tranche_a_pct_reel=tranche_a.pct_du_total if tranche_a else 0.0,
+        tranche_b_brut=tranche_b.montant_brut if tranche_b else 0.0,
+        tranche_b_remise=tranche_b.montant_remise if tranche_b else 0.0,
+        tranche_b_pct_reel=tranche_b.pct_du_total if tranche_b else 0.0,
+        otc_brut=otc.montant_brut if otc else 0.0,
+        otc_remise=otc.montant_remise if otc else 0.0,
+        rfa_attendue=totaux.rfa_attendue,
+        mode_paiement=meta.mode_paiement if meta else None,
+        delai_paiement=meta.delai_paiement if meta else None,
         fichier_pdf=str(file_path),
-        nb_lignes=len(result.lignes) if result.lignes else 0,
-        nb_pages=meta.page_count if meta and hasattr(meta, 'page_count') else 0,
-        warnings=result.warnings if result.warnings else None,
+        nb_lignes=result.nb_lignes,
+        nb_pages=meta.page_count if meta else 0,
+        warnings=result.warning_messages if result.warnings else None,
         statut="analysee",
     )
 
@@ -329,25 +312,24 @@ async def upload_facture_labo(
     db.flush()  # Pour obtenir l'ID
 
     # 7. Creer les lignes de facture
-    if result.lignes:
-        for ligne in result.lignes:
-            db_ligne = LigneFactureLabo(
-                facture_id=db_facture.id,
-                cip13=ligne.cip13 if hasattr(ligne, 'cip13') else "",
-                designation=ligne.designation if hasattr(ligne, 'designation') else "",
-                numero_lot=ligne.numero_lot if hasattr(ligne, 'numero_lot') else None,
-                quantite=ligne.quantite if hasattr(ligne, 'quantite') else 0,
-                prix_unitaire_ht=ligne.prix_unitaire_ht if hasattr(ligne, 'prix_unitaire_ht') else 0.0,
-                remise_pct=ligne.remise_pct if hasattr(ligne, 'remise_pct') else 0.0,
-                prix_unitaire_apres_remise=ligne.prix_unitaire_apres_remise if hasattr(ligne, 'prix_unitaire_apres_remise') else 0.0,
-                montant_ht=ligne.montant_ht if hasattr(ligne, 'montant_ht') else 0.0,
-                taux_tva=ligne.taux_tva if hasattr(ligne, 'taux_tva') else 0.0,
-                montant_brut=ligne.montant_brut if hasattr(ligne, 'montant_brut') else 0.0,
-                montant_remise=ligne.montant_remise if hasattr(ligne, 'montant_remise') else 0.0,
-                categorie=ligne.categorie if hasattr(ligne, 'categorie') else None,
-                tranche=ligne.tranche if hasattr(ligne, 'tranche') else None,
-            )
-            db.add(db_ligne)
+    for ligne in result.lignes:
+        db_ligne = LigneFactureLabo(
+            facture_id=db_facture.id,
+            cip13=ligne.cip13,
+            designation=ligne.designation,
+            numero_lot=ligne.numero_lot or None,
+            quantite=ligne.quantite,
+            prix_unitaire_ht=ligne.prix_unitaire_ht,
+            remise_pct=ligne.remise_pct,
+            prix_unitaire_apres_remise=ligne.prix_unitaire_apres_remise,
+            montant_ht=ligne.montant_ht,
+            taux_tva=ligne.taux_tva,
+            montant_brut=ligne.montant_brut,
+            montant_remise=ligne.montant_remise,
+            categorie=ligne.categorie or None,
+            tranche=ligne.tranche or None,
+        )
+        db.add(db_ligne)
 
     db.commit()
     db.refresh(db_facture)
@@ -355,11 +337,23 @@ async def upload_facture_labo(
     # 8. Construire la reponse d'analyse
     analyse_response = _build_analyse_response(db_facture, accord)
 
+    # Construire le fournisseur detecte pour la reponse
+    fournisseur_detecte = FournisseurDetecte(
+        nom=fournisseur.nom,
+        type=fournisseur.type,
+        detecte_auto=fournisseur.detecte_auto,
+        parser_id=fournisseur.parser_id,
+        confiance=fournisseur.confiance,
+    )
+
+    fournisseur_label = f" [{fournisseur.nom}]" if fournisseur.detecte_auto else " [parser generique]"
+
     return UploadLaboResponse(
         success=True,
-        message=f"Facture {numero} analysee avec succes ({db_facture.nb_lignes} lignes)",
+        message=f"Facture {numero} analysee avec succes ({db_facture.nb_lignes} lignes){fournisseur_label}",
         facture=db_facture,
         analyse=analyse_response,
+        fournisseur=fournisseur_detecte,
         warnings=db_facture.warnings,
     )
 
@@ -748,3 +742,27 @@ async def get_stats_monthly(
         total_rfa_recue=total_rfa_recue,
         total_ecart=total_ecart,
     )
+
+
+# ========================================
+# GET /parsers - Parsers disponibles
+# ========================================
+
+@router.get("/parsers/available")
+async def get_parsers_available(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Lister les parsers de factures disponibles.
+
+    Retourne pour chaque parser :
+    - id, name, version
+    - type (laboratoire, grossiste)
+    - keywords de detection
+    - dedicated (parser dedie vs generique)
+    """
+    try:
+        from app.services.parsers import get_available_parsers
+        return {"parsers": get_available_parsers()}
+    except ImportError:
+        return {"parsers": []}

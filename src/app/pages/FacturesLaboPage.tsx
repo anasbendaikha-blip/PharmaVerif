@@ -207,9 +207,28 @@ function UploadSection({ onUploadSuccess }: { onUploadSuccess: () => void }) {
         {/* Résultat de l'upload */}
         {uploadResult && uploadResult.success && uploadResult.facture && (
           <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-            <div className="flex items-center gap-2 text-green-700 dark:text-green-300 font-medium mb-2">
-              <CheckCircle2 className="h-4 w-4" />
-              Facture analysée avec succès
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 text-green-700 dark:text-green-300 font-medium">
+                <CheckCircle2 className="h-4 w-4" />
+                Facture analysée avec succès
+              </div>
+              {/* Badge fournisseur détecté */}
+              {uploadResult.fournisseur && (
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  uploadResult.fournisseur.detecte_auto && uploadResult.fournisseur.confiance >= 0.5
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                    : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
+                }`}>
+                  {uploadResult.fournisseur.detecte_auto && uploadResult.fournisseur.confiance >= 0.5 ? (
+                    <CheckCircle2 className="h-3 w-3" />
+                  ) : (
+                    <AlertTriangle className="h-3 w-3" />
+                  )}
+                  {uploadResult.fournisseur.detecte_auto
+                    ? `${uploadResult.fournisseur.nom}`
+                    : 'Parser générique'}
+                </span>
+              )}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
               <div>
