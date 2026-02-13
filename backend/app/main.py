@@ -360,36 +360,16 @@ async def startup_event():
     Base.metadata.create_all(bind=engine)
     logger.info("✅ Tables créées/vérifiées")
 
-    # Migration v10: ajouter les colonnes manquantes sur les tables existantes
-    from sqlalchemy import inspect, text
-    inspector = inspect(engine)
+    # Migration v10: ajouter onboarding_completed a pharmacies (PostgreSQL compatible)
+    from sqlalchemy import text
     try:
-        table_names = inspector.get_table_names()
-        logger.info(f"📋 Tables existantes: {table_names}")
-
-        # Ajouter onboarding_completed sur pharmacies si manquant
-        if 'pharmacies' in table_names:
-            columns = [col['name'] for col in inspector.get_columns('pharmacies')]
-            logger.info(f"📋 Colonnes pharmacies: {columns}")
-            if 'onboarding_completed' not in columns:
-                with engine.begin() as conn:
-                    conn.execute(text(
-                        "ALTER TABLE pharmacies ADD COLUMN onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE"
-                    ))
-                logger.info("✅ Migration: colonne onboarding_completed ajoutée sur pharmacies")
-            else:
-                logger.info("✅ Migration: onboarding_completed déjà présent")
+        with engine.begin() as conn:
+            conn.execute(text(
+                "ALTER TABLE pharmacies ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE"
+            ))
+        logger.info("✅ Migration: onboarding_completed OK sur pharmacies")
     except Exception as e:
-        logger.error(f"❌ Migration onboarding_completed échouée: {e}")
-        # Tentative alternative avec IF NOT EXISTS (PostgreSQL 11+)
-        try:
-            with engine.begin() as conn:
-                conn.execute(text(
-                    "ALTER TABLE pharmacies ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE"
-                ))
-            logger.info("✅ Migration (fallback): onboarding_completed ajouté")
-        except Exception as e2:
-            logger.error(f"❌ Migration fallback aussi échouée: {e2}")
+        logger.warning(f"⚠️ Migration onboarding_completed: {e}")
 
     # Seed données initiales si la DB est vide (admin, grossistes, Biogaran)
     db = SessionLocal()
