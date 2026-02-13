@@ -371,6 +371,27 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"⚠️ Migration onboarding_completed: {e}")
 
+    # Migration v11: ajouter pharmacy_id aux tables multi-tenant (PostgreSQL compatible)
+    # create_all() ne peut pas ajouter des colonnes a des tables existantes
+    multi_tenant_tables = [
+        "users",
+        "grossistes",
+        "factures",
+        "laboratoires",
+        "factures_labo",
+        "historique_prix",
+        "emacs",
+    ]
+    try:
+        with engine.begin() as conn:
+            for table_name in multi_tenant_tables:
+                conn.execute(text(
+                    f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS pharmacy_id INTEGER REFERENCES pharmacies(id)"
+                ))
+        logger.info("✅ Migration: pharmacy_id ajouté aux tables multi-tenant")
+    except Exception as e:
+        logger.warning(f"⚠️ Migration pharmacy_id multi-tenant: {e}")
+
     # Seed données initiales si la DB est vide (admin, grossistes, Biogaran)
     db = SessionLocal()
     try:
