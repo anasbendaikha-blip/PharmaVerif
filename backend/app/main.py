@@ -27,6 +27,11 @@ from app.api.routes import (
     stats,
     export,
     factures_labo,
+    laboratoires,
+    emac,
+    rapports,
+    historique_prix,
+    pharmacy,
 )
 from app.core.exceptions import PharmaVerifException
 
@@ -214,6 +219,36 @@ app.include_router(
     tags=["🧪 Factures Laboratoires"],
 )
 
+app.include_router(
+    laboratoires.router,
+    prefix=f"{settings.API_V1_PREFIX}/laboratoires",
+    tags=["🏭 Laboratoires"],
+)
+
+app.include_router(
+    emac.router,
+    prefix=f"{settings.API_V1_PREFIX}/emac",
+    tags=["📋 EMAC"],
+)
+
+app.include_router(
+    rapports.router,
+    prefix=f"{settings.API_V1_PREFIX}/rapports",
+    tags=["📄 Rapports PDF"],
+)
+
+app.include_router(
+    historique_prix.router,
+    prefix=f"{settings.API_V1_PREFIX}/prix",
+    tags=["📈 Historique Prix"],
+)
+
+app.include_router(
+    pharmacy.router,
+    prefix=f"{settings.API_V1_PREFIX}/pharmacy",
+    tags=["🏥 Pharmacie (Tenant)"],
+)
+
 # ========================================
 # ENDPOINTS RACINE
 # ========================================
@@ -242,6 +277,11 @@ async def root():
             "stats": f"{settings.API_V1_PREFIX}/stats",
             "export": f"{settings.API_V1_PREFIX}/export",
             "factures_labo": f"{settings.API_V1_PREFIX}/factures-labo",
+            "laboratoires": f"{settings.API_V1_PREFIX}/laboratoires",
+            "emac": f"{settings.API_V1_PREFIX}/emac",
+            "rapports": f"{settings.API_V1_PREFIX}/rapports",
+            "prix": f"{settings.API_V1_PREFIX}/prix",
+            "pharmacy": f"{settings.API_V1_PREFIX}/pharmacy",
         },
     }
 
@@ -313,8 +353,9 @@ async def startup_event():
 
     # Créer les tables si elles n'existent pas (PostgreSQL ou SQLite)
     from app.database import engine, Base, SessionLocal
-    from app.models import User, Grossiste, Facture, LigneFacture, Anomalie, VerificationLog, Session as SessionModel
-    from app.models_labo import Laboratoire, AccordCommercial, FactureLabo, LigneFactureLabo
+    from app.models import User, Grossiste, Facture, LigneFacture, Anomalie, VerificationLog, Session as SessionModel, Pharmacy
+    from app.models_labo import Laboratoire, AccordCommercial, FactureLabo, LigneFactureLabo, PalierRFA, AnomalieFactureLabo, HistoriquePrix
+    from app.models_emac import EMAC, AnomalieEMAC
 
     Base.metadata.create_all(bind=engine)
     logger.info("✅ Tables créées/vérifiées")

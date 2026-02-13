@@ -20,6 +20,8 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { initializeDatabase } from './api/endpoints';
 import { isApiMode } from './api/config';
 import { FacturesLaboPage } from './pages/FacturesLaboPage';
+import { EMACPage } from './pages/EMACPage';
+import { AnalysePrixPage } from './pages/AnalysePrixPage';
 import { Toaster } from './components/ui/sonner';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
@@ -49,6 +51,8 @@ function AppLayout() {
       reports: '/reports',
       fournisseurs: '/fournisseurs',
       'factures-labo': '/factures-labo',
+      emac: '/emac',
+      'analyse-prix': '/analyse-prix',
       'mentions-legales': '/mentions-legales',
       contact: '/contact',
       login: '/login',
@@ -97,14 +101,32 @@ function AppLayout() {
             }
           />
           {isApiMode() && (
-            <Route
-              path="/factures-labo"
-              element={
-                <ProtectedRoute>
-                  <FacturesLaboPage onNavigate={handleNavigate} />
-                </ProtectedRoute>
-              }
-            />
+            <>
+              <Route
+                path="/factures-labo"
+                element={
+                  <ProtectedRoute>
+                    <FacturesLaboPage onNavigate={handleNavigate} />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/emac"
+                element={
+                  <ProtectedRoute>
+                    <EMACPage onNavigate={handleNavigate} />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/analyse-prix"
+                element={
+                  <ProtectedRoute>
+                    <AnalysePrixPage onNavigate={handleNavigate} />
+                  </ProtectedRoute>
+                }
+              />
+            </>
           )}
           <Route
             path="/mentions-legales"

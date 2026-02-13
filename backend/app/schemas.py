@@ -16,6 +16,13 @@ from enum import Enum
 # ENUMS
 # ========================================
 
+class PlanPharmacie(str, Enum):
+    """Plans d'abonnement pharmacie"""
+    FREE = "free"
+    PRO = "pro"
+    ENTERPRISE = "enterprise"
+
+
 class UserRole(str, Enum):
     """Rôles utilisateur"""
     ADMIN = "admin"
@@ -39,6 +46,44 @@ class TypeAnomalie(str, Enum):
     AUTRE = "autre"
 
 # ========================================
+# SCHEMAS PHARMACIE (TENANT)
+# ========================================
+
+class PharmacyBase(BaseModel):
+    """Base pharmacie"""
+    nom: str = Field(..., min_length=2, max_length=300)
+    adresse: Optional[str] = Field(None, max_length=500)
+    siret: Optional[str] = Field(None, max_length=14)
+    titulaire: Optional[str] = Field(None, max_length=200)
+    plan: PlanPharmacie = PlanPharmacie.FREE
+
+
+class PharmacyCreate(PharmacyBase):
+    """Creation d'une pharmacie (lors de l'inscription)"""
+    pass
+
+
+class PharmacyUpdate(BaseModel):
+    """Mise a jour d'une pharmacie"""
+    nom: Optional[str] = Field(None, min_length=2, max_length=300)
+    adresse: Optional[str] = Field(None, max_length=500)
+    siret: Optional[str] = Field(None, max_length=14)
+    titulaire: Optional[str] = Field(None, max_length=200)
+    plan: Optional[PlanPharmacie] = None
+
+
+class PharmacyResponse(PharmacyBase):
+    """Reponse pharmacie"""
+    id: int
+    actif: bool = True
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ========================================
 # SCHÉMAS UTILISATEUR
 # ========================================
 
@@ -53,7 +98,8 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """Création d'utilisateur"""
     password: str = Field(..., min_length=8, max_length=100)
-    
+    pharmacy_id: Optional[int] = None
+
     @validator('password')
     def validate_password(cls, v):
         """Valider la force du mot de passe"""
@@ -75,19 +121,22 @@ class UserInDB(UserBase):
     """Utilisateur en base de données"""
     id: int
     hashed_password: str
+    pharmacy_id: Optional[int] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     last_login: Optional[datetime] = None
-    
+
     class Config:
         from_attributes = True
 
 class UserResponse(UserBase):
     """Réponse utilisateur (sans mot de passe)"""
     id: int
+    pharmacy_id: Optional[int] = None
     created_at: datetime
     last_login: Optional[datetime] = None
-    
+    pharmacy: Optional[PharmacyResponse] = None
+
     class Config:
         from_attributes = True
 
@@ -105,6 +154,7 @@ class TokenData(BaseModel):
     """Données du token"""
     user_id: Optional[int] = None
     email: Optional[str] = None
+    pharmacy_id: Optional[int] = None
 
 class LoginRequest(BaseModel):
     """Requête de connexion"""
@@ -131,6 +181,38 @@ class ChangePasswordRequest(BaseModel):
         if not any(char.isupper() for char in v):
             raise ValueError('Le mot de passe doit contenir au moins une majuscule')
         return v
+
+
+class RegisterWithPharmacyRequest(BaseModel):
+    """Inscription d'un nouvel utilisateur avec creation de pharmacie"""
+    # Utilisateur
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=100)
+    nom: str = Field(..., min_length=2, max_length=100)
+    prenom: str = Field(..., min_length=2, max_length=100)
+
+    # Pharmacie
+    pharmacy_nom: str = Field(..., min_length=2, max_length=300)
+    pharmacy_adresse: Optional[str] = Field(None, max_length=500)
+    pharmacy_siret: Optional[str] = Field(None, max_length=14)
+    pharmacy_titulaire: Optional[str] = Field(None, max_length=200)
+
+    @validator('password')
+    def validate_password(cls, v):
+        if not any(char.isdigit() for char in v):
+            raise ValueError('Le mot de passe doit contenir au moins un chiffre')
+        if not any(char.isupper() for char in v):
+            raise ValueError('Le mot de passe doit contenir au moins une majuscule')
+        return v
+
+
+class RegisterWithPharmacyResponse(BaseModel):
+    """Reponse inscription avec pharmacie"""
+    user: UserResponse
+    pharmacy: PharmacyResponse
+    token: Token
+    message: str = "Inscription reussie"
+
 
 # ========================================
 # SCHÉMAS GROSSISTE

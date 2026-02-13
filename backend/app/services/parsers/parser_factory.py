@@ -155,12 +155,18 @@ def _extract_text_for_detection(pdf_path: str) -> str:
 # FACTORY
 # ========================================
 
-def get_parser(supplier_id: str) -> BaseInvoiceParser:
+def get_parser(
+    supplier_id: str,
+    cible_tranche_a: float = 57.0,
+    cible_tranche_b: float = 27.5,
+) -> BaseInvoiceParser:
     """
     Retourne l'instance du parser pour un fournisseur donne.
 
     Args:
         supplier_id: ID du parser (ex: "biogaran", "generic")
+        cible_tranche_a: Taux cible tranche A depuis l'accord BDD
+        cible_tranche_b: Taux cible tranche B depuis l'accord BDD
 
     Returns:
         Instance du parser
@@ -168,40 +174,52 @@ def get_parser(supplier_id: str) -> BaseInvoiceParser:
     # Chercher dans le registre
     for parser_cls in PARSER_REGISTRY:
         if parser_cls.PARSER_ID == supplier_id:
-            return parser_cls()
+            return parser_cls(cible_tranche_a=cible_tranche_a, cible_tranche_b=cible_tranche_b)
 
     # Fallback generique
-    return GenericParser()
+    return GenericParser(cible_tranche_a=cible_tranche_a, cible_tranche_b=cible_tranche_b)
 
 
-def get_parser_for_supplier(fournisseur: FournisseurInfo) -> BaseInvoiceParser:
+def get_parser_for_supplier(
+    fournisseur: FournisseurInfo,
+    cible_tranche_a: float = 57.0,
+    cible_tranche_b: float = 27.5,
+) -> BaseInvoiceParser:
     """
     Retourne le parser adapte pour un fournisseur detecte.
 
     Args:
         fournisseur: FournisseurInfo detecte
+        cible_tranche_a: Taux cible tranche A depuis l'accord BDD
+        cible_tranche_b: Taux cible tranche B depuis l'accord BDD
 
     Returns:
         Instance du parser
     """
-    return get_parser(fournisseur.parser_id)
+    return get_parser(fournisseur.parser_id, cible_tranche_a, cible_tranche_b)
 
 
 # ========================================
 # PIPELINE COMPLET
 # ========================================
 
-def parse_invoice(pdf_path: str) -> ParsedInvoice:
+def parse_invoice(
+    pdf_path: str,
+    cible_tranche_a: float = 57.0,
+    cible_tranche_b: float = 27.5,
+) -> ParsedInvoice:
     """
     Pipeline complet de parsing d'une facture.
 
     1. Detecte le fournisseur
-    2. Instancie le bon parser
+    2. Instancie le bon parser (avec cibles BDD si fournies)
     3. Parse le PDF
     4. Retourne le resultat normalise
 
     Args:
         pdf_path: Chemin vers le fichier PDF
+        cible_tranche_a: Taux cible tranche A depuis l'accord BDD
+        cible_tranche_b: Taux cible tranche B depuis l'accord BDD
 
     Returns:
         ParsedInvoice: Resultat normalise avec fournisseur detecte
@@ -209,8 +227,8 @@ def parse_invoice(pdf_path: str) -> ParsedInvoice:
     # 1. Detecter le fournisseur
     fournisseur = detect_supplier(pdf_path)
 
-    # 2. Instancier le parser
-    parser = get_parser_for_supplier(fournisseur)
+    # 2. Instancier le parser avec les cibles BDD
+    parser = get_parser_for_supplier(fournisseur, cible_tranche_a, cible_tranche_b)
 
     # 3. Parser le PDF
     result = parser.parse(pdf_path)

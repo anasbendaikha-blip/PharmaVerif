@@ -22,7 +22,7 @@ from app.schemas import (
 )
 from app.database import get_db
 from app.models import Facture, Grossiste, Anomalie, User
-from app.api.routes.auth import get_current_user
+from app.api.routes.auth import get_current_user, get_current_pharmacy_id
 
 router = APIRouter()
 
@@ -36,22 +36,23 @@ async def get_statistiques_globales(
     date_fin: Optional[datetime] = Query(None, description="Date de fin de période"),
     grossiste_id: Optional[int] = Query(None, description="Filtrer par grossiste"),
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
     Obtenir les statistiques globales
-    
+
     Retourne :
     - Statistiques générales (nombre factures, conformité, montants)
     - Statistiques par grossiste
     - Évolution dans le temps
-    
+
     **Filtres disponibles:**
     - Par période (date_debut, date_fin)
     - Par grossiste
     """
-    # Query de base
-    query = db.query(Facture)
+    # Query de base — filtre multi-tenant
+    query = db.query(Facture).filter(Facture.pharmacy_id == pharmacy_id)
     
     # Filtres
     if date_debut:
@@ -84,7 +85,7 @@ async def get_statistiques_globales(
     montant_total_ht = float(montant_total_result) if montant_total_result else 0.0
     
     # Montant récupérable (somme des anomalies)
-    anomalies_query = db.query(Anomalie).join(Facture)
+    anomalies_query = db.query(Anomalie).join(Facture).filter(Facture.pharmacy_id == pharmacy_id)
     
     if date_debut:
         anomalies_query = anomalies_query.filter(Facture.date >= date_debut)
@@ -126,7 +127,9 @@ async def get_statistiques_globales(
         Grossiste.nom,
         func.count(Facture.id).label('nombre_factures'),
         func.sum(Facture.montant_brut_ht).label('montant_total')
-    ).join(Facture).group_by(Grossiste.id, Grossiste.nom)
+    ).join(Facture).filter(
+        Grossiste.pharmacy_id == pharmacy_id,
+    ).group_by(Grossiste.id, Grossiste.nom)
     
     if date_debut:
         grossistes_stats = grossistes_stats.filter(Facture.date >= date_debut)
@@ -138,7 +141,8 @@ async def get_statistiques_globales(
     for grossiste_stat in grossistes_stats.all():
         # Anomalies pour ce grossiste
         anomalies_count = db.query(func.count(Anomalie.id)).join(Facture).filter(
-            Facture.grossiste_id == grossiste_stat.id
+            Facture.grossiste_id == grossiste_stat.id,
+            Facture.pharmacy_id == pharmacy_id,
         )
         
         if date_debut:
@@ -150,7 +154,8 @@ async def get_statistiques_globales(
         
         # Montant récupérable pour ce grossiste
         montant_recup = db.query(func.sum(Anomalie.montant_ecart)).join(Facture).filter(
-            Facture.grossiste_id == grossiste_stat.id
+            Facture.grossiste_id == grossiste_stat.id,
+            Facture.pharmacy_id == pharmacy_id,
         )
         
         if date_debut:
@@ -192,7 +197,8 @@ async def get_statistiques_globales(
         func.count(Facture.id).label('nombre_factures'),
         func.sum(Facture.montant_brut_ht).label('montant_total')
     ).filter(
-        and_(Facture.date >= date_debut, Facture.date <= date_fin)
+        and_(Facture.date >= date_debut, Facture.date <= date_fin),
+        Facture.pharmacy_id == pharmacy_id,
     ).group_by('mois').order_by('mois')
     
     if grossiste_id:
@@ -201,7 +207,8 @@ async def get_statistiques_globales(
     for periode in evolution_query.all():
         # Anomalies pour cette période
         anomalies_periode = db.query(func.count(Anomalie.id)).join(Facture).filter(
-            func.date_trunc('month', Facture.date) == periode.mois
+            func.date_trunc('month', Facture.date) == periode.mois,
+            Facture.pharmacy_id == pharmacy_id,
         )
         
         if grossiste_id:
@@ -227,11 +234,12 @@ async def get_statistiques_globales(
 @router.get("/dashboard", response_model=dict)
 async def get_dashboard_data(
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
     Données pour le tableau de bord
-    
+
     Retourne un résumé rapide avec :
     - KPIs principaux
     - Dernières factures
@@ -239,37 +247,47 @@ async def get_dashboard_data(
     - Top grossistes
     """
     # KPIs
-    total_factures = db.query(func.count(Facture.id)).scalar() or 0
-    
+    total_factures = db.query(func.count(Facture.id)).filter(
+        Facture.pharmacy_id == pharmacy_id,
+    ).scalar() or 0
+
     factures_mois = db.query(func.count(Facture.id)).filter(
-        Facture.date >= datetime.utcnow() - timedelta(days=30)
+        Facture.pharmacy_id == pharmacy_id,
+        Facture.date >= datetime.utcnow() - timedelta(days=30),
     ).scalar() or 0
-    
-    anomalies_non_resolues = db.query(func.count(Anomalie.id)).filter(
-        Anomalie.resolu == False
+
+    anomalies_non_resolues = db.query(func.count(Anomalie.id)).join(Facture).filter(
+        Facture.pharmacy_id == pharmacy_id,
+        Anomalie.resolu == False,
     ).scalar() or 0
-    
-    montant_recuperable = db.query(func.sum(Anomalie.montant_ecart)).filter(
-        Anomalie.resolu == False
+
+    montant_recuperable = db.query(func.sum(Anomalie.montant_ecart)).join(Facture).filter(
+        Facture.pharmacy_id == pharmacy_id,
+        Anomalie.resolu == False,
     ).scalar() or 0.0
-    
+
     # Dernières factures (5)
-    dernieres_factures = db.query(Facture).order_by(
+    dernieres_factures = db.query(Facture).filter(
+        Facture.pharmacy_id == pharmacy_id,
+    ).order_by(
         Facture.created_at.desc()
     ).limit(5).all()
-    
+
     # Top grossistes (par montant)
     top_grossistes = db.query(
         Grossiste.nom,
         func.count(Facture.id).label('nb_factures'),
         func.sum(Facture.montant_brut_ht).label('montant_total')
-    ).join(Facture).group_by(Grossiste.nom).order_by(
+    ).join(Facture).filter(
+        Grossiste.pharmacy_id == pharmacy_id,
+    ).group_by(Grossiste.nom).order_by(
         func.sum(Facture.montant_brut_ht).desc()
     ).limit(5).all()
-    
+
     # Anomalies récentes
-    anomalies_recentes = db.query(Anomalie).filter(
-        Anomalie.resolu == False
+    anomalies_recentes = db.query(Anomalie).join(Facture).filter(
+        Facture.pharmacy_id == pharmacy_id,
+        Anomalie.resolu == False,
     ).order_by(Anomalie.created_at.desc()).limit(10).all()
     
     return {
@@ -313,6 +331,7 @@ async def get_dashboard_data(
 async def get_tendances(
     periode: str = Query("mois", description="Période: jour, semaine, mois, annee"),
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -336,28 +355,34 @@ async def get_tendances(
     
     # Période actuelle
     factures_actuelles = db.query(func.count(Facture.id)).filter(
-        Facture.date >= date_debut
+        Facture.pharmacy_id == pharmacy_id,
+        Facture.date >= date_debut,
     ).scalar() or 0
-    
+
     montant_actuel = db.query(func.sum(Facture.montant_brut_ht)).filter(
-        Facture.date >= date_debut
+        Facture.pharmacy_id == pharmacy_id,
+        Facture.date >= date_debut,
     ).scalar() or 0.0
-    
+
     anomalies_actuelles = db.query(func.count(Anomalie.id)).join(Facture).filter(
-        Facture.date >= date_debut
+        Facture.pharmacy_id == pharmacy_id,
+        Facture.date >= date_debut,
     ).scalar() or 0
-    
+
     # Période précédente
     factures_precedentes = db.query(func.count(Facture.id)).filter(
-        and_(Facture.date >= date_comparaison, Facture.date < date_debut)
+        Facture.pharmacy_id == pharmacy_id,
+        and_(Facture.date >= date_comparaison, Facture.date < date_debut),
     ).scalar() or 0
-    
+
     montant_precedent = db.query(func.sum(Facture.montant_brut_ht)).filter(
-        and_(Facture.date >= date_comparaison, Facture.date < date_debut)
+        Facture.pharmacy_id == pharmacy_id,
+        and_(Facture.date >= date_comparaison, Facture.date < date_debut),
     ).scalar() or 0.0
-    
+
     anomalies_precedentes = db.query(func.count(Anomalie.id)).join(Facture).filter(
-        and_(Facture.date >= date_comparaison, Facture.date < date_debut)
+        Facture.pharmacy_id == pharmacy_id,
+        and_(Facture.date >= date_comparaison, Facture.date < date_debut),
     ).scalar() or 0
     
     # Calculer les variations

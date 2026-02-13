@@ -37,8 +37,12 @@ import {
   FlaskConical,
   Package,
   AlertTriangle,
+  RefreshCw,
+  Database,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { isApiMode } from '../api/config';
+import { laboratoiresApi } from '../api/laboratoiresApi';
 
 // ---------------------------------------------------------------------------
 // Types locaux
@@ -184,6 +188,10 @@ export function FournisseursPage({ onNavigate: _onNavigate }: FournisseursPagePr
   // Delete confirmation
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
+  // API actions loading states
+  const [recalculLoading, setRecalculLoading] = useState(false);
+  const [initTemplatesLoading, setInitTemplatesLoading] = useState(false);
+
   // -------------------------------------------------------------------------
   // Data loading
   // -------------------------------------------------------------------------
@@ -295,6 +303,45 @@ export function FournisseursPage({ onNavigate: _onNavigate }: FournisseursPagePr
     if (selectedFournisseur?.id === id) {
       setShowDetailsModal(false);
       setSelectedFournisseur(null);
+    }
+  };
+
+  // -------------------------------------------------------------------------
+  // API actions (recalcul & init templates)
+  // -------------------------------------------------------------------------
+
+  const handleRecalculer = async (fournisseurId: number) => {
+    setRecalculLoading(true);
+    try {
+      const res = await laboratoiresApi.recalculer(fournisseurId);
+      if (res.erreurs > 0) {
+        toast.warning(
+          `${res.message} - ${res.succes} succes, ${res.erreurs} erreur(s) sur ${res.total} facture(s)`
+        );
+      } else {
+        toast.success(
+          `${res.message} - ${res.succes}/${res.total} facture(s) recalculee(s)`
+        );
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+      toast.error(`Echec du recalcul : ${msg}`);
+    } finally {
+      setRecalculLoading(false);
+    }
+  };
+
+  const handleInitTemplates = async () => {
+    setInitTemplatesLoading(true);
+    try {
+      const res = await laboratoiresApi.initTemplates();
+      toast.success(res.message || 'Templates laboratoires initialises');
+      loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+      toast.error(`Echec de l'initialisation : ${msg}`);
+    } finally {
+      setInitTemplatesLoading(false);
     }
   };
 
@@ -850,13 +897,26 @@ export function FournisseursPage({ onNavigate: _onNavigate }: FournisseursPagePr
                 {fournisseurs.length > 1 ? 's' : ''}
               </p>
             </div>
-            <Button
-              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={openCreateModal}
-            >
-              <Plus className="h-4 w-4" />
-              Ajouter un fournisseur
-            </Button>
+            <div className="flex items-center gap-2">
+              {isApiMode() && (
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={handleInitTemplates}
+                  disabled={initTemplatesLoading}
+                >
+                  <Database className={`h-4 w-4 ${initTemplatesLoading ? 'animate-pulse' : ''}`} />
+                  {initTemplatesLoading ? 'Initialisation...' : 'Initialiser les templates labos'}
+                </Button>
+              )}
+              <Button
+                className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={openCreateModal}
+              >
+                <Plus className="h-4 w-4" />
+                Ajouter un fournisseur
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -1526,6 +1586,17 @@ export function FournisseursPage({ onNavigate: _onNavigate }: FournisseursPagePr
                 >
                   Fermer
                 </Button>
+                {isApiMode() && selectedFournisseur.type_fournisseur === 'laboratoire' && (
+                  <Button
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => handleRecalculer(selectedFournisseur.id)}
+                    disabled={recalculLoading}
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${recalculLoading ? 'animate-spin' : ''}`} />
+                    {recalculLoading ? 'Recalcul...' : 'Recalculer les factures'}
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   className="gap-1.5"

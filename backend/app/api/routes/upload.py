@@ -15,7 +15,7 @@ from datetime import datetime
 from app.database import get_db
 from app.models import User
 from app.schemas import UploadResponse
-from app.api.routes.auth import get_current_user
+from app.api.routes.auth import get_current_user, get_current_pharmacy_id
 from app.config import settings
 
 router = APIRouter()
@@ -25,6 +25,7 @@ router = APIRouter()
 async def upload_file(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """

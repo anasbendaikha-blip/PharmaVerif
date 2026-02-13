@@ -28,16 +28,24 @@ import {
   ChevronDown,
   ChevronUp,
   Info,
+  Settings,
+  Download,
+  FileWarning,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { toast } from 'sonner';
 import { facturesLaboApi } from '../api/facturesLabo';
+import { rapportsApi } from '../api/rapportsApi';
+import { ConditionsCommercialesForm } from '../components/ConditionsCommercialesForm';
 import type {
   FactureLaboResponse,
   LigneFactureLaboResponse,
   AnalyseRemiseResponse,
   UploadLaboResponse,
+  AnomalieFactureLaboResponse,
+  VerificationLaboResponse,
+  RFAProgressionResponse,
 } from '../api/types';
 
 interface FacturesLaboPageProps {
@@ -88,6 +96,13 @@ function getStatutBadge(statut: string) {
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
           <AlertTriangle className="h-3 w-3" />
           Écart RFA
+        </span>
+      );
+    case 'verifiee':
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+          <CheckCircle2 className="h-3 w-3" />
+          Vérifiée
         </span>
       );
     default:
@@ -365,16 +380,32 @@ function FactureDetail({
   const [isUpdatingRfa, setIsUpdatingRfa] = useState(false);
   const [showLignes, setShowLignes] = useState(false);
   const [lignesFilter, setLignesFilter] = useState<string>('all');
+  const [anomalies, setAnomalies] = useState<AnomalieFactureLaboResponse[]>([]);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [rfaProgression, setRfaProgression] = useState<RFAProgressionResponse | null>(null);
+  const [showAnomalies, setShowAnomalies] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [analyseData, lignesData] = await Promise.all([
+        const [analyseData, lignesData, anomaliesData] = await Promise.all([
           facturesLaboApi.getAnalyse(facture.id),
           facturesLaboApi.getLignes(facture.id),
+          facturesLaboApi.getAnomalies(facture.id),
         ]);
         setAnalyse(analyseData);
         setLignes(lignesData);
+        setAnomalies(anomaliesData);
+
+        // Charger la progression RFA si un labo est associe
+        if (facture.laboratoire_id) {
+          try {
+            const progression = await facturesLaboApi.getRfaProgression(facture.laboratoire_id);
+            setRfaProgression(progression);
+          } catch {
+            // Non bloquant
+          }
+        }
       } catch {
         toast.error("Erreur lors du chargement de l'analyse");
       } finally {
@@ -383,7 +414,7 @@ function FactureDetail({
       }
     }
     loadData();
-  }, [facture.id]);
+  }, [facture.id, facture.laboratoire_id]);
 
   // Vérifications ligne par ligne
   const verifications = useMemo(() => lignes.map(verifyLigne), [lignes]);
@@ -411,6 +442,66 @@ function FactureDetail({
     if (lignesFilter === 'anomalies') return verifications.filter((v) => !v.isOk);
     return verifications.filter((v) => v.ligne.tranche === lignesFilter);
   }, [verifications, lignesFilter]);
+
+  // Groupement des anomalies par severite
+  const anomalyGroups = useMemo(() => ({
+    critical: anomalies.filter(a => a.severite === 'critical' && !a.resolu),
+    opportunity: anomalies.filter(a => a.severite === 'opportunity' && !a.resolu),
+    info: anomalies.filter(a => a.severite === 'info' && !a.resolu),
+    resolved: anomalies.filter(a => a.resolu),
+  }), [anomalies]);
+
+  const totalAnomalies = anomalyGroups.critical.length + anomalyGroups.opportunity.length + anomalyGroups.info.length;
+
+  // Labels et icones des types d'anomalies
+  const getAnomalieTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      remise_ecart: 'Ecart de remise',
+      escompte_manquant: 'Escompte non applique',
+      franco_seuil: 'Franco de port',
+      rfa_palier: 'Progression RFA',
+      gratuite_manquante: 'Gratuite manquante',
+      tva_incoherence: 'Incoherence TVA',
+      calcul_arithmetique: 'Erreur arithmetique',
+    };
+    return labels[type] || type;
+  };
+
+  const getSeveriteColor = (severite: string) => {
+    switch (severite) {
+      case 'critical': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800';
+      case 'opportunity': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+      case 'info': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600';
+    }
+  };
+
+  const handleReVerify = async () => {
+    setIsVerifying(true);
+    try {
+      const result = await facturesLaboApi.verify(facture.id);
+      setAnomalies(result.anomalies);
+      toast.success(result.message);
+      onRefresh();
+    } catch (err: unknown) {
+      const httpErr = err as { message?: string };
+      toast.error(httpErr.message || 'Erreur lors de la verification');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResolveAnomalie = async (anomalieId: number) => {
+    try {
+      await facturesLaboApi.resolveAnomalie(anomalieId, true, 'Resolu manuellement');
+      setAnomalies(prev => prev.map(a =>
+        a.id === anomalieId ? { ...a, resolu: true, resolu_at: new Date().toISOString() } : a
+      ));
+      toast.success('Anomalie marquee comme resolue');
+    } catch {
+      toast.error('Erreur lors de la resolution');
+    }
+  };
 
   const handleUpdateRfa = async () => {
     const rfaValue = parseFloat(rfaInput);
@@ -452,6 +543,61 @@ function FactureDetail({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                try {
+                  toast.info('Generation du PDF...');
+                  await rapportsApi.downloadFactureVerification(facture.id);
+                  toast.success('PDF telecharge');
+                } catch (err: unknown) {
+                  const msg = err instanceof Error ? err.message : 'Erreur';
+                  toast.error(msg);
+                }
+              }}
+              className="text-xs"
+            >
+              <Download className="h-3.5 w-3.5 mr-1" />
+              PDF
+            </Button>
+            {anomalies.filter(a => !a.resolu).length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    toast.info('Generation de la reclamation...');
+                    await rapportsApi.downloadReclamation({
+                      laboratoire_id: facture.laboratoire_id,
+                      facture_ids: [facture.id],
+                    });
+                    toast.success('Reclamation PDF telecharge');
+                  } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : 'Erreur';
+                    toast.error(msg);
+                  }
+                }}
+                className="text-xs text-red-600 hover:text-red-700 border-red-200"
+              >
+                <FileWarning className="h-3.5 w-3.5 mr-1" />
+                Reclamer
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleReVerify}
+              disabled={isVerifying}
+              className="text-xs"
+            >
+              {isVerifying ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+              )}
+              Re-verifier
+            </Button>
             {getStatutBadge(facture.statut)}
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-5 w-5" />
@@ -634,6 +780,202 @@ function FactureDetail({
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Dashboard Anomalies */}
+        {anomalies.length > 0 && (
+          <div className="px-6 pb-4">
+            <button
+              onClick={() => setShowAnomalies(!showAnomalies)}
+              className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Verification ({totalAnomalies} anomalie{totalAnomalies > 1 ? 's' : ''})
+                {anomalyGroups.critical.length > 0 && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                    {anomalyGroups.critical.length} critique{anomalyGroups.critical.length > 1 ? 's' : ''}
+                  </span>
+                )}
+                {anomalyGroups.opportunity.length > 0 && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                    {anomalyGroups.opportunity.length} opportunite{anomalyGroups.opportunity.length > 1 ? 's' : ''}
+                  </span>
+                )}
+              </span>
+              {showAnomalies ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+
+            {showAnomalies && (
+              <div className="mt-3 space-y-4">
+                {/* Critical */}
+                {anomalyGroups.critical.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-red-700 dark:text-red-400 mb-2 flex items-center gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      CRITIQUE ({anomalyGroups.critical.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {anomalyGroups.critical.map((a) => (
+                        <div key={a.id} className={`p-3 rounded-lg border text-sm ${getSeveriteColor('critical')}`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-xs mb-0.5">{getAnomalieTypeLabel(a.type_anomalie)}</p>
+                              <p className="text-xs opacity-90">{a.description}</p>
+                              {a.montant_ecart > 0 && (
+                                <p className="text-xs font-bold mt-1">Impact : {formatCurrency(a.montant_ecart)}</p>
+                              )}
+                              {a.action_suggeree && (
+                                <p className="text-[10px] mt-1 opacity-75 italic">{a.action_suggeree}</p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleResolveAnomalie(a.id)}
+                              className="flex-shrink-0 text-[10px] px-2 py-1 rounded bg-white/50 dark:bg-gray-800/50 hover:bg-white/80 dark:hover:bg-gray-800/80 transition-colors"
+                              title="Marquer comme resolu"
+                            >
+                              Resolu
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Opportunities */}
+                {anomalyGroups.opportunity.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2 flex items-center gap-1.5">
+                      <Euro className="h-3.5 w-3.5" />
+                      OPPORTUNITES ({anomalyGroups.opportunity.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {anomalyGroups.opportunity.map((a) => (
+                        <div key={a.id} className={`p-3 rounded-lg border text-sm ${getSeveriteColor('opportunity')}`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-xs mb-0.5">{getAnomalieTypeLabel(a.type_anomalie)}</p>
+                              <p className="text-xs opacity-90">{a.description}</p>
+                              {a.montant_ecart > 0 && (
+                                <p className="text-xs font-bold mt-1">Economie potentielle : {formatCurrency(a.montant_ecart)}</p>
+                              )}
+                              {a.action_suggeree && (
+                                <p className="text-[10px] mt-1 opacity-75 italic">{a.action_suggeree}</p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleResolveAnomalie(a.id)}
+                              className="flex-shrink-0 text-[10px] px-2 py-1 rounded bg-white/50 dark:bg-gray-800/50 hover:bg-white/80 dark:hover:bg-gray-800/80 transition-colors"
+                              title="Marquer comme resolu"
+                            >
+                              Resolu
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Info */}
+                {anomalyGroups.info.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-2 flex items-center gap-1.5">
+                      <Info className="h-3.5 w-3.5" />
+                      INFORMATIONS ({anomalyGroups.info.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {anomalyGroups.info.map((a) => (
+                        <div key={a.id} className={`p-3 rounded-lg border text-sm ${getSeveriteColor('info')}`}>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-xs mb-0.5">{getAnomalieTypeLabel(a.type_anomalie)}</p>
+                            <p className="text-xs opacity-90">{a.description}</p>
+                            {a.action_suggeree && (
+                              <p className="text-[10px] mt-1 opacity-75 italic">{a.action_suggeree}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Conformes summary */}
+                {totalAnomalies === 0 && (
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-sm text-green-700 dark:text-green-300">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span className="font-medium">Toutes les verifications sont conformes</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Resolved count */}
+                {anomalyGroups.resolved.length > 0 && (
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                    {anomalyGroups.resolved.length} anomalie{anomalyGroups.resolved.length > 1 ? 's' : ''} resolue{anomalyGroups.resolved.length > 1 ? 's' : ''}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Conformes banner quand pas d'anomalies */}
+        {anomalies.length === 0 && !isLoadingAnalyse && (
+          <div className="px-6 pb-4">
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-sm text-green-700 dark:text-green-300">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                <span className="font-medium">Verification conforme — aucune anomalie detectee</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Progression RFA */}
+        {rfaProgression && rfaProgression.palier_suivant && (
+          <div className="px-6 pb-4">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Progression RFA {rfaProgression.annee}
+            </h3>
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-center justify-between mb-2 text-sm">
+                <span className="text-gray-600 dark:text-gray-400">
+                  Cumul achats : <strong className="text-gray-900 dark:text-white">{formatCurrency(rfaProgression.cumul_achats_ht)}</strong>
+                </span>
+                <span className="text-gray-600 dark:text-gray-400">
+                  RFA estimee : <strong className="text-blue-600 dark:text-blue-400">{formatCurrency(rfaProgression.rfa_estimee_annuelle)}</strong>
+                  {' '}({rfaProgression.taux_rfa_actuel.toFixed(1)}%)
+                </span>
+              </div>
+
+              {/* Progress bar */}
+              <div className="relative h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-2">
+                <div
+                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, rfaProgression.progression_pct)}%` }}
+                />
+                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow">
+                  {rfaProgression.progression_pct.toFixed(0)}%
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <span>
+                  Palier actuel : {rfaProgression.palier_actuel
+                    ? `${rfaProgression.palier_actuel.description || rfaProgression.palier_actuel.taux_rfa + '%'}`
+                    : 'Aucun'}
+                </span>
+                <span>
+                  Prochain : {rfaProgression.palier_suivant.description || rfaProgression.palier_suivant.taux_rfa + '%'}
+                  {' '}(reste {formatCurrency(rfaProgression.montant_restant_prochain_palier || 0)})
+                </span>
+              </div>
             </div>
           </div>
         )}
@@ -867,6 +1209,7 @@ export function FacturesLaboPage({ onNavigate }: FacturesLaboPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFacture, setSelectedFacture] = useState<FactureLaboResponse | null>(null);
+  const [showConditions, setShowConditions] = useState(false);
 
   const pageSize = 10;
 
@@ -908,14 +1251,48 @@ export function FacturesLaboPage({ onNavigate }: FacturesLaboPageProps) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* En-tête */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-          <FlaskConical className="h-8 w-8 text-purple-600" />
-          Factures Laboratoires
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
-          Upload, analyse et réconciliation RFA des factures Biogaran
-        </p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+            <FlaskConical className="h-8 w-8 text-purple-600" />
+            Factures Laboratoires
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
+            Upload, analyse et reconciliation RFA des factures Biogaran
+          </p>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              const now = new Date();
+              const mois = now.getMonth() + 1;
+              const annee = now.getFullYear();
+              // Utiliser le premier labo dispo (Biogaran = ID 1)
+              const laboId = factures[0]?.laboratoire_id || 1;
+              try {
+                toast.info('Generation du rapport mensuel...');
+                await rapportsApi.downloadRapportMensuel(laboId, mois, annee);
+                toast.success('Rapport mensuel telecharge');
+              } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : 'Erreur';
+                toast.error(msg);
+              }
+            }}
+            className="flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Rapport mensuel
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowConditions(true)}
+            className="flex items-center gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            Conditions commerciales
+          </Button>
+        </div>
       </div>
 
       {/* Upload */}
@@ -984,6 +1361,9 @@ export function FacturesLaboPage({ onNavigate }: FacturesLaboPageProps) {
                         Lignes
                       </th>
                       <th className="text-center py-3 px-3 font-medium text-gray-500 dark:text-gray-400">
+                        Anomalies
+                      </th>
+                      <th className="text-center py-3 px-3 font-medium text-gray-500 dark:text-gray-400">
                         Statut
                       </th>
                       <th className="text-right py-3 px-3 font-medium text-gray-500 dark:text-gray-400">
@@ -1017,6 +1397,23 @@ export function FacturesLaboPage({ onNavigate }: FacturesLaboPageProps) {
                         </td>
                         <td className="py-3 px-3 text-center text-gray-600 dark:text-gray-400">
                           {f.nb_lignes}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          {f.anomalies_labo && f.anomalies_labo.length > 0 ? (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              f.anomalies_labo.some(a => a.severite === 'critical' && !a.resolu)
+                                ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                                : f.anomalies_labo.some(a => a.severite === 'opportunity' && !a.resolu)
+                                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                                  : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            }`}>
+                              {f.anomalies_labo.filter(a => !a.resolu).length}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                              0
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-3 text-center">{getStatutBadge(f.statut)}</td>
                         <td className="py-3 px-3">
@@ -1086,6 +1483,15 @@ export function FacturesLaboPage({ onNavigate }: FacturesLaboPageProps) {
             loadFactures();
             setSelectedFacture(null);
           }}
+        />
+      )}
+
+      {/* Modal conditions commerciales */}
+      {showConditions && (
+        <ConditionsCommercialesForm
+          laboratoireId={1}
+          onClose={() => setShowConditions(false)}
+          onSaved={() => loadFactures()}
         />
       )}
     </div>

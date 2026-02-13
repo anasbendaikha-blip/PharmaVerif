@@ -4,7 +4,7 @@ Copyright (c) 2026 Anas BENDAIKHA
 Tous droits réservés.
 
 Fichier : backend/app/api/routes/auth.py
-Endpoints d'authentification JWT
+Endpoints d'authentification JWT — Multi-tenant aware
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -24,9 +24,12 @@ from app.schemas import (
     TokenData,
     ChangePasswordRequest,
     MessageResponse,
+    RegisterWithPharmacyRequest,
+    RegisterWithPharmacyResponse,
+    PharmacyResponse,
 )
 from app.database import get_db
-from app.models import User
+from app.models import User, Pharmacy, PlanPharmacie
 from app.core.exceptions import PharmaVerifException
 
 router = APIRouter()
@@ -48,36 +51,36 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
-    """Créer un token JWT"""
+    """Créer un token JWT — inclut pharmacy_id pour le multi-tenant"""
     to_encode = data.copy()
-    
+
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    
+
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-    
+
     return encoded_jwt
 
 def authenticate_user(db: Session, email: str, password: str):
     """Authentifier un utilisateur"""
     user = db.query(User).filter(User.email == email).first()
-    
+
     if not user:
         return False
-    
+
     if not verify_password(password, user.hashed_password):
         return False
-    
+
     if not user.actif:
         raise PharmaVerifException(
             status_code=status.HTTP_403_FORBIDDEN,
             error_code="USER_INACTIVE",
             message="Compte utilisateur désactivé",
         )
-    
+
     return user
 
 async def get_current_user(
@@ -90,7 +93,7 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id_str: str = payload.get("sub")
@@ -98,23 +101,44 @@ async def get_current_user(
         if user_id_str is None:
             raise credentials_exception
 
-        token_data = TokenData(user_id=int(user_id_str))
+        token_data = TokenData(
+            user_id=int(user_id_str),
+            pharmacy_id=payload.get("pharmacy_id"),
+        )
 
     except (JWTError, ValueError):
         raise credentials_exception
-    
+
     user = db.query(User).filter(User.id == token_data.user_id).first()
-    
+
     if user is None:
         raise credentials_exception
-    
+
     if not user.actif:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Compte utilisateur désactivé"
         )
-    
+
     return user
+
+
+def get_current_pharmacy_id(
+    current_user: User = Depends(get_current_user),
+) -> int:
+    """
+    Dependency multi-tenant : extraire le pharmacy_id du user courant.
+
+    Retourne le pharmacy_id de l'utilisateur connecte.
+    Leve une erreur si l'utilisateur n'est pas rattache a une pharmacie.
+    """
+    if current_user.pharmacy_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Utilisateur non rattaché à une pharmacie. Contactez l'administrateur.",
+        )
+    return current_user.pharmacy_id
+
 
 async def get_current_active_admin(
     current_user: User = Depends(get_current_user)
@@ -138,12 +162,13 @@ async def register(
 ):
     """
     Créer un nouveau compte utilisateur
-    
+
     - **email**: Email unique
     - **password**: Minimum 8 caractères, 1 majuscule, 1 chiffre
     - **nom**: Nom de famille
     - **prenom**: Prénom
     - **role**: Role (par défaut: pharmacien)
+    - **pharmacy_id**: ID de la pharmacie (optionnel)
     """
     # Vérifier si l'email existe déjà
     existing_user = db.query(User).filter(User.email == user_data.email).first()
@@ -152,10 +177,19 @@ async def register(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Un compte existe déjà avec cet email"
         )
-    
+
+    # Verifier que la pharmacie existe si fournie
+    if user_data.pharmacy_id:
+        pharmacy = db.query(Pharmacy).filter(Pharmacy.id == user_data.pharmacy_id).first()
+        if not pharmacy:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Pharmacie avec ID {user_data.pharmacy_id} non trouvée"
+            )
+
     # Créer l'utilisateur
     hashed_password = get_password_hash(user_data.password)
-    
+
     db_user = User(
         email=user_data.email,
         hashed_password=hashed_password,
@@ -163,13 +197,96 @@ async def register(
         prenom=user_data.prenom,
         role=user_data.role,
         actif=user_data.actif,
+        pharmacy_id=user_data.pharmacy_id,
     )
-    
+
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    
+
     return db_user
+
+
+@router.post("/register-pharmacy", response_model=RegisterWithPharmacyResponse, status_code=status.HTTP_201_CREATED)
+async def register_with_pharmacy(
+    data: RegisterWithPharmacyRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Inscription complète : créer une pharmacie + un utilisateur admin
+
+    Endpoint pour l'onboarding d'une nouvelle pharmacie.
+    Crée automatiquement la pharmacie et l'utilisateur admin rattaché.
+    """
+    # Vérifier si l'email existe déjà
+    existing_user = db.query(User).filter(User.email == data.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Un compte existe déjà avec cet email"
+        )
+
+    # Vérifier unicité SIRET si fourni
+    if data.pharmacy_siret:
+        existing_pharmacy = db.query(Pharmacy).filter(
+            Pharmacy.siret == data.pharmacy_siret
+        ).first()
+        if existing_pharmacy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Une pharmacie avec ce SIRET existe déjà"
+            )
+
+    # Créer la pharmacie
+    pharmacy = Pharmacy(
+        nom=data.pharmacy_nom,
+        adresse=data.pharmacy_adresse,
+        siret=data.pharmacy_siret,
+        titulaire=data.pharmacy_titulaire,
+        plan=PlanPharmacie.FREE,
+        actif=True,
+    )
+    db.add(pharmacy)
+    db.flush()
+
+    # Créer l'utilisateur admin de cette pharmacie
+    hashed_password = get_password_hash(data.password)
+    db_user = User(
+        email=data.email,
+        hashed_password=hashed_password,
+        nom=data.nom,
+        prenom=data.prenom,
+        role="admin",
+        actif=True,
+        pharmacy_id=pharmacy.id,
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    db.refresh(pharmacy)
+
+    # Générer le token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={
+            "sub": str(db_user.id),
+            "email": db_user.email,
+            "pharmacy_id": pharmacy.id,
+        },
+        expires_delta=access_token_expires
+    )
+
+    return RegisterWithPharmacyResponse(
+        user=db_user,
+        pharmacy=pharmacy,
+        token=Token(
+            access_token=access_token,
+            token_type="bearer",
+            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        ),
+        message=f"Pharmacie '{pharmacy.nom}' et compte admin créés avec succès"
+    )
+
 
 @router.post("/login", response_model=LoginResponse)
 async def login(
@@ -178,32 +295,37 @@ async def login(
 ):
     """
     Connexion utilisateur
-    
+
     Retourne un token JWT valide pour l'authentification.
-    
+    Le token inclut le pharmacy_id pour le filtrage multi-tenant.
+
     - **email**: Email du compte
     - **password**: Mot de passe
     """
     user = authenticate_user(db, login_data.email, login_data.password)
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou mot de passe incorrect",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    # Créer le token
+
+    # Créer le token avec pharmacy_id
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": str(user.id), "email": user.email},
+        data={
+            "sub": str(user.id),
+            "email": user.email,
+            "pharmacy_id": user.pharmacy_id,
+        },
         expires_delta=access_token_expires
     )
 
     # Mettre à jour last_login
     user.last_login = datetime.utcnow()
     db.commit()
-    
+
     return LoginResponse(
         user=user,
         token=Token(
@@ -220,27 +342,31 @@ async def login_form(
 ):
     """
     Connexion avec formulaire OAuth2
-    
+
     Alternative à /login pour compatibilité OAuth2.
     """
     user = authenticate_user(db, form_data.username, form_data.password)
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou mot de passe incorrect",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": str(user.id), "email": user.email},
+        data={
+            "sub": str(user.id),
+            "email": user.email,
+            "pharmacy_id": user.pharmacy_id,
+        },
         expires_delta=access_token_expires
     )
-    
+
     user.last_login = datetime.utcnow()
     db.commit()
-    
+
     return LoginResponse(
         user=user,
         token=Token(
@@ -256,8 +382,9 @@ async def get_current_user_info(
 ):
     """
     Obtenir les informations de l'utilisateur connecté
-    
+
     Nécessite un token JWT valide.
+    Inclut les informations de la pharmacie rattachée.
     """
     return current_user
 
@@ -269,7 +396,7 @@ async def change_password(
 ):
     """
     Changer son mot de passe
-    
+
     - **old_password**: Ancien mot de passe
     - **new_password**: Nouveau mot de passe (min 8 caractères, 1 majuscule, 1 chiffre)
     """
@@ -279,16 +406,16 @@ async def change_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Ancien mot de passe incorrect"
         )
-    
+
     # Hasher le nouveau mot de passe
     new_hashed_password = get_password_hash(password_data.new_password)
-    
+
     # Mettre à jour
     current_user.hashed_password = new_hashed_password
     current_user.updated_at = datetime.utcnow()
-    
+
     db.commit()
-    
+
     return MessageResponse(
         message="Mot de passe modifié avec succès",
         success=True
@@ -300,15 +427,19 @@ async def refresh_token(
 ):
     """
     Rafraîchir le token JWT
-    
+
     Génère un nouveau token avec une nouvelle expiration.
     """
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": str(current_user.id), "email": current_user.email},
+        data={
+            "sub": str(current_user.id),
+            "email": current_user.email,
+            "pharmacy_id": current_user.pharmacy_id,
+        },
         expires_delta=access_token_expires
     )
-    
+
     return Token(
         access_token=access_token,
         token_type="bearer",
@@ -321,13 +452,10 @@ async def logout(
 ):
     """
     Déconnexion
-    
+
     Note: Avec JWT, la déconnexion est gérée côté client en supprimant le token.
     Cet endpoint est là pour la compatibilité et le logging.
     """
-    # TODO: Ajouter le token à une blacklist si nécessaire
-    # TODO: Logger la déconnexion
-    
     return MessageResponse(
         message="Déconnexion réussie",
         success=True
@@ -344,9 +472,10 @@ async def admin_create_user(
     db: Session = Depends(get_db)
 ):
     """
-    [ADMIN] Créer un utilisateur
-    
+    [ADMIN] Créer un utilisateur dans la meme pharmacie
+
     Permet de créer un utilisateur avec n'importe quel rôle.
+    L'utilisateur est automatiquement rattache a la pharmacie de l'admin.
     """
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
@@ -354,9 +483,9 @@ async def admin_create_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Un compte existe déjà avec cet email"
         )
-    
+
     hashed_password = get_password_hash(user_data.password)
-    
+
     db_user = User(
         email=user_data.email,
         hashed_password=hashed_password,
@@ -364,12 +493,13 @@ async def admin_create_user(
         prenom=user_data.prenom,
         role=user_data.role,
         actif=user_data.actif,
+        pharmacy_id=current_admin.pharmacy_id,  # Meme pharmacie que l'admin
     )
-    
+
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    
+
     return db_user
 
 @router.post("/admin/reset-password/{user_id}", response_model=MessageResponse)
@@ -381,20 +511,25 @@ async def admin_reset_password(
 ):
     """
     [ADMIN] Réinitialiser le mot de passe d'un utilisateur
+
+    Seul un admin de la meme pharmacie peut reinitialiser le mot de passe.
     """
-    user = db.query(User).filter(User.id == user_id).first()
-    
+    user = db.query(User).filter(
+        User.id == user_id,
+        User.pharmacy_id == current_admin.pharmacy_id,
+    ).first()
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Utilisateur non trouvé"
         )
-    
+
     user.hashed_password = get_password_hash(new_password)
     user.updated_at = datetime.utcnow()
-    
+
     db.commit()
-    
+
     return MessageResponse(
         message=f"Mot de passe réinitialisé pour {user.email}",
         success=True

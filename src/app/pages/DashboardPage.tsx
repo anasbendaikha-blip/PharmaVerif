@@ -33,6 +33,7 @@ import {
   CheckCircle2,
   Download,
   FileDown,
+  ClipboardList,
 } from 'lucide-react';
 import {
   BarChart,
@@ -53,6 +54,9 @@ import { exportVerificationReport } from '../utils/pdfExport';
 import { db } from '../data/database';
 import { toast } from 'sonner';
 import { formatCurrency, formatPercentage } from '../utils/formatNumber';
+import { isApiMode } from '../api/config';
+import { emacApi } from '../api/emacApi';
+import type { EMACDashboardStats } from '../api/types';
 
 const ANOMALIE_COLORS: Record<string, string> = {
   remise_manquante: '#f59e0b',
@@ -93,6 +97,9 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const [loading, setLoading] = useState(true);
   const [exportingId, setExportingId] = useState<number | null>(null);
 
+  // EMAC stats
+  const [emacStats, setEmacStats] = useState<EMACDashboardStats | null>(null);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -109,6 +116,16 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       setFactures(facturesData);
       setStats(statsData);
       setAnomalies(anomaliesData);
+
+      // Charger les stats EMAC en mode API
+      if (isApiMode()) {
+        try {
+          const eStats = await emacApi.getDashboardStats();
+          setEmacStats(eStats);
+        } catch {
+          // EMAC non disponible, ignorer
+        }
+      }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
     } finally {
@@ -314,6 +331,62 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {/* EMAC Section (API mode only) */}
+        {isApiMode() && emacStats && (
+          <Card className="mb-8">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <ClipboardList className="h-5 w-5 text-purple-600" />
+                  EMAC - Avantages Commerciaux
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onNavigate('emac')}
+                >
+                  Voir tout
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-center">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">EMAC enregistres</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{emacStats.total_emacs}</p>
+                </div>
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-center">
+                  <p className="text-xs text-amber-600 dark:text-amber-400">En attente</p>
+                  <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+                    {emacStats.emacs_non_verifies}
+                    {emacStats.nb_emacs_manquants > 0 && (
+                      <span className="text-sm ml-1">(+{emacStats.nb_emacs_manquants} manquants)</span>
+                    )}
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-center">
+                  <p className="text-xs text-blue-600 dark:text-blue-400">Solde a percevoir</p>
+                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                    {formatCurrency(emacStats.total_solde_a_percevoir)}
+                  </p>
+                </div>
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
+                  <p className="text-xs text-green-600 dark:text-green-400">Montant recouvrable</p>
+                  <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                    {formatCurrency(emacStats.total_montant_recouvrable)}
+                  </p>
+                </div>
+              </div>
+              {emacStats.emacs_ecart > 0 && (
+                <div className="mt-3 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg flex items-center gap-2 text-sm text-red-700 dark:text-red-300">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  {emacStats.emacs_ecart} EMAC avec ecarts detectes
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {/* Main Tabs */}

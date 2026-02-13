@@ -15,6 +15,9 @@ from typing import List, Optional
 from pathlib import Path
 import shutil
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app.schemas_labo import (
     FactureLaboResponse,
@@ -30,12 +33,22 @@ from app.schemas_labo import (
     UploadLaboResponse,
     StatutFactureLabo,
     MessageResponse,
+    AnomalieFactureLaboResponse,
+    AnomalieFactureLaboUpdate,
+    VerificationLaboResponse,
+    RFAProgressionResponse,
+    PalierRFAResponse,
+    SeveriteAnomalie,
 )
 from app.database import get_db
 from app.models import User
-from app.models_labo import Laboratoire, AccordCommercial, FactureLabo, LigneFactureLabo
-from app.api.routes.auth import get_current_user
+from app.models_labo import (
+    Laboratoire, AccordCommercial, FactureLabo, LigneFactureLabo,
+    AnomalieFactureLabo, PalierRFA, HistoriquePrix,
+)
+from app.api.routes.auth import get_current_user, get_current_pharmacy_id
 from app.config import settings
+from app.services.verification_engine import VerificationEngine
 
 router = APIRouter()
 
@@ -62,13 +75,16 @@ def _build_analyse_response(facture: FactureLabo, accord: Optional[AccordCommerc
     """
     Construire la reponse d'analyse des remises par tranche
     a partir d'une facture labo et de son accord commercial.
+
+    Si aucun accord n'est fourni, les taux cibles sont a 0.0
+    (pas de fallback hardcode).
     """
     tranches = []
     rfa_totale = 0.0
 
     # Tranche A
     if facture.tranche_a_brut and facture.tranche_a_brut > 0:
-        cible_a = accord.tranche_a_cible if accord else 57.0
+        cible_a = accord.tranche_a_cible if accord else 0.0
         taux_reel_a = (facture.tranche_a_remise / facture.tranche_a_brut * 100) if facture.tranche_a_brut > 0 else 0.0
         rfa_a = max(0.0, facture.tranche_a_brut * cible_a / 100 - facture.tranche_a_remise)
         rfa_totale += rfa_a
@@ -93,7 +109,7 @@ def _build_analyse_response(facture: FactureLabo, accord: Optional[AccordCommerc
 
     # Tranche B
     if facture.tranche_b_brut and facture.tranche_b_brut > 0:
-        cible_b = accord.tranche_b_cible if accord else 27.5
+        cible_b = accord.tranche_b_cible if accord else 0.0
         taux_reel_b = (facture.tranche_b_remise / facture.tranche_b_brut * 100) if facture.tranche_b_brut > 0 else 0.0
         rfa_b = max(0.0, facture.tranche_b_brut * cible_b / 100 - facture.tranche_b_remise)
         rfa_totale += rfa_b
@@ -116,7 +132,7 @@ def _build_analyse_response(facture: FactureLabo, accord: Optional[AccordCommerc
             pct_ca=round(pct_ca_b, 2),
         ))
 
-    # OTC
+    # OTC (pas de fallback hardcode, deja 0.0 si pas d'accord)
     if facture.otc_brut and facture.otc_brut > 0:
         otc_cible = accord.otc_cible if accord else 0.0
         taux_reel_otc = (facture.otc_remise / facture.otc_brut * 100) if facture.otc_brut > 0 else 0.0
@@ -163,6 +179,7 @@ async def upload_facture_labo(
     file: UploadFile = File(...),
     laboratoire_id: int = Query(..., description="ID du laboratoire"),
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -180,7 +197,7 @@ async def upload_facture_labo(
     - **laboratoire_id**: ID du laboratoire (ex: 1 pour Biogaran)
     """
     # 1. Verifier que le laboratoire existe
-    laboratoire = db.query(Laboratoire).filter(Laboratoire.id == laboratoire_id).first()
+    laboratoire = db.query(Laboratoire).filter(Laboratoire.id == laboratoire_id, Laboratoire.pharmacy_id == pharmacy_id).first()
     if not laboratoire:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -220,11 +237,29 @@ async def upload_facture_labo(
     with open(file_path, "wb") as buffer:
         buffer.write(content)
 
-    # 4. Parser le PDF avec la factory multi-fournisseurs
+    # 3b. Charger l'accord commercial AVANT le parsing pour passer les cibles au parser
+    accord = db.query(AccordCommercial).filter(
+        AccordCommercial.laboratoire_id == laboratoire_id,
+        AccordCommercial.actif == True
+    ).first()
+
+    # Determiner les cibles dynamiques depuis l'accord BDD
+    cible_a = accord.tranche_a_cible if accord else 0.0
+    cible_b = accord.tranche_b_cible if accord else 0.0
+
+    if accord:
+        logger.info(
+            f"Accord utilise : {accord.nom} (A={accord.tranche_a_cible}%, B={accord.tranche_b_cible}%, "
+            f"escompte={accord.escompte_pct}%, franco={accord.franco_seuil_ht} EUR)"
+        )
+    else:
+        logger.warning(f"Aucun accord actif pour le laboratoire {laboratoire_id} — parsing sans cibles")
+
+    # 4. Parser le PDF avec la factory multi-fournisseurs (cibles BDD)
     try:
         from app.services.parsers import parse_invoice
 
-        result = parse_invoice(str(file_path))
+        result = parse_invoice(str(file_path), cible_tranche_a=cible_a, cible_tranche_b=cible_b)
 
     except ImportError as e:
         if file_path.exists():
@@ -244,7 +279,7 @@ async def upload_facture_labo(
     # 5. Verifier doublon (numero_facture unique)
     meta = result.metadata
     numero = meta.numero_facture if meta and meta.numero_facture else "INCONNU"
-    existing = db.query(FactureLabo).filter(FactureLabo.numero_facture == numero).first()
+    existing = db.query(FactureLabo).filter(FactureLabo.numero_facture == numero, FactureLabo.pharmacy_id == pharmacy_id).first()
     if existing:
         if file_path.exists():
             file_path.unlink()
@@ -258,11 +293,8 @@ async def upload_facture_labo(
     tranches = result.tranches
     fournisseur = result.fournisseur
 
-    # Recuperer l'accord commercial actif pour ce labo
-    accord = db.query(AccordCommercial).filter(
-        AccordCommercial.laboratoire_id == laboratoire_id,
-        AccordCommercial.actif == True
-    ).first()
+    # L'accord commercial est deja charge en amont (avant le parsing)
+    # pour passer les cibles au parser et eviter les valeurs hardcodees.
 
     # Parser les dates
     date_facture = _parse_date(meta.date_facture) if meta else date.today()
@@ -277,6 +309,7 @@ async def upload_facture_labo(
     # Creer la facture
     db_facture = FactureLabo(
         user_id=current_user.id,
+        pharmacy_id=pharmacy_id,
         laboratoire_id=laboratoire_id,
         numero_facture=numero,
         date_facture=date_facture or date.today(),
@@ -334,7 +367,101 @@ async def upload_facture_labo(
     db.commit()
     db.refresh(db_facture)
 
-    # 8. Construire la reponse d'analyse
+    # 7b. Auto-peupler l'historique des prix a partir des lignes
+    try:
+        # Calculer le taux RFA pour cout net reel
+        taux_rfa = 0.0
+        if accord and accord.paliers_rfa:
+            # Recuperer le cumul annuel pour le palier RFA applicable
+            annee_facture = db_facture.date_facture.year if db_facture.date_facture else datetime.now().year
+            cumul_ht = db.query(func.coalesce(func.sum(FactureLabo.montant_brut_ht), 0.0)).filter(
+                FactureLabo.laboratoire_id == laboratoire_id,
+                FactureLabo.pharmacy_id == pharmacy_id,
+                extract("year", FactureLabo.date_facture) == annee_facture
+            ).scalar() or 0.0
+
+            for palier in sorted(accord.paliers_rfa, key=lambda p: p.seuil_min, reverse=True):
+                if cumul_ht >= palier.seuil_min:
+                    taux_rfa = palier.taux_rfa
+                    break
+
+        taux_escompte = accord.escompte_pct if accord and accord.escompte_applicable else 0.0
+
+        for db_ligne in db_facture.lignes:
+            # Cout net reel = prix net - RFA proratisee - escompte
+            prix_net = db_ligne.prix_unitaire_apres_remise
+            rfa_unitaire = prix_net * taux_rfa / 100.0
+            escompte_unitaire = prix_net * taux_escompte / 100.0
+            cout_net = round(prix_net - rfa_unitaire - escompte_unitaire, 4)
+
+            hp = HistoriquePrix(
+                cip13=db_ligne.cip13,
+                designation=db_ligne.designation,
+                pharmacy_id=pharmacy_id,
+                laboratoire_id=laboratoire_id,
+                date_facture=db_facture.date_facture,
+                facture_labo_id=db_facture.id,
+                prix_unitaire_brut=db_ligne.prix_unitaire_ht,
+                remise_pct=db_ligne.remise_pct,
+                prix_unitaire_net=db_ligne.prix_unitaire_apres_remise,
+                quantite=db_ligne.quantite,
+                cout_net_reel=cout_net,
+                tranche=db_ligne.tranche,
+                taux_tva=db_ligne.taux_tva,
+            )
+            db.add(hp)
+
+        db.commit()
+    except Exception:
+        # L'historique prix ne doit pas bloquer l'upload
+        db.rollback()
+        db.refresh(db_facture)
+
+    # 8. Lancer la verification automatique
+    verification_response = None
+    try:
+        engine = VerificationEngine(db)
+        anomalies = engine.verify(db_facture, accord)
+
+        if anomalies:
+            engine.persist_anomalies(db_facture.id, anomalies)
+
+            # Mettre a jour le statut
+            nb_critical = sum(1 for a in anomalies if a.severite == "critical")
+            if nb_critical > 0:
+                db_facture.statut = "ecart_rfa"
+            else:
+                db_facture.statut = "verifiee"
+
+            db.commit()
+            db.refresh(db_facture)
+        else:
+            db_facture.statut = "conforme"
+            db.commit()
+            db.refresh(db_facture)
+
+        # Construire la reponse de verification
+        nb_critical = sum(1 for a in anomalies if a.severite == "critical")
+        nb_opportunity = sum(1 for a in anomalies if a.severite == "opportunity")
+        nb_info = sum(1 for a in anomalies if a.severite == "info")
+        montant_total = round(sum(a.montant_ecart for a in anomalies), 2)
+
+        verification_response = VerificationLaboResponse(
+            facture_id=db_facture.id,
+            nb_anomalies=len(anomalies),
+            nb_critical=nb_critical,
+            nb_opportunity=nb_opportunity,
+            nb_info=nb_info,
+            montant_total_ecart=montant_total,
+            anomalies=db_facture.anomalies_labo,
+            statut=StatutFactureLabo(db_facture.statut),
+            message=f"{len(anomalies)} anomalie(s) detectee(s) ({nb_critical} critique(s))",
+        )
+    except Exception:
+        # La verification ne doit pas bloquer l'upload
+        pass
+
+    # 9. Construire la reponse d'analyse
     analyse_response = _build_analyse_response(db_facture, accord)
 
     # Construire le fournisseur detecte pour la reponse
@@ -354,6 +481,7 @@ async def upload_facture_labo(
         facture=db_facture,
         analyse=analyse_response,
         fournisseur=fournisseur_detecte,
+        verification=verification_response,
         warnings=db_facture.warnings,
     )
 
@@ -374,6 +502,7 @@ async def list_factures_labo(
     sort_by: str = Query("date_facture", description="Trier par (date_facture, montant, statut)"),
     sort_order: str = Query("desc", description="Ordre (asc, desc)"),
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -385,7 +514,7 @@ async def list_factures_labo(
     - Par recherche textuelle (numero facture ou nom client)
     - Par periode (date_debut, date_fin)
     """
-    query = db.query(FactureLabo)
+    query = db.query(FactureLabo).filter(FactureLabo.pharmacy_id == pharmacy_id)
 
     # Filtres
     if laboratoire_id:
@@ -445,6 +574,7 @@ async def list_factures_labo(
 async def get_facture_labo(
     facture_id: int,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -457,7 +587,7 @@ async def get_facture_labo(
     - RFA attendue vs recue
     - Lignes de produits
     """
-    facture = db.query(FactureLabo).filter(FactureLabo.id == facture_id).first()
+    facture = db.query(FactureLabo).filter(FactureLabo.id == facture_id, FactureLabo.pharmacy_id == pharmacy_id).first()
 
     if not facture:
         raise HTTPException(
@@ -477,6 +607,7 @@ async def get_facture_labo_lignes(
     facture_id: int,
     tranche: Optional[str] = Query(None, description="Filtrer par tranche (A, B, OTC)"),
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -485,7 +616,7 @@ async def get_facture_labo_lignes(
     **Filtres:**
     - Par tranche (A, B, OTC)
     """
-    facture = db.query(FactureLabo).filter(FactureLabo.id == facture_id).first()
+    facture = db.query(FactureLabo).filter(FactureLabo.id == facture_id, FactureLabo.pharmacy_id == pharmacy_id).first()
 
     if not facture:
         raise HTTPException(
@@ -509,6 +640,7 @@ async def get_facture_labo_lignes(
 async def get_facture_labo_analyse(
     facture_id: int,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -520,7 +652,7 @@ async def get_facture_labo_analyse(
     - RFA attendue, recue, ecart
     - Totaux
     """
-    facture = db.query(FactureLabo).filter(FactureLabo.id == facture_id).first()
+    facture = db.query(FactureLabo).filter(FactureLabo.id == facture_id, FactureLabo.pharmacy_id == pharmacy_id).first()
 
     if not facture:
         raise HTTPException(
@@ -546,6 +678,7 @@ async def update_rfa(
     facture_id: int,
     rfa_data: RFAUpdateRequest,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -555,7 +688,7 @@ async def update_rfa(
     - **ecart_rfa** = rfa_recue - rfa_attendue
     - **statut** = 'conforme' si |ecart| < 0.50, sinon 'ecart_rfa'
     """
-    facture = db.query(FactureLabo).filter(FactureLabo.id == facture_id).first()
+    facture = db.query(FactureLabo).filter(FactureLabo.id == facture_id, FactureLabo.pharmacy_id == pharmacy_id).first()
 
     if not facture:
         raise HTTPException(
@@ -598,6 +731,7 @@ async def update_rfa(
 async def delete_facture_labo(
     facture_id: int,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -607,7 +741,7 @@ async def delete_facture_labo(
     - La facture et toutes ses lignes (cascade)
     - Le fichier PDF associe sur le disque
     """
-    facture = db.query(FactureLabo).filter(FactureLabo.id == facture_id).first()
+    facture = db.query(FactureLabo).filter(FactureLabo.id == facture_id, FactureLabo.pharmacy_id == pharmacy_id).first()
 
     if not facture:
         raise HTTPException(
@@ -637,6 +771,227 @@ async def delete_facture_labo(
 
 
 # ========================================
+# POST /{id}/verify - Lancer la verification
+# ========================================
+
+@router.post("/{facture_id}/verify", response_model=VerificationLaboResponse)
+async def verify_facture_labo(
+    facture_id: int,
+    current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Lancer ou relancer la verification d'une facture
+
+    Compare la facture a l'accord commercial et detecte les anomalies :
+    - Ecarts de remise par tranche
+    - Escompte non applique
+    - Franco de port
+    - Progression RFA
+    - Gratuites manquantes
+    - Incoherence TVA
+    - Erreurs arithmetiques
+    """
+    facture = db.query(FactureLabo).filter(FactureLabo.id == facture_id, FactureLabo.pharmacy_id == pharmacy_id).first()
+
+    if not facture:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Facture labo avec ID {facture_id} non trouvee"
+        )
+
+    # Recuperer l'accord commercial actif
+    accord = db.query(AccordCommercial).filter(
+        AccordCommercial.laboratoire_id == facture.laboratoire_id,
+        AccordCommercial.actif == True
+    ).first()
+
+    if accord:
+        logger.info(
+            f"Verification facture {facture.numero_facture} — "
+            f"Accord utilise : {accord.nom} (A={accord.tranche_a_cible}%, B={accord.tranche_b_cible}%)"
+        )
+    else:
+        logger.warning(
+            f"Verification facture {facture.numero_facture} — Aucun accord actif pour labo {facture.laboratoire_id}"
+        )
+
+    # Lancer le moteur de verification
+    engine = VerificationEngine(db)
+    anomalies = engine.verify(facture, accord)
+
+    # Persister les anomalies (remplace les anciennes non resolues)
+    engine.persist_anomalies(facture.id, anomalies)
+
+    # Mettre a jour le statut
+    nb_critical = sum(1 for a in anomalies if a.severite == "critical")
+    nb_opportunity = sum(1 for a in anomalies if a.severite == "opportunity")
+    nb_info = sum(1 for a in anomalies if a.severite == "info")
+
+    if nb_critical > 0:
+        facture.statut = "ecart_rfa"
+    elif anomalies:
+        facture.statut = "verifiee"
+    else:
+        facture.statut = "conforme"
+
+    facture.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(facture)
+
+    montant_total = round(sum(a.montant_ecart for a in anomalies), 2)
+
+    return VerificationLaboResponse(
+        facture_id=facture.id,
+        nb_anomalies=len(anomalies),
+        nb_critical=nb_critical,
+        nb_opportunity=nb_opportunity,
+        nb_info=nb_info,
+        montant_total_ecart=montant_total,
+        anomalies=facture.anomalies_labo,
+        statut=StatutFactureLabo(facture.statut),
+        message=f"Verification terminee : {len(anomalies)} anomalie(s) ({nb_critical} critique(s), {nb_opportunity} opportunite(s), {nb_info} info(s))",
+    )
+
+
+# ========================================
+# GET /{id}/anomalies - Anomalies d'une facture
+# ========================================
+
+@router.get("/{facture_id}/anomalies", response_model=List[AnomalieFactureLaboResponse])
+async def get_facture_anomalies(
+    facture_id: int,
+    severite: Optional[SeveriteAnomalie] = Query(None, description="Filtrer par severite"),
+    current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Obtenir les anomalies d'une facture
+
+    **Filtres:**
+    - Par severite (critical, opportunity, info)
+    """
+    facture = db.query(FactureLabo).filter(FactureLabo.id == facture_id, FactureLabo.pharmacy_id == pharmacy_id).first()
+
+    if not facture:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Facture labo avec ID {facture_id} non trouvee"
+        )
+
+    query = db.query(AnomalieFactureLabo).filter(
+        AnomalieFactureLabo.facture_id == facture_id
+    )
+
+    if severite:
+        query = query.filter(AnomalieFactureLabo.severite == severite.value)
+
+    return query.order_by(
+        # Critical en premier, puis opportunity, puis info
+        asc(AnomalieFactureLabo.severite),
+        desc(AnomalieFactureLabo.montant_ecart),
+    ).all()
+
+
+# ========================================
+# PATCH /anomalies/{id} - Resoudre une anomalie
+# ========================================
+
+@router.patch("/anomalies/{anomalie_id}", response_model=AnomalieFactureLaboResponse)
+async def resolve_anomalie(
+    anomalie_id: int,
+    data: AnomalieFactureLaboUpdate,
+    current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Marquer une anomalie comme resolue
+
+    Met a jour le statut de resolution et la note associee.
+    """
+    anomalie = db.query(AnomalieFactureLabo).join(
+        FactureLabo, AnomalieFactureLabo.facture_id == FactureLabo.id
+    ).filter(
+        AnomalieFactureLabo.id == anomalie_id,
+        FactureLabo.pharmacy_id == pharmacy_id,
+    ).first()
+
+    if not anomalie:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Anomalie avec ID {anomalie_id} non trouvee"
+        )
+
+    anomalie.resolu = data.resolu
+    anomalie.note_resolution = data.note_resolution
+    anomalie.resolu_at = datetime.utcnow() if data.resolu else None
+
+    db.commit()
+    db.refresh(anomalie)
+
+    return anomalie
+
+
+# ========================================
+# GET /rfa-progression - Progression RFA annuelle
+# ========================================
+
+@router.get("/rfa-progression", response_model=RFAProgressionResponse)
+async def get_rfa_progression(
+    laboratoire_id: int = Query(..., description="ID du laboratoire"),
+    annee: Optional[int] = Query(None, description="Annee (defaut: annee en cours)"),
+    current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Obtenir la progression RFA annuelle pour un laboratoire
+
+    Retourne :
+    - Cumul achats HT de l'annee
+    - Palier actuel et palier suivant
+    - % de progression vers le palier suivant
+    - RFA estimee annuelle
+    """
+    if annee is None:
+        annee = datetime.now().year
+
+    # Verifier le laboratoire
+    laboratoire = db.query(Laboratoire).filter(Laboratoire.id == laboratoire_id, Laboratoire.pharmacy_id == pharmacy_id).first()
+    if not laboratoire:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Laboratoire avec ID {laboratoire_id} non trouve"
+        )
+
+    # Recuperer l'accord actif
+    accord = db.query(AccordCommercial).filter(
+        AccordCommercial.laboratoire_id == laboratoire_id,
+        AccordCommercial.actif == True
+    ).first()
+
+    engine = VerificationEngine(db)
+    progression = engine.get_rfa_progression(laboratoire_id, annee, accord)
+
+    return RFAProgressionResponse(
+        laboratoire_id=laboratoire_id,
+        laboratoire_nom=laboratoire.nom,
+        annee=annee,
+        cumul_achats_ht=progression["cumul_achats_ht"],
+        palier_actuel=progression["palier_actuel"],
+        palier_suivant=progression["palier_suivant"],
+        montant_restant_prochain_palier=progression["montant_restant_prochain_palier"],
+        taux_rfa_actuel=progression["taux_rfa_actuel"],
+        rfa_estimee_annuelle=progression["rfa_estimee_annuelle"],
+        progression_pct=progression["progression_pct"],
+    )
+
+
+# ========================================
 # GET /stats/monthly - Statistiques mensuelles
 # ========================================
 
@@ -645,6 +1000,7 @@ async def get_stats_monthly(
     laboratoire_id: Optional[int] = Query(None, description="Filtrer par laboratoire"),
     annee: int = Query(default=None, description="Annee (defaut: annee en cours)"),
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -660,7 +1016,7 @@ async def get_stats_monthly(
         annee = datetime.now().year
 
     # Query de base
-    query = db.query(FactureLabo)
+    query = db.query(FactureLabo).filter(FactureLabo.pharmacy_id == pharmacy_id)
 
     if laboratoire_id:
         query = query.filter(FactureLabo.laboratoire_id == laboratoire_id)
@@ -726,7 +1082,7 @@ async def get_stats_monthly(
     # Nom du laboratoire
     labo_nom = None
     if laboratoire_id:
-        labo = db.query(Laboratoire).filter(Laboratoire.id == laboratoire_id).first()
+        labo = db.query(Laboratoire).filter(Laboratoire.id == laboratoire_id, Laboratoire.pharmacy_id == pharmacy_id).first()
         if labo:
             labo_nom = labo.nom
 
@@ -751,6 +1107,7 @@ async def get_stats_monthly(
 @router.get("/parsers/available")
 async def get_parsers_available(
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
 ):
     """
     Lister les parsers de factures disponibles.

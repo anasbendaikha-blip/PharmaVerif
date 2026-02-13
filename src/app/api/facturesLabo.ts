@@ -16,6 +16,10 @@ import type {
   AnalyseRemiseResponse,
   RFAUpdateResponse,
   MessageResponse,
+  AnomalieFactureLaboResponse,
+  VerificationLaboResponse,
+  RFAProgressionResponse,
+  SeveriteAnomalie,
 } from './types';
 
 // ========================================
@@ -125,6 +129,49 @@ export const facturesLaboApi = {
    */
   async delete(id: number): Promise<MessageResponse> {
     return http.delete<MessageResponse>(`/factures-labo/${id}`);
+  },
+
+  /**
+   * Lancer ou relancer la verification d'une facture
+   *
+   * POST /api/v1/factures-labo/{id}/verify
+   */
+  async verify(id: number): Promise<VerificationLaboResponse> {
+    return http.post<VerificationLaboResponse>(`/factures-labo/${id}/verify`, {});
+  },
+
+  /**
+   * Obtenir les anomalies d'une facture
+   *
+   * GET /api/v1/factures-labo/{id}/anomalies
+   */
+  async getAnomalies(id: number, severite?: SeveriteAnomalie): Promise<AnomalieFactureLaboResponse[]> {
+    const params = severite ? `?severite=${severite}` : '';
+    return http.get<AnomalieFactureLaboResponse[]>(`/factures-labo/${id}/anomalies${params}`);
+  },
+
+  /**
+   * Marquer une anomalie comme resolue
+   *
+   * PATCH /api/v1/factures-labo/anomalies/{id}
+   */
+  async resolveAnomalie(anomalieId: number, resolu: boolean, note?: string): Promise<AnomalieFactureLaboResponse> {
+    return http.patch<AnomalieFactureLaboResponse>(`/factures-labo/anomalies/${anomalieId}`, {
+      resolu,
+      note_resolution: note || null,
+    });
+  },
+
+  /**
+   * Progression RFA annuelle pour un laboratoire
+   *
+   * GET /api/v1/factures-labo/rfa-progression
+   */
+  async getRfaProgression(laboratoireId: number, annee?: number): Promise<RFAProgressionResponse> {
+    const params = new URLSearchParams();
+    params.set('laboratoire_id', String(laboratoireId));
+    if (annee) params.set('annee', String(annee));
+    return http.get<RFAProgressionResponse>(`/factures-labo/rfa-progression?${params.toString()}`);
   },
 
   /**

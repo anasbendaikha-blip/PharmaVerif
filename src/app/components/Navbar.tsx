@@ -15,6 +15,8 @@ import {
   FileBarChart,
   Building2,
   FlaskConical,
+  ClipboardList,
+  TrendingUp,
   LogIn,
   LogOut,
 } from 'lucide-react';
@@ -39,7 +41,11 @@ const navLinks: NavLink[] = [
   { label: 'Fournisseurs', path: '/fournisseurs', icon: <Building2 className="h-4 w-4" /> },
   // Lien visible uniquement en mode API (backend connecté)
   ...(isApiMode()
-    ? [{ label: 'Factures Labo', path: '/factures-labo', icon: <FlaskConical className="h-4 w-4" /> }]
+    ? [
+        { label: 'Factures Labo', path: '/factures-labo', icon: <FlaskConical className="h-4 w-4" /> },
+        { label: 'EMAC', path: '/emac', icon: <ClipboardList className="h-4 w-4" /> },
+        { label: 'Analyse Prix', path: '/analyse-prix', icon: <TrendingUp className="h-4 w-4" /> },
+      ]
     : []),
 ];
 

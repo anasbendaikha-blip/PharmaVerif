@@ -14,7 +14,7 @@ from typing import Optional
 
 from app.database import get_db
 from app.models import Facture, User
-from app.api.routes.auth import get_current_user
+from app.api.routes.auth import get_current_user, get_current_pharmacy_id
 
 router = APIRouter()
 
@@ -24,6 +24,7 @@ async def export_factures(
     format: str = Query("json", description="Format d'export (json, csv)"),
     grossiste_id: Optional[int] = Query(None),
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -34,7 +35,7 @@ async def export_factures(
     - csv : Fichier CSV telecharrgeable
     - pdf : Rapport PDF (a venir)
     """
-    query = db.query(Facture)
+    query = db.query(Facture).filter(Facture.pharmacy_id == pharmacy_id)
     if grossiste_id:
         query = query.filter(Facture.grossiste_id == grossiste_id)
 
@@ -60,10 +61,14 @@ async def export_factures(
 async def export_rapport_facture(
     facture_id: int,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """Exporter le rapport de verification d'une facture"""
-    facture = db.query(Facture).filter(Facture.id == facture_id).first()
+    facture = db.query(Facture).filter(
+        Facture.id == facture_id,
+        Facture.pharmacy_id == pharmacy_id,
+    ).first()
     if not facture:
         raise HTTPException(status_code=404, detail="Facture non trouvee")
 

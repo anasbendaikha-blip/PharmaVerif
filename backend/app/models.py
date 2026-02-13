@@ -20,6 +20,13 @@ from app.database import Base
 # ENUMS
 # ========================================
 
+class PlanPharmacie(str, enum.Enum):
+    """Plans d'abonnement pharmacie"""
+    FREE = "free"
+    PRO = "pro"
+    ENTERPRISE = "enterprise"
+
+
 class UserRole(str, enum.Enum):
     """Rôles utilisateur"""
     ADMIN = "admin"
@@ -49,28 +56,63 @@ class TypeAnomalie(str, enum.Enum):
 # MODELS
 # ========================================
 
+class Pharmacy(Base):
+    """
+    Modele Pharmacie (Tenant)
+
+    Unite d'isolation multi-tenant. Chaque pharmacie possede ses propres
+    donnees : factures, grossistes, laboratoires, accords, EMAC, etc.
+    Tous les utilisateurs sont rattaches a une pharmacie.
+    """
+    __tablename__ = "pharmacies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nom = Column(String(300), nullable=False, index=True)
+    adresse = Column(String(500), nullable=True)
+    siret = Column(String(14), nullable=True, unique=True, index=True)
+    titulaire = Column(String(200), nullable=True)
+    plan = Column(Enum(PlanPharmacie), default=PlanPharmacie.FREE, nullable=False)
+
+    actif = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relations
+    users = relationship("User", back_populates="pharmacy")
+    grossistes = relationship("Grossiste", back_populates="pharmacy")
+    factures = relationship("Facture", back_populates="pharmacy")
+
+    def __repr__(self):
+        return f"<Pharmacy {self.nom}>"
+
+
 class User(Base):
     """
     Modèle Utilisateur
-    
-    Gère l'authentification et les permissions
+
+    Gère l'authentification et les permissions.
+    Rattache a une pharmacie (tenant).
     """
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
-    
+
     nom = Column(String(100), nullable=False)
     prenom = Column(String(100), nullable=False)
     role = Column(Enum(UserRole), default=UserRole.PHARMACIEN, nullable=False)
     actif = Column(Boolean, default=True)
-    
+
+    # Multi-tenant : pharmacie rattachee
+    pharmacy_id = Column(Integer, ForeignKey("pharmacies.id"), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
-    
+
     # Relations
+    pharmacy = relationship("Pharmacy", back_populates="users")
     factures = relationship("Facture", back_populates="user")
     factures_labo = relationship("FactureLabo", back_populates="user")
 
@@ -81,28 +123,33 @@ class User(Base):
 class Grossiste(Base):
     """
     Modèle Grossiste
-    
-    Stocke les accords de remises avec chaque grossiste
+
+    Stocke les accords de remises avec chaque grossiste.
+    Rattache a une pharmacie (tenant).
     """
     __tablename__ = "grossistes"
-    
+
     id = Column(Integer, primary_key=True, index=True)
-    nom = Column(String(200), unique=True, nullable=False, index=True)
-    
+    nom = Column(String(200), nullable=False, index=True)
+
+    # Multi-tenant
+    pharmacy_id = Column(Integer, ForeignKey("pharmacies.id"), nullable=True)
+
     # Taux de remises (en pourcentage)
     remise_base = Column(Float, default=0.0, nullable=False)
     cooperation_commerciale = Column(Float, default=0.0, nullable=False)
     escompte = Column(Float, default=0.0, nullable=False)
-    
+
     # Franco (port gratuit en euros)
     franco = Column(Float, default=0.0, nullable=False)
-    
+
     actif = Column(Boolean, default=True)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     # Relations
+    pharmacy = relationship("Pharmacy", back_populates="grossistes")
     factures = relationship("Facture", back_populates="grossiste")
     
     @property
@@ -117,18 +164,22 @@ class Grossiste(Base):
 class Facture(Base):
     """
     Modèle Facture
-    
-    Représente une facture à vérifier
+
+    Représente une facture à vérifier.
+    Rattachee a une pharmacie (tenant).
     """
     __tablename__ = "factures"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     numero = Column(String(100), unique=True, nullable=False, index=True)
     date = Column(DateTime(timezone=True), nullable=False)
-    
+
     # Clés étrangères
     grossiste_id = Column(Integer, ForeignKey("grossistes.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Multi-tenant
+    pharmacy_id = Column(Integer, ForeignKey("pharmacies.id"), nullable=True)
     
     # Montants
     montant_brut_ht = Column(Float, nullable=False)
@@ -151,11 +202,12 @@ class Facture(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relations
+    pharmacy = relationship("Pharmacy", back_populates="factures")
     grossiste = relationship("Grossiste", back_populates="factures")
     user = relationship("User", back_populates="factures")
     lignes = relationship("LigneFacture", back_populates="facture", cascade="all, delete-orphan")
     anomalies = relationship("Anomalie", back_populates="facture", cascade="all, delete-orphan")
-    
+
     @property
     def total_remises(self) -> float:
         """Total des remises appliquées"""
@@ -289,21 +341,35 @@ class Session(Base):
 def init_db_data(db_session):
     """
     Initialiser la base de données avec des données de démo
-    
+
     Args:
         db_session: Session SQLAlchemy
     """
     from passlib.context import CryptContext
-    
+
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    
+
     # Vérifier si données existent déjà
     if db_session.query(User).first():
+        # Migration multi-tenant : attacher les donnees existantes a la pharmacie par defaut
+        _migrate_to_multitenant(db_session)
         print("✓ Base de données déjà initialisée")
         return
-    
+
     print("Initialisation de la base de données...")
-    
+
+    # 0. Creer la pharmacie par defaut (tenant)
+    default_pharmacy = Pharmacy(
+        nom="Pharmacie Demo PharmaVerif",
+        adresse="1 Rue de la Sante, 75000 Paris",
+        siret="12345678901234",
+        titulaire="Anas BENDAIKHA",
+        plan=PlanPharmacie.PRO,
+        actif=True,
+    )
+    db_session.add(default_pharmacy)
+    db_session.flush()
+
     # 1. Créer un utilisateur admin
     admin = User(
         email="admin@pharmaverif.com",
@@ -311,10 +377,11 @@ def init_db_data(db_session):
         nom="BENDAIKHA",
         prenom="Anas",
         role=UserRole.ADMIN,
-        actif=True
+        actif=True,
+        pharmacy_id=default_pharmacy.id,
     )
     db_session.add(admin)
-    
+
     # 2. Créer un utilisateur pharmacien
     pharmacien = User(
         email="pharmacien@pharmaverif.com",
@@ -322,10 +389,11 @@ def init_db_data(db_session):
         nom="Dupont",
         prenom="Jean",
         role=UserRole.PHARMACIEN,
-        actif=True
+        actif=True,
+        pharmacy_id=default_pharmacy.id,
     )
     db_session.add(pharmacien)
-    
+
     # 3. Créer des grossistes
     grossistes_data = [
         {
@@ -357,15 +425,15 @@ def init_db_data(db_session):
             "franco": 750.0
         }
     ]
-    
+
     for data in grossistes_data:
-        grossiste = Grossiste(**data)
+        grossiste = Grossiste(pharmacy_id=default_pharmacy.id, **data)
         db_session.add(grossiste)
-    
+
     db_session.commit()
 
-    # 4. Créer le laboratoire Biogaran + Accord Commercial 2025
-    from app.models_labo import Laboratoire, AccordCommercial
+    # 4. Créer le laboratoire Biogaran + Accord Commercial 2025 avec conditions completes
+    from app.models_labo import Laboratoire, AccordCommercial, PalierRFA
     from datetime import date as dt_date
 
     existing_labo = db_session.query(Laboratoire).filter(Laboratoire.nom == "Biogaran").first()
@@ -374,6 +442,7 @@ def init_db_data(db_session):
             nom="Biogaran",
             type="generiqueur_principal",
             actif=True,
+            pharmacy_id=default_pharmacy.id,
         )
         db_session.add(biogaran)
         db_session.flush()
@@ -390,13 +459,113 @@ def init_db_data(db_session):
             otc_cible=0.0,
             bonus_dispo_max_pct=10.0,
             bonus_seuil_pct=95.0,
+            # Escompte
+            escompte_pct=2.5,
+            escompte_delai_jours=30,
+            escompte_applicable=True,
+            # Franco de port
+            franco_seuil_ht=300.0,
+            franco_frais_port=15.0,
+            # Gratuites
+            gratuites_seuil_qte=10,
+            gratuites_ratio="10+1",
+            gratuites_applicable=True,
             actif=True,
         )
         db_session.add(accord_biogaran)
+        db_session.flush()
+
+        # Paliers RFA Biogaran
+        paliers_data = [
+            {"seuil_min": 0, "seuil_max": 50000, "taux_rfa": 2.0, "description": "Palier Bronze"},
+            {"seuil_min": 50000, "seuil_max": 100000, "taux_rfa": 3.0, "description": "Palier Argent"},
+            {"seuil_min": 100000, "seuil_max": None, "taux_rfa": 4.0, "description": "Palier Or"},
+        ]
+        for p in paliers_data:
+            palier = PalierRFA(
+                accord_id=accord_biogaran.id,
+                seuil_min=p["seuil_min"],
+                seuil_max=p["seuil_max"],
+                taux_rfa=p["taux_rfa"],
+                description=p["description"],
+            )
+            db_session.add(palier)
+
         db_session.commit()
-        print("✓ Laboratoire Biogaran + Accord 2025 créés")
+        print("✓ Laboratoire Biogaran + Accord 2025 + 3 paliers RFA crees")
 
     print("✓ Base de données initialisée avec succès")
+    print(f"✓ Pharmacie: {default_pharmacy.nom} (ID={default_pharmacy.id})")
     print(f"✓ Admin: admin@pharmaverif.com / Admin123!")
     print(f"✓ Pharmacien: pharmacien@pharmaverif.com / Pharma123!")
     print(f"✓ {len(grossistes_data)} grossistes créés")
+
+
+def _migrate_to_multitenant(db_session):
+    """
+    Migration automatique : attache les donnees existantes a une pharmacie par defaut
+    si elles n'ont pas encore de pharmacy_id.
+
+    Idempotente : ne fait rien si la migration a deja ete executee.
+    """
+    from app.models_labo import Laboratoire, FactureLabo, HistoriquePrix
+    from app.models_emac import EMAC
+
+    # Verifier s'il existe une pharmacie
+    existing_pharmacy = db_session.query(Pharmacy).first()
+    if not existing_pharmacy:
+        # Creer la pharmacie par defaut pour les donnees existantes
+        existing_pharmacy = Pharmacy(
+            nom="Pharmacie Principale",
+            adresse="Adresse a renseigner",
+            titulaire="Titulaire a renseigner",
+            plan=PlanPharmacie.PRO,
+            actif=True,
+        )
+        db_session.add(existing_pharmacy)
+        db_session.flush()
+        print(f"✓ Migration : Pharmacie par defaut creee (ID={existing_pharmacy.id})")
+
+    pid = existing_pharmacy.id
+
+    # Attacher les users sans pharmacy_id
+    users_migrated = db_session.query(User).filter(User.pharmacy_id.is_(None)).update(
+        {"pharmacy_id": pid}, synchronize_session=False
+    )
+
+    # Attacher les grossistes sans pharmacy_id
+    grossistes_migrated = db_session.query(Grossiste).filter(Grossiste.pharmacy_id.is_(None)).update(
+        {"pharmacy_id": pid}, synchronize_session=False
+    )
+
+    # Attacher les factures grossiste sans pharmacy_id
+    factures_migrated = db_session.query(Facture).filter(Facture.pharmacy_id.is_(None)).update(
+        {"pharmacy_id": pid}, synchronize_session=False
+    )
+
+    # Attacher les laboratoires sans pharmacy_id
+    labos_migrated = db_session.query(Laboratoire).filter(Laboratoire.pharmacy_id.is_(None)).update(
+        {"pharmacy_id": pid}, synchronize_session=False
+    )
+
+    # Attacher les factures labo sans pharmacy_id
+    factures_labo_migrated = db_session.query(FactureLabo).filter(FactureLabo.pharmacy_id.is_(None)).update(
+        {"pharmacy_id": pid}, synchronize_session=False
+    )
+
+    # Attacher les EMAC sans pharmacy_id
+    emac_migrated = db_session.query(EMAC).filter(EMAC.pharmacy_id.is_(None)).update(
+        {"pharmacy_id": pid}, synchronize_session=False
+    )
+
+    # Attacher les historique_prix sans pharmacy_id
+    hp_migrated = db_session.query(HistoriquePrix).filter(HistoriquePrix.pharmacy_id.is_(None)).update(
+        {"pharmacy_id": pid}, synchronize_session=False
+    )
+
+    total = users_migrated + grossistes_migrated + factures_migrated + labos_migrated + factures_labo_migrated + emac_migrated + hp_migrated
+    if total > 0:
+        db_session.commit()
+        print(f"✓ Migration multi-tenant : {total} enregistrement(s) rattache(s) a la pharmacie '{existing_pharmacy.nom}'")
+        print(f"  - Users: {users_migrated}, Grossistes: {grossistes_migrated}, Factures: {factures_migrated}")
+        print(f"  - Labos: {labos_migrated}, Factures Labo: {factures_labo_migrated}, EMAC: {emac_migrated}, Hist.Prix: {hp_migrated}")

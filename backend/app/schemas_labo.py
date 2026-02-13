@@ -23,6 +23,7 @@ class StatutFactureLabo(str, Enum):
     ANALYSEE = "analysee"
     CONFORME = "conforme"
     ECART_RFA = "ecart_rfa"
+    VERIFIEE = "verifiee"
 
 
 class TypeLaboratoire(str, Enum):
@@ -45,6 +46,24 @@ class CategorieLigne(str, Enum):
     REMBOURSABLE_STANDARD = "REMBOURSABLE_STANDARD"
     REMBOURSABLE_FAIBLE_MARGE = "REMBOURSABLE_FAIBLE_MARGE"
     NON_REMBOURSABLE = "NON_REMBOURSABLE"
+
+
+class TypeAnomalieLabo(str, Enum):
+    """Types d'anomalies facture laboratoire"""
+    REMISE_ECART = "remise_ecart"
+    ESCOMPTE_MANQUANT = "escompte_manquant"
+    FRANCO_SEUIL = "franco_seuil"
+    RFA_PALIER = "rfa_palier"
+    GRATUITE_MANQUANTE = "gratuite_manquante"
+    TVA_INCOHERENCE = "tva_incoherence"
+    CALCUL_ARITHMETIQUE = "calcul_arithmetique"
+
+
+class SeveriteAnomalie(str, Enum):
+    """Severite d'une anomalie"""
+    CRITICAL = "critical"
+    OPPORTUNITY = "opportunity"
+    INFO = "info"
 
 
 # ========================================
@@ -98,6 +117,20 @@ class AccordCommercialBase(BaseModel):
     bonus_dispo_max_pct: float = Field(default=10.0, ge=0, le=100, description="% max achats en dispo max")
     bonus_seuil_pct: float = Field(default=95.0, ge=0, le=100, description="Seuil de disponibilite (%)")
 
+    # Escompte
+    escompte_pct: float = Field(default=0.0, ge=0, le=100, description="Taux d'escompte (%)")
+    escompte_delai_jours: int = Field(default=30, ge=0, description="Delai en jours pour beneficier de l'escompte")
+    escompte_applicable: bool = Field(default=False, description="Escompte applicable sur cet accord")
+
+    # Franco de port
+    franco_seuil_ht: float = Field(default=0.0, ge=0, description="Seuil minimum HT pour franco de port (EUR)")
+    franco_frais_port: float = Field(default=0.0, ge=0, description="Frais de port si sous le seuil (EUR)")
+
+    # Gratuites
+    gratuites_seuil_qte: int = Field(default=0, ge=0, description="Seuil quantite pour gratuites")
+    gratuites_ratio: str = Field(default="", max_length=50, description="Ratio gratuites (ex: '10+1')")
+    gratuites_applicable: bool = Field(default=False, description="Gratuites applicables sur cet accord")
+
     actif: bool = True
 
 
@@ -106,11 +139,35 @@ class AccordCommercialCreate(AccordCommercialBase):
     laboratoire_id: int
 
 
+class PalierRFABase(BaseModel):
+    """Base palier RFA"""
+    seuil_min: float = Field(..., ge=0, description="Seuil minimum en EUR")
+    seuil_max: Optional[float] = Field(None, ge=0, description="Seuil maximum en EUR (None = pas de plafond)")
+    taux_rfa: float = Field(..., ge=0, le=100, description="Taux RFA en %")
+    description: Optional[str] = Field(None, max_length=200, description="Description du palier")
+
+
+class PalierRFACreate(PalierRFABase):
+    """Creation d'un palier RFA"""
+    pass
+
+
+class PalierRFAResponse(PalierRFABase):
+    """Reponse palier RFA"""
+    id: int
+    accord_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class AccordCommercialResponse(AccordCommercialBase):
     """Reponse accord commercial"""
     id: int
     laboratoire_id: int
     created_at: datetime
+    paliers_rfa: List[PalierRFAResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -150,6 +207,35 @@ class LigneFactureLaboResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ========================================
+# SCHEMAS ANOMALIE FACTURE LABO
+# ========================================
+
+class AnomalieFactureLaboResponse(BaseModel):
+    """Reponse anomalie facture laboratoire"""
+    id: int
+    facture_id: int
+    type_anomalie: TypeAnomalieLabo
+    severite: SeveriteAnomalie
+    description: str
+    montant_ecart: float = 0.0
+    action_suggeree: Optional[str] = None
+    ligne_id: Optional[int] = None
+    resolu: bool = False
+    resolu_at: Optional[datetime] = None
+    note_resolution: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AnomalieFactureLaboUpdate(BaseModel):
+    """Mise a jour d'une anomalie (resolution)"""
+    resolu: bool = Field(..., description="Anomalie resolue ou non")
+    note_resolution: Optional[str] = Field(None, description="Note de resolution")
 
 
 # ========================================
@@ -252,6 +338,7 @@ class FactureLaboResponse(BaseModel):
     # Relations
     laboratoire: Optional[LaboratoireResponse] = None
     lignes: List[LigneFactureLaboResponse] = Field(default_factory=list)
+    anomalies_labo: List[AnomalieFactureLaboResponse] = Field(default_factory=list)
 
     # Propriete calculee
     taux_remise_effectif: float = Field(default=0.0, description="Taux de remise effectif en %")
@@ -286,6 +373,37 @@ class RFAUpdateResponse(BaseModel):
     ecart_rfa: float
     statut: StatutFactureLabo
     message: str
+
+
+# ========================================
+# SCHEMAS VERIFICATION
+# ========================================
+
+class VerificationLaboResponse(BaseModel):
+    """Reponse du moteur de verification"""
+    facture_id: int
+    nb_anomalies: int = 0
+    nb_critical: int = 0
+    nb_opportunity: int = 0
+    nb_info: int = 0
+    montant_total_ecart: float = 0.0
+    anomalies: List[AnomalieFactureLaboResponse] = Field(default_factory=list)
+    statut: StatutFactureLabo
+    message: str
+
+
+class RFAProgressionResponse(BaseModel):
+    """Progression RFA annuelle"""
+    laboratoire_id: int
+    laboratoire_nom: str
+    annee: int
+    cumul_achats_ht: float = 0.0
+    palier_actuel: Optional[PalierRFAResponse] = None
+    palier_suivant: Optional[PalierRFAResponse] = None
+    montant_restant_prochain_palier: Optional[float] = None
+    taux_rfa_actuel: float = 0.0
+    rfa_estimee_annuelle: float = 0.0
+    progression_pct: float = Field(default=0.0, ge=0, le=100, description="% vers le palier suivant")
 
 
 # ========================================
@@ -346,6 +464,7 @@ class UploadLaboResponse(BaseModel):
     facture: Optional[FactureLaboResponse] = None
     analyse: Optional[AnalyseRemiseResponse] = None
     fournisseur: Optional[FournisseurDetecte] = None
+    verification: Optional[VerificationLaboResponse] = None
     warnings: Optional[List[str]] = None
 
 
@@ -378,6 +497,151 @@ class MessageResponse(BaseModel):
     success: bool = True
 
 
+class RecalculResponse(BaseModel):
+    """Reponse du recalcul de factures apres modification d'accord"""
+    laboratoire_id: int
+    laboratoire_nom: str
+    accord_nom: Optional[str] = None
+    total: int
+    succes: int
+    erreurs: int
+    message: str
+
+
+# ========================================
+# SCHEMAS HISTORIQUE PRIX
+# ========================================
+
+class HistoriquePrixResponse(BaseModel):
+    """Reponse historique prix pour un produit"""
+    id: int
+    cip13: str
+    designation: str
+    laboratoire_id: int
+    date_facture: date
+    facture_labo_id: Optional[int] = None
+    prix_unitaire_brut: float
+    remise_pct: float = 0.0
+    prix_unitaire_net: float
+    quantite: int = 1
+    cout_net_reel: Optional[float] = None
+    tranche: Optional[str] = None
+    taux_tva: Optional[float] = None
+    created_at: datetime
+
+    # Relation
+    laboratoire_nom: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class HistoriquePrixListResponse(BaseModel):
+    """Liste de l'historique prix d'un produit"""
+    cip13: str
+    designation: str
+    nb_enregistrements: int = 0
+    prix_min: float = 0.0
+    prix_max: float = 0.0
+    prix_moyen: float = 0.0
+    derniere_date: Optional[date] = None
+    historique: List[HistoriquePrixResponse] = Field(default_factory=list)
+
+
+class ComparaisonFournisseurItem(BaseModel):
+    """Comparaison prix d'un produit entre fournisseurs"""
+    laboratoire_id: int
+    laboratoire_nom: str
+    dernier_prix_brut: float = 0.0
+    dernier_prix_net: float = 0.0
+    cout_net_reel: Optional[float] = None
+    remise_pct: float = 0.0
+    derniere_date: Optional[date] = None
+    nb_achats: int = 0
+    quantite_totale: int = 0
+    montant_total_ht: float = 0.0
+    evolution_pct: Optional[float] = None  # Evolution prix vs achat precedent
+
+
+class ComparaisonProduitResponse(BaseModel):
+    """Comparaison multi-fournisseurs pour un produit"""
+    cip13: str
+    designation: str
+    nb_fournisseurs: int = 0
+    meilleur_prix_net: Optional[float] = None
+    meilleur_fournisseur: Optional[str] = None
+    ecart_max_pct: Optional[float] = None  # Ecart entre meilleur et pire prix
+    fournisseurs: List[ComparaisonFournisseurItem] = Field(default_factory=list)
+
+
+class TopProduitItem(BaseModel):
+    """Top produit par volume ou montant"""
+    cip13: str
+    designation: str
+    quantite_totale: int = 0
+    montant_total_ht: float = 0.0
+    nb_achats: int = 0
+    prix_moyen_net: float = 0.0
+    nb_fournisseurs: int = 0
+    derniere_date: Optional[date] = None
+
+
+class TopProduitsResponse(BaseModel):
+    """Liste des top produits"""
+    critere: str = "montant"  # montant, quantite
+    periode: Optional[str] = None
+    produits: List[TopProduitItem] = Field(default_factory=list)
+    total: int = 0
+
+
+class AlertePrixItem(BaseModel):
+    """Alerte sur un changement de prix"""
+    type_alerte: str  # hausse_prix, concurrent_moins_cher, condition_expire
+    severite: str  # critical, warning, info
+    cip13: str
+    designation: str
+    laboratoire_id: int
+    laboratoire_nom: str
+    description: str
+    prix_ancien: Optional[float] = None
+    prix_nouveau: Optional[float] = None
+    ecart_pct: Optional[float] = None
+    date_detection: date
+    meilleur_prix_concurrent: Optional[float] = None
+    concurrent_nom: Optional[str] = None
+    economie_potentielle: Optional[float] = None
+
+
+class AlertesPrixResponse(BaseModel):
+    """Liste des alertes prix"""
+    nb_alertes: int = 0
+    nb_critical: int = 0
+    nb_warning: int = 0
+    nb_info: int = 0
+    alertes: List[AlertePrixItem] = Field(default_factory=list)
+
+
+class EconomiePotentielleItem(BaseModel):
+    """Economie potentielle sur un produit"""
+    cip13: str
+    designation: str
+    fournisseur_actuel: str
+    prix_actuel_net: float = 0.0
+    meilleur_fournisseur: str = ""
+    meilleur_prix_net: float = 0.0
+    ecart_unitaire: float = 0.0
+    ecart_pct: float = 0.0
+    quantite_annuelle: int = 0
+    economie_annuelle: float = 0.0
+
+
+class EconomiesPotentiellesResponse(BaseModel):
+    """Resume des economies potentielles"""
+    nb_produits_optimisables: int = 0
+    economie_totale_annuelle: float = 0.0
+    economies: List[EconomiePotentielleItem] = Field(default_factory=list)
+
+
 # ========================================
 # EXPORT
 # ========================================
@@ -387,10 +651,17 @@ __all__ = [
     "TypeLaboratoire",
     "TrancheLigne",
     "CategorieLigne",
+    "TypeAnomalieLabo",
+    "SeveriteAnomalie",
     "LaboratoireCreate",
     "LaboratoireResponse",
     "AccordCommercialCreate",
     "AccordCommercialResponse",
+    "PalierRFABase",
+    "PalierRFACreate",
+    "PalierRFAResponse",
+    "AnomalieFactureLaboResponse",
+    "AnomalieFactureLaboUpdate",
     "LigneFactureLaboResponse",
     "AnalyseTrancheResponse",
     "AnalyseRemiseResponse",
@@ -398,6 +669,8 @@ __all__ = [
     "FactureLaboListResponse",
     "RFAUpdateRequest",
     "RFAUpdateResponse",
+    "VerificationLaboResponse",
+    "RFAProgressionResponse",
     "StatsMonthlyItem",
     "StatsMonthlyResponse",
     "FournisseurDetecte",
@@ -405,4 +678,14 @@ __all__ = [
     "ParserInfo",
     "ParsersListResponse",
     "MessageResponse",
+    "HistoriquePrixResponse",
+    "HistoriquePrixListResponse",
+    "ComparaisonFournisseurItem",
+    "ComparaisonProduitResponse",
+    "TopProduitItem",
+    "TopProduitsResponse",
+    "AlertePrixItem",
+    "AlertesPrixResponse",
+    "EconomiePotentielleItem",
+    "EconomiesPotentiellesResponse",
 ]

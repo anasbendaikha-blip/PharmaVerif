@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Facture, Grossiste, Anomalie, User, StatutFacture, TypeAnomalie
 from app.schemas import VerificationRequest, VerificationResponse
-from app.api.routes.auth import get_current_user
+from app.api.routes.auth import get_current_user, get_current_pharmacy_id
 
 router = APIRouter()
 
@@ -22,6 +22,7 @@ router = APIRouter()
 async def verify_facture(
     request: VerificationRequest,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -32,11 +33,17 @@ async def verify_facture(
     - Remises manquantes ou excessives
     - Non-respect du franco
     """
-    facture = db.query(Facture).filter(Facture.id == request.facture_id).first()
+    facture = db.query(Facture).filter(
+        Facture.id == request.facture_id,
+        Facture.pharmacy_id == pharmacy_id,
+    ).first()
     if not facture:
         raise HTTPException(status_code=404, detail="Facture non trouvee")
 
-    grossiste = db.query(Grossiste).filter(Grossiste.id == request.grossiste_id).first()
+    grossiste = db.query(Grossiste).filter(
+        Grossiste.id == request.grossiste_id,
+        Grossiste.pharmacy_id == pharmacy_id,
+    ).first()
     if not grossiste:
         raise HTTPException(status_code=404, detail="Grossiste non trouve")
 

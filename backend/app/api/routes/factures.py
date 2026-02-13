@@ -23,7 +23,7 @@ from app.schemas import (
 )
 from app.database import get_db
 from app.models import Facture, LigneFacture, User, Grossiste
-from app.api.routes.auth import get_current_user
+from app.api.routes.auth import get_current_user, get_current_pharmacy_id
 
 router = APIRouter()
 
@@ -35,6 +35,7 @@ router = APIRouter()
 async def create_facture(
     facture_data: FactureCreate,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -49,16 +50,22 @@ async def create_facture(
     - **net_a_payer**: Net à payer final
     - **lignes**: Liste des lignes de produits
     """
-    # Vérifier que le grossiste existe
-    grossiste = db.query(Grossiste).filter(Grossiste.id == facture_data.grossiste_id).first()
+    # Vérifier que le grossiste existe et appartient à la pharmacie
+    grossiste = db.query(Grossiste).filter(
+        Grossiste.id == facture_data.grossiste_id,
+        Grossiste.pharmacy_id == pharmacy_id,
+    ).first()
     if not grossiste:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Grossiste avec ID {facture_data.grossiste_id} non trouvé"
         )
-    
-    # Vérifier que le numéro de facture n'existe pas déjà
-    existing = db.query(Facture).filter(Facture.numero == facture_data.numero).first()
+
+    # Vérifier que le numéro de facture n'existe pas déjà pour cette pharmacie
+    existing = db.query(Facture).filter(
+        Facture.numero == facture_data.numero,
+        Facture.pharmacy_id == pharmacy_id,
+    ).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -76,6 +83,7 @@ async def create_facture(
         net_a_payer=facture_data.net_a_payer,
         statut_verification=StatutFacture.NON_VERIFIE,
         user_id=current_user.id,
+        pharmacy_id=pharmacy_id,
     )
     
     db.add(db_facture)
@@ -111,22 +119,23 @@ async def list_factures(
     sort_by: str = Query("date", description="Trier par (date, montant, statut)"),
     sort_order: str = Query("desc", description="Ordre (asc, desc)"),
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
     Lister les factures avec pagination et filtres
-    
+
     **Filtres disponibles:**
     - Par statut (conforme, anomalie, non_verifie)
     - Par grossiste
     - Par recherche textuelle (numéro ou nom grossiste)
     - Par période (date_debut, date_fin)
-    
+
     **Tri:**
     - Par date, montant ou statut
     - Ordre ascendant ou descendant
     """
-    query = db.query(Facture)
+    query = db.query(Facture).filter(Facture.pharmacy_id == pharmacy_id)
     
     # Filtres
     if statut:
@@ -181,18 +190,22 @@ async def list_factures(
 async def get_facture(
     facture_id: int,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
     Obtenir une facture par ID
-    
+
     Retourne tous les détails de la facture incluant :
     - Informations de base
     - Grossiste associé
     - Lignes de produits
     - Anomalies détectées
     """
-    facture = db.query(Facture).filter(Facture.id == facture_id).first()
+    facture = db.query(Facture).filter(
+        Facture.id == facture_id,
+        Facture.pharmacy_id == pharmacy_id,
+    ).first()
     
     if not facture:
         raise HTTPException(
@@ -207,18 +220,22 @@ async def update_facture(
     facture_id: int,
     facture_data: FactureUpdate,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
     Mettre à jour une facture
-    
+
     Permet de modifier :
     - Le numéro
     - La date
     - Le statut de vérification
     - Les montants
     """
-    facture = db.query(Facture).filter(Facture.id == facture_id).first()
+    facture = db.query(Facture).filter(
+        Facture.id == facture_id,
+        Facture.pharmacy_id == pharmacy_id,
+    ).first()
     
     if not facture:
         raise HTTPException(
@@ -243,14 +260,18 @@ async def update_facture(
 async def delete_facture(
     facture_id: int,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
     Supprimer une facture
-    
+
     Supprime la facture et toutes ses lignes associées.
     """
-    facture = db.query(Facture).filter(Facture.id == facture_id).first()
+    facture = db.query(Facture).filter(
+        Facture.id == facture_id,
+        Facture.pharmacy_id == pharmacy_id,
+    ).first()
     
     if not facture:
         raise HTTPException(
@@ -274,12 +295,16 @@ async def delete_facture(
 async def get_facture_lignes(
     facture_id: int,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
     Obtenir toutes les lignes d'une facture
     """
-    facture = db.query(Facture).filter(Facture.id == facture_id).first()
+    facture = db.query(Facture).filter(
+        Facture.id == facture_id,
+        Facture.pharmacy_id == pharmacy_id,
+    ).first()
     
     if not facture:
         raise HTTPException(
@@ -294,12 +319,16 @@ async def update_facture_statut(
     facture_id: int,
     statut: StatutFacture,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
     Mettre à jour uniquement le statut d'une facture
     """
-    facture = db.query(Facture).filter(Facture.id == facture_id).first()
+    facture = db.query(Facture).filter(
+        Facture.id == facture_id,
+        Facture.pharmacy_id == pharmacy_id,
+    ).first()
     
     if not facture:
         raise HTTPException(
@@ -319,12 +348,16 @@ async def update_facture_statut(
 async def get_facture_by_numero(
     numero: str,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
     Obtenir une facture par son numéro
     """
-    facture = db.query(Facture).filter(Facture.numero == numero).first()
+    facture = db.query(Facture).filter(
+        Facture.numero == numero,
+        Facture.pharmacy_id == pharmacy_id,
+    ).first()
     
     if not facture:
         raise HTTPException(
@@ -340,12 +373,16 @@ async def get_factures_by_grossiste(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
     Obtenir toutes les factures d'un grossiste
     """
-    query = db.query(Facture).filter(Facture.grossiste_id == grossiste_id)
+    query = db.query(Facture).filter(
+        Facture.grossiste_id == grossiste_id,
+        Facture.pharmacy_id == pharmacy_id,
+    )
     query = query.order_by(desc(Facture.date))
     
     total = query.count()
@@ -368,14 +405,18 @@ async def duplicate_facture(
     facture_id: int,
     nouveau_numero: str,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """
     Dupliquer une facture
-    
+
     Crée une copie de la facture avec un nouveau numéro.
     """
-    facture_originale = db.query(Facture).filter(Facture.id == facture_id).first()
+    facture_originale = db.query(Facture).filter(
+        Facture.id == facture_id,
+        Facture.pharmacy_id == pharmacy_id,
+    ).first()
     
     if not facture_originale:
         raise HTTPException(
@@ -383,8 +424,11 @@ async def duplicate_facture(
             detail=f"Facture avec ID {facture_id} non trouvée"
         )
     
-    # Vérifier que le nouveau numéro n'existe pas
-    existing = db.query(Facture).filter(Facture.numero == nouveau_numero).first()
+    # Vérifier que le nouveau numéro n'existe pas pour cette pharmacie
+    existing = db.query(Facture).filter(
+        Facture.numero == nouveau_numero,
+        Facture.pharmacy_id == pharmacy_id,
+    ).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -402,6 +446,7 @@ async def duplicate_facture(
         net_a_payer=facture_originale.net_a_payer,
         statut_verification=StatutFacture.NON_VERIFIE,
         user_id=current_user.id,
+        pharmacy_id=pharmacy_id,
     )
     
     db.add(nouvelle_facture)

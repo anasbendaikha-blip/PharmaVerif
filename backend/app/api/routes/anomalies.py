@@ -18,7 +18,7 @@ from app.schemas import (
     AnomalieCreate, AnomalieUpdate, AnomalieResponse,
     AnomalieListResponse, MessageResponse, TypeAnomalie,
 )
-from app.api.routes.auth import get_current_user
+from app.api.routes.auth import get_current_user, get_current_pharmacy_id
 
 router = APIRouter()
 
@@ -31,10 +31,11 @@ async def list_anomalies(
     type_anomalie: Optional[TypeAnomalie] = Query(None),
     resolu: Optional[bool] = Query(None),
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """Lister les anomalies avec filtres et pagination"""
-    query = db.query(Anomalie)
+    query = db.query(Anomalie).join(Facture).filter(Facture.pharmacy_id == pharmacy_id)
 
     if facture_id:
         query = query.filter(Anomalie.facture_id == facture_id)
@@ -59,10 +60,14 @@ async def list_anomalies(
 async def get_anomalie(
     anomalie_id: int,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """Obtenir une anomalie par ID"""
-    anomalie = db.query(Anomalie).filter(Anomalie.id == anomalie_id).first()
+    anomalie = db.query(Anomalie).join(Facture).filter(
+        Anomalie.id == anomalie_id,
+        Facture.pharmacy_id == pharmacy_id,
+    ).first()
     if not anomalie:
         raise HTTPException(status_code=404, detail="Anomalie non trouvee")
     return anomalie
@@ -73,12 +78,16 @@ async def update_anomalie(
     anomalie_id: int,
     data: AnomalieUpdate,
     current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
     """Marquer une anomalie comme resolue"""
     from datetime import datetime
 
-    anomalie = db.query(Anomalie).filter(Anomalie.id == anomalie_id).first()
+    anomalie = db.query(Anomalie).join(Facture).filter(
+        Anomalie.id == anomalie_id,
+        Facture.pharmacy_id == pharmacy_id,
+    ).first()
     if not anomalie:
         raise HTTPException(status_code=404, detail="Anomalie non trouvee")
 
