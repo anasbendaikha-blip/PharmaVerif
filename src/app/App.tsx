@@ -1,7 +1,13 @@
 /**
  * PharmaVerif - Main Application
  * Copyright (c) 2026 Anas BENDAIKHA
- * Tous droits réservés.
+ * Tous droits reserves.
+ *
+ * Architecture de routes a deux niveaux :
+ *  - Routes "bare" (sans AppLayout) : /login, /onboarding
+ *  - Routes "app" (avec AppLayout) : toutes les autres
+ *
+ * Les pages API-only sont filtrees dans la navigation (pas dans le router).
  */
 
 import { useEffect } from 'react';
@@ -12,16 +18,15 @@ import { DashboardPage } from './pages/DashboardPage';
 import { MentionsLegalesPage } from './pages/MentionsLegalesPage';
 import { ContactPage } from './pages/ContactPage';
 import { LoginPage } from './pages/LoginPage';
+import { OnboardingPage } from './pages/OnboardingPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { FournisseursPage } from './pages/FournisseursPage';
-import { Footer } from './components/Footer';
-import { Navbar } from './components/Navbar';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { initializeDatabase } from './api/endpoints';
-import { isApiMode } from './api/config';
 import { FacturesLaboPage } from './pages/FacturesLaboPage';
 import { EMACPage } from './pages/EMACPage';
 import { AnalysePrixPage } from './pages/AnalysePrixPage';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { AppLayout } from './components/layout';
+import { initializeDatabase } from './api/endpoints';
 import { Toaster } from './components/ui/sonner';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
@@ -38,9 +43,9 @@ function ScrollToTop() {
 }
 
 /**
- * Layout principal avec navigation par routes
+ * Routes "app" rendues DANS AppLayout (sidebar + header + footer)
  */
-function AppLayout() {
+function AppLayoutRoutes() {
   const navigate = useNavigate();
 
   const handleNavigate = (page: string) => {
@@ -53,6 +58,7 @@ function AppLayout() {
       'factures-labo': '/factures-labo',
       emac: '/emac',
       'analyse-prix': '/analyse-prix',
+      pharmacie: '/pharmacie',
       'mentions-legales': '/mentions-legales',
       contact: '/contact',
       login: '/login',
@@ -61,89 +67,107 @@ function AppLayout() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
+    <AppLayout>
+      <Routes>
+        <Route path="/" element={<HomePage onNavigate={handleNavigate} />} />
+        <Route
+          path="/verification"
+          element={
+            <ProtectedRoute>
+              <VerificationPage onNavigate={handleNavigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage onNavigate={handleNavigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute>
+              <ReportsPage onNavigate={handleNavigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/fournisseurs"
+          element={
+            <ProtectedRoute>
+              <FournisseursPage onNavigate={handleNavigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/factures-labo"
+          element={
+            <ProtectedRoute>
+              <FacturesLaboPage onNavigate={handleNavigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/emac"
+          element={
+            <ProtectedRoute>
+              <EMACPage onNavigate={handleNavigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analyse-prix"
+          element={
+            <ProtectedRoute>
+              <AnalysePrixPage onNavigate={handleNavigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mentions-legales"
+          element={<MentionsLegalesPage onNavigate={handleNavigate} />}
+        />
+        <Route path="/contact" element={<ContactPage onNavigate={handleNavigate} />} />
+        <Route path="*" element={<HomePage onNavigate={handleNavigate} />} />
+      </Routes>
+    </AppLayout>
+  );
+}
+
+/**
+ * Routes principales — deux niveaux :
+ *  1. Routes bare (login, onboarding) sans sidebar/header
+ *  2. Routes app avec AppLayout
+ */
+function AppRoutes() {
+  return (
+    <>
       <ScrollToTop />
-      <Navbar />
-      <div className="flex-1">
-        <Routes>
-          <Route path="/" element={<HomePage onNavigate={handleNavigate} />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/verification"
-            element={
-              <ProtectedRoute>
-                <VerificationPage onNavigate={handleNavigate} />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <DashboardPage onNavigate={handleNavigate} />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/reports"
-            element={
-              <ProtectedRoute>
-                <ReportsPage onNavigate={handleNavigate} />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/fournisseurs"
-            element={
-              <ProtectedRoute>
-                <FournisseursPage onNavigate={handleNavigate} />
-              </ProtectedRoute>
-            }
-          />
-          {isApiMode() && (
-            <>
-              <Route
-                path="/factures-labo"
-                element={
-                  <ProtectedRoute>
-                    <FacturesLaboPage onNavigate={handleNavigate} />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/emac"
-                element={
-                  <ProtectedRoute>
-                    <EMACPage onNavigate={handleNavigate} />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/analyse-prix"
-                element={
-                  <ProtectedRoute>
-                    <AnalysePrixPage onNavigate={handleNavigate} />
-                  </ProtectedRoute>
-                }
-              />
-            </>
-          )}
-          <Route
-            path="/mentions-legales"
-            element={<MentionsLegalesPage onNavigate={handleNavigate} />}
-          />
-          <Route path="/contact" element={<ContactPage onNavigate={handleNavigate} />} />
-          <Route path="*" element={<HomePage onNavigate={handleNavigate} />} />
-        </Routes>
-      </div>
-      <Footer onNavigate={handleNavigate} />
+      <Routes>
+        {/* Routes BARE — pas d'AppLayout */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/onboarding"
+          element={
+            <ProtectedRoute>
+              <OnboardingPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Routes APP — avec AppLayout (sidebar + header + footer) */}
+        <Route path="/*" element={<AppLayoutRoutes />} />
+      </Routes>
       <Toaster richColors position="top-right" />
-    </div>
+    </>
   );
 }
 
 export default function App() {
-  // Initialiser la base de données au démarrage
+  // Initialiser la base de donnees au demarrage
   useEffect(() => {
     initializeDatabase();
   }, []);
@@ -152,7 +176,7 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
-          <AppLayout />
+          <AppRoutes />
         </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>

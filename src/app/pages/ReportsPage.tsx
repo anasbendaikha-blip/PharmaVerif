@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-import { StatCard } from '../components/StatCard';
+import { PageHeader } from '../components/ui/page-header';
+import { StatCard } from '../components/ui/stat-card';
 import {
   Table,
   TableBody,
@@ -139,22 +140,15 @@ export function ReportsPage({ onNavigate: _onNavigate }: ReportsPageProps) {
   }, [filteredFactures, filteredAnomalies]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <FileBarChart className="h-7 w-7 text-blue-600" />
-              Rapports & Historique
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Analyse des tendances et suivi des performances
-            </p>
-          </div>
-
+    <div className="space-y-6">
+      {/* Header */}
+      <PageHeader
+        title="Rapports & Historique"
+        description="Analyse des tendances et suivi des performances"
+        icon={<FileBarChart className="h-5 w-5" />}
+        actions={
           <div className="flex items-center gap-3">
-            <Calendar className="h-4 w-4 text-gray-500" />
+            <Calendar className="h-4 w-4 text-muted-foreground" />
             <Select value={periode} onValueChange={setPeriode}>
               <SelectTrigger className="w-[160px]">
                 <SelectValue />
@@ -167,42 +161,39 @@ export function ReportsPage({ onNavigate: _onNavigate }: ReportsPageProps) {
               </SelectContent>
             </Select>
           </div>
-        </div>
+        }
+      />
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            title="Factures"
-            value={kpis.totalFactures}
-            icon={FileBarChart}
-            iconColor="text-blue-600"
-            iconBgColor="bg-blue-100 dark:bg-blue-900/30"
-          />
-          <StatCard
-            title="Anomalies"
-            value={kpis.totalAnomalies}
-            icon={AlertCircle}
-            iconColor="text-orange-600"
-            iconBgColor="bg-orange-100 dark:bg-orange-900/30"
-          />
-          <StatCard
-            title="Récupérable"
-            value={formatCurrency(kpis.montantRecuperable)}
-            icon={TrendingUp}
-            iconColor="text-red-600"
-            iconBgColor="bg-red-100 dark:bg-red-900/30"
-          />
-          <StatCard
-            title="Conformité"
-            value={formatPercentage(kpis.tauxConformite)}
-            icon={CheckCircle2}
-            iconColor="text-green-600"
-            iconBgColor="bg-green-100 dark:bg-green-900/30"
-          />
-        </div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Factures"
+          value={kpis.totalFactures}
+          icon={<FileBarChart className="h-5 w-5" />}
+          variant="blue"
+        />
+        <StatCard
+          label="Anomalies"
+          value={kpis.totalAnomalies}
+          icon={<AlertCircle className="h-5 w-5" />}
+          variant="orange"
+        />
+        <StatCard
+          label="Recuperable"
+          value={formatCurrency(kpis.montantRecuperable)}
+          icon={<TrendingUp className="h-5 w-5" />}
+          variant="red"
+        />
+        <StatCard
+          label="Conformite"
+          value={formatPercentage(kpis.tauxConformite)}
+          icon={<CheckCircle2 className="h-5 w-5" />}
+          variant="green"
+        />
+      </div>
 
-        {/* Charts */}
-        <div className="grid lg:grid-cols-2 gap-6 mb-8">
+      {/* Charts */}
+      <div className="grid lg:grid-cols-2 gap-6">
           {/* Anomalies Timeline */}
           <Card className="dark:bg-gray-800 dark:border-gray-700">
             <CardHeader>
@@ -258,7 +249,7 @@ export function ReportsPage({ onNavigate: _onNavigate }: ReportsPageProps) {
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <RechartsTooltip
-                      formatter={(value: number) => [`${value.toFixed(2)} €`, 'Cumulé']}
+                      formatter={(value: number) => [formatCurrency(value), 'Cumule']}
                     />
                     <Area
                       type="monotone"
@@ -278,10 +269,10 @@ export function ReportsPage({ onNavigate: _onNavigate }: ReportsPageProps) {
               )}
             </CardContent>
           </Card>
-        </div>
+      </div>
 
-        {/* Table by fournisseur */}
-        <Card className="dark:bg-gray-800 dark:border-gray-700">
+      {/* Table by fournisseur */}
+      <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>
             <CardTitle className="text-base dark:text-white">Récapitulatif par fournisseur</CardTitle>
           </CardHeader>
@@ -291,9 +282,9 @@ export function ReportsPage({ onNavigate: _onNavigate }: ReportsPageProps) {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="dark:text-gray-300">Fournisseur</TableHead>
-                    <TableHead className="dark:text-gray-300">Type</TableHead>
-                    <TableHead className="text-right dark:text-gray-300">Factures</TableHead>
-                    <TableHead className="text-right dark:text-gray-300">Anomalies</TableHead>
+                    <TableHead className="dark:text-gray-300 hidden sm:table-cell">Type</TableHead>
+                    <TableHead className="text-right dark:text-gray-300 hidden sm:table-cell">Factures</TableHead>
+                    <TableHead className="text-right dark:text-gray-300 hidden md:table-cell">Anomalies</TableHead>
                     <TableHead className="text-right dark:text-gray-300">
                       Montant récupérable
                     </TableHead>
@@ -304,7 +295,7 @@ export function ReportsPage({ onNavigate: _onNavigate }: ReportsPageProps) {
                   {fournisseurStats.map((g) => (
                     <TableRow key={g.nom}>
                       <TableCell className="font-medium dark:text-white">{g.nom}</TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <Badge variant="outline" className={
                           g.type_fournisseur === 'grossiste' ? 'text-blue-700 border-blue-300 bg-blue-50' :
                           g.type_fournisseur === 'laboratoire' ? 'text-violet-700 border-violet-300 bg-violet-50' :
@@ -313,8 +304,8 @@ export function ReportsPage({ onNavigate: _onNavigate }: ReportsPageProps) {
                           {g.type_fournisseur}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right dark:text-gray-300">{g.factures}</TableCell>
-                      <TableCell className="text-right dark:text-gray-300">{g.anomalies}</TableCell>
+                      <TableCell className="text-right dark:text-gray-300 hidden sm:table-cell">{g.factures}</TableCell>
+                      <TableCell className="text-right dark:text-gray-300 hidden md:table-cell">{g.anomalies}</TableCell>
                       <TableCell className="text-right font-medium text-red-600">
                         {formatCurrency(g.montant)}
                       </TableCell>
@@ -348,7 +339,6 @@ export function ReportsPage({ onNavigate: _onNavigate }: ReportsPageProps) {
             </div>
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 }

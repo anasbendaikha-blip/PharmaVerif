@@ -21,6 +21,7 @@ export interface PharmacyResponse {
   titulaire: string | null;
   plan: PlanPharmacie;
   actif: boolean;
+  onboarding_completed: boolean;
   created_at: string;
   updated_at: string | null;
 }
@@ -39,6 +40,7 @@ export interface PharmacyUpdate {
   siret?: string | null;
   titulaire?: string | null;
   plan?: PlanPharmacie;
+  onboarding_completed?: boolean;
 }
 
 export interface PharmacyStats {

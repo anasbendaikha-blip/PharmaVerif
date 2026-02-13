@@ -20,14 +20,15 @@ import {
 } from '../components/ui/select';
 import { Label } from '../components/ui/label';
 import {
-  ArrowLeft,
   CheckCircle,
   AlertCircle,
   Loader2,
   FileDown,
   Files,
   FileText,
+  FileCheck,
 } from 'lucide-react';
+import { PageHeader } from '../components/ui/page-header';
 import { db } from '../data/database';
 import {
   genererFactureAleatoire,
@@ -328,49 +329,36 @@ export function VerificationPage({ onNavigate }: VerificationPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <Button variant="ghost" onClick={() => onNavigate('home')} className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Retour
-            </Button>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Vérification de facture
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                Importez votre facture pour détecter les anomalies
-              </p>
-            </div>
-
-            {/* Mode Toggle */}
-            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-              <button
-                onClick={() => handleModeSwitch('single')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px]
-                  ${mode === 'single' ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
-              >
-                <FileText className="h-4 w-4" />
-                <span className="hidden sm:inline">Unitaire</span>
-              </button>
-              <button
-                onClick={() => handleModeSwitch('batch')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px]
-                  ${mode === 'batch' ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
-              >
-                <Files className="h-4 w-4" />
-                <span className="hidden sm:inline">Lot</span>
-              </button>
-            </div>
+      <PageHeader
+        title="Verification de facture"
+        description="Importez votre facture pour detecter les anomalies"
+        icon={<FileCheck className="h-5 w-5" />}
+        actions={
+          <div className="flex bg-muted rounded-lg p-1">
+            <button
+              onClick={() => handleModeSwitch('single')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px]
+                ${mode === 'single' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">Unitaire</span>
+            </button>
+            <button
+              onClick={() => handleModeSwitch('batch')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px]
+                ${mode === 'batch' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <Files className="h-4 w-4" />
+              <span className="hidden sm:inline">Lot</span>
+            </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div>
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column - Upload Section */}
           <div className="lg:col-span-1 space-y-6">

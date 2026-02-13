@@ -56,6 +56,7 @@ class PharmacyBase(BaseModel):
     siret: Optional[str] = Field(None, max_length=14)
     titulaire: Optional[str] = Field(None, max_length=200)
     plan: PlanPharmacie = PlanPharmacie.FREE
+    onboarding_completed: bool = False
 
 
 class PharmacyCreate(PharmacyBase):
@@ -70,6 +71,7 @@ class PharmacyUpdate(BaseModel):
     siret: Optional[str] = Field(None, max_length=14)
     titulaire: Optional[str] = Field(None, max_length=200)
     plan: Optional[PlanPharmacie] = None
+    onboarding_completed: Optional[bool] = None
 
 
 class PharmacyResponse(PharmacyBase):

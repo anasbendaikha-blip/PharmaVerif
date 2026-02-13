@@ -15,6 +15,7 @@ import { Logo } from '../components/Logo';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { isApiMode } from '../api/config';
+import { pharmacyApi } from '../api/pharmacyApi';
 import { toast } from 'sonner';
 
 // Règles de mot de passe selon le mode
@@ -45,6 +46,21 @@ export function LoginPage() {
     const success = await login(loginEmail, loginPassword);
     if (success) {
       toast.success('Connexion réussie !');
+
+      // En mode API, verifier si l'onboarding est complete
+      if (isApiMode()) {
+        try {
+          const pharmacy = await pharmacyApi.getMyPharmacy();
+          if (!pharmacy.onboarding_completed) {
+            navigate('/onboarding');
+            setIsLoading(false);
+            return;
+          }
+        } catch {
+          // Erreur — on continue vers le dashboard
+        }
+      }
+
       navigate('/dashboard');
     }
     setIsLoading(false);
@@ -62,6 +78,14 @@ export function LoginPage() {
     const success = await register(registerName, registerEmail, registerPassword);
     if (success) {
       toast.success('Compte créé avec succès !');
+
+      // En mode API, toujours aller vers l'onboarding apres inscription
+      if (isApiMode()) {
+        navigate('/onboarding');
+        setIsLoading(false);
+        return;
+      }
+
       navigate('/dashboard');
     }
     setIsLoading(false);

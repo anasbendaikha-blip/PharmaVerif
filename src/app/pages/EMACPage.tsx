@@ -10,6 +10,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import { PageHeader } from '../components/ui/page-header';
 import {
   Table,
   TableBody,
@@ -41,7 +42,6 @@ import {
   X,
   TriangleAlert,
   FileSpreadsheet,
-  ArrowLeft,
   Check,
   Download,
 } from 'lucide-react';
@@ -244,34 +244,24 @@ export function EMACPage({ onNavigate }: EMACPageProps) {
   // ========================================
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => onNavigate('dashboard')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <ClipboardList className="h-6 w-6 text-purple-600" />
-              EMAC - Avantages Commerciaux
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              {total} EMAC enregistre{total > 1 ? 's' : ''}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowUpload(true)}>
-            <Upload className="h-4 w-4 mr-1" />
-            Importer
-          </Button>
-          <Button size="sm" onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Saisie manuelle
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="EMAC"
+        description="Etats Mensuels des Avantages Commerciaux"
+        icon={<ClipboardList className="h-5 w-5" />}
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setShowUpload(true)}>
+              <Upload className="h-4 w-4 mr-1" />
+              Importer
+            </Button>
+            <Button size="sm" onClick={() => setShowForm(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Saisie manuelle
+            </Button>
+          </>
+        }
+      />
 
       {/* Filtres */}
       <div className="flex flex-wrap gap-3 mb-6">
@@ -476,8 +466,8 @@ function EMACDetailModal({
   }), [anomalies]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center overflow-y-auto p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-4xl my-8">
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center overflow-y-auto p-0 sm:p-4">
+      <div className="bg-white dark:bg-gray-900 sm:rounded-xl rounded-none shadow-xl w-full max-w-4xl sm:my-8 my-0 min-h-[100dvh] sm:min-h-0">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div>
@@ -992,8 +982,8 @@ function EMACUploadModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg">
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-0 sm:p-4">
+      <div className="bg-white dark:bg-gray-900 sm:rounded-xl rounded-none shadow-xl w-full max-w-lg max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5 text-purple-600" />

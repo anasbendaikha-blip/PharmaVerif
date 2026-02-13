@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { PageHeader } from '../components/ui/page-header';
 import { toast } from 'sonner';
 import { facturesLaboApi } from '../api/facturesLabo';
 import { rapportsApi } from '../api/rapportsApi';
@@ -524,8 +525,8 @@ function FactureDetail({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4">
+      <div className="bg-white dark:bg-gray-800 sm:rounded-2xl rounded-none shadow-2xl w-full max-w-6xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white dark:bg-gray-800 flex items-center justify-between p-6 border-b dark:border-gray-700">
           <div>
@@ -1249,51 +1250,46 @@ export function FacturesLaboPage({ onNavigate }: FacturesLaboPageProps) {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* En-tête */}
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-            <FlaskConical className="h-8 w-8 text-purple-600" />
-            Factures Laboratoires
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Upload, analyse et reconciliation RFA des factures Biogaran
-          </p>
-        </div>
-        <div className="flex items-center gap-2 mt-1">
-          <Button
-            variant="outline"
-            onClick={async () => {
-              const now = new Date();
-              const mois = now.getMonth() + 1;
-              const annee = now.getFullYear();
-              // Utiliser le premier labo dispo (Biogaran = ID 1)
-              const laboId = factures[0]?.laboratoire_id || 1;
-              try {
-                toast.info('Generation du rapport mensuel...');
-                await rapportsApi.downloadRapportMensuel(laboId, mois, annee);
-                toast.success('Rapport mensuel telecharge');
-              } catch (err: unknown) {
-                const msg = err instanceof Error ? err.message : 'Erreur';
-                toast.error(msg);
-              }
-            }}
-            className="flex items-center gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Rapport mensuel
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setShowConditions(true)}
-            className="flex items-center gap-2"
-          >
-            <Settings className="h-4 w-4" />
-            Conditions commerciales
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Factures Laboratoires"
+        description="Upload, analyse et verification des factures labo"
+        icon={<FlaskConical className="h-5 w-5" />}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                const now = new Date();
+                const mois = now.getMonth() + 1;
+                const annee = now.getFullYear();
+                // Utiliser le premier labo dispo (Biogaran = ID 1)
+                const laboId = factures[0]?.laboratoire_id || 1;
+                try {
+                  toast.info('Generation du rapport mensuel...');
+                  await rapportsApi.downloadRapportMensuel(laboId, mois, annee);
+                  toast.success('Rapport mensuel telecharge');
+                } catch (err: unknown) {
+                  const msg = err instanceof Error ? err.message : 'Erreur';
+                  toast.error(msg);
+                }
+              }}
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Rapport mensuel
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowConditions(true)}
+              className="flex items-center gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              Conditions commerciales
+            </Button>
+          </>
+        }
+      />
 
       {/* Upload */}
       <UploadSection onUploadSuccess={loadFactures} />

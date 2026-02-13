@@ -21,10 +21,12 @@ export function HomePage({ onNavigate }: HomePageProps) {
     tauxConformite: 0,
     anomaliesDetectees: 0,
   });
+  const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
     const loadStats = async () => {
       try {
+        setStatsLoading(true);
         const data = await ApiClient.getStats();
         setStats({
           montantRecuperable: data.economies_potentielles,
@@ -33,6 +35,8 @@ export function HomePage({ onNavigate }: HomePageProps) {
         });
       } catch (error) {
         console.error('Erreur lors du chargement des stats:', error);
+      } finally {
+        setStatsLoading(false);
       }
     };
     loadStats();
@@ -62,9 +66,9 @@ export function HomePage({ onNavigate }: HomePageProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="space-y-12 -m-4 sm:-m-6 lg:-m-8 p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-blue-50 via-white to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 min-h-[calc(100vh-8rem)]">
       {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+      <div className="max-w-5xl mx-auto pt-12 pb-8">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-4 py-2 rounded-full mb-6">
             <Shield className="h-4 w-4" />
@@ -101,26 +105,53 @@ export function HomePage({ onNavigate }: HomePageProps) {
 
         {/* Stats Section */}
         <div className="grid md:grid-cols-3 gap-6 mb-16">
-          <Card className="bg-white dark:bg-gray-800 border-blue-200 dark:border-blue-800">
+          <Card className="bg-white dark:bg-gray-800 border-blue-200 dark:border-blue-800 transition-shadow hover:shadow-lg">
             <CardContent className="p-6 text-center">
-              <p className="text-4xl font-bold text-blue-600 mb-2">
-                {formatCurrency(stats.montantRecuperable)}
-              </p>
-              <p className="text-gray-600 dark:text-gray-400">Récupérables ce mois</p>
+              {statsLoading ? (
+                <div className="animate-pulse">
+                  <div className="h-10 bg-blue-100 dark:bg-blue-900/30 rounded w-2/3 mx-auto mb-2" />
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mx-auto" />
+                </div>
+              ) : (
+                <>
+                  <p className="text-4xl font-bold text-blue-600 mb-2">
+                    {formatCurrency(stats.montantRecuperable)}
+                  </p>
+                  <p className="text-gray-600 dark:text-gray-400">Recuperables ce mois</p>
+                </>
+              )}
             </CardContent>
           </Card>
-          <Card className="bg-white dark:bg-gray-800 border-green-200 dark:border-green-800">
+          <Card className="bg-white dark:bg-gray-800 border-green-200 dark:border-green-800 transition-shadow hover:shadow-lg">
             <CardContent className="p-6 text-center">
-              <p className="text-4xl font-bold text-green-600 mb-2">
-                {formatPercentage(stats.tauxConformite)}
-              </p>
-              <p className="text-gray-600 dark:text-gray-400">Taux de conformité</p>
+              {statsLoading ? (
+                <div className="animate-pulse">
+                  <div className="h-10 bg-green-100 dark:bg-green-900/30 rounded w-2/3 mx-auto mb-2" />
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mx-auto" />
+                </div>
+              ) : (
+                <>
+                  <p className="text-4xl font-bold text-green-600 mb-2">
+                    {formatPercentage(stats.tauxConformite)}
+                  </p>
+                  <p className="text-gray-600 dark:text-gray-400">Taux de conformite</p>
+                </>
+              )}
             </CardContent>
           </Card>
-          <Card className="bg-white dark:bg-gray-800 border-orange-200 dark:border-orange-800">
+          <Card className="bg-white dark:bg-gray-800 border-orange-200 dark:border-orange-800 transition-shadow hover:shadow-lg">
             <CardContent className="p-6 text-center">
-              <p className="text-4xl font-bold text-orange-600 mb-2">{stats.anomaliesDetectees}</p>
-              <p className="text-gray-600 dark:text-gray-400">Anomalies détectées</p>
+              {statsLoading ? (
+                <div className="animate-pulse">
+                  <div className="h-10 bg-orange-100 dark:bg-orange-900/30 rounded w-2/3 mx-auto mb-2" />
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mx-auto" />
+                </div>
+              ) : (
+                <>
+                  <p className="text-4xl font-bold text-orange-600 mb-2">{stats.anomaliesDetectees}</p>
+                  <p className="text-gray-600 dark:text-gray-400">Anomalies detectees</p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
