@@ -360,6 +360,20 @@ async def startup_event():
     Base.metadata.create_all(bind=engine)
     logger.info("✅ Tables créées/vérifiées")
 
+    # Migration: ajouter les colonnes manquantes sur les tables existantes
+    from sqlalchemy import inspect, text
+    inspector = inspect(engine)
+    try:
+        # Ajouter onboarding_completed sur pharmacies si manquant
+        if 'pharmacies' in inspector.get_table_names():
+            columns = [col['name'] for col in inspector.get_columns('pharmacies')]
+            if 'onboarding_completed' not in columns:
+                with engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE pharmacies ADD COLUMN onboarding_completed BOOLEAN DEFAULT FALSE NOT NULL"))
+                logger.info("✅ Migration: onboarding_completed ajouté sur pharmacies")
+    except Exception as e:
+        logger.warning(f"⚠️ Migration onboarding_completed: {e}")
+
     # Seed données initiales si la DB est vide (admin, grossistes, Biogaran)
     db = SessionLocal()
     try:
