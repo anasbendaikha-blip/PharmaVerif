@@ -313,7 +313,7 @@ async def get_monthly_report_pdf(
 
     rfa_progression = None
     if accord:
-        engine = VerificationEngine(db)
+        engine = VerificationEngine(db, pharmacy_id=pharmacy_id)
         rfa_progression = engine.get_rfa_progression(laboratoire_id, annee, accord)
         # Convertir les paliers en dict
         if rfa_progression.get("palier_actuel"):

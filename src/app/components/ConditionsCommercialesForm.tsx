@@ -36,17 +36,7 @@ import type {
   PalierRFAResponse,
   PalierRFACreate,
 } from '../api/types';
-
-// ========================================
-// HELPERS
-// ========================================
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-  }).format(amount);
-}
+import { formatCurrency } from '../utils/formatNumber';
 
 // ========================================
 // COMPOSANT PRINCIPAL

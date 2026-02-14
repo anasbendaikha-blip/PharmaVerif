@@ -18,18 +18,25 @@ import { DashboardPage } from './pages/DashboardPage';
 import { MentionsLegalesPage } from './pages/MentionsLegalesPage';
 import { ContactPage } from './pages/ContactPage';
 import { LoginPage } from './pages/LoginPage';
+import { SignupPage } from './pages/SignupPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { FournisseursPage } from './pages/FournisseursPage';
 import { FacturesLaboPage } from './pages/FacturesLaboPage';
 import { EMACPage } from './pages/EMACPage';
 import { AnalysePrixPage } from './pages/AnalysePrixPage';
+import { MaPharmacePage } from './pages/MaPharmacePage';
+import { FacturesPage } from './pages/FacturesPage';
+import { DemoPage } from './pages/DemoPage';
+import { UploadPage } from './pages/UploadPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/layout';
 import { initializeDatabase } from './api/endpoints';
 import { Toaster } from './components/ui/sonner';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 /**
  * Scroll to top on route change
@@ -55,10 +62,13 @@ function AppLayoutRoutes() {
       dashboard: '/dashboard',
       reports: '/reports',
       fournisseurs: '/fournisseurs',
+      factures: '/factures',
       'factures-labo': '/factures-labo',
       emac: '/emac',
       'analyse-prix': '/analyse-prix',
       pharmacie: '/pharmacie',
+      upload: '/upload',
+      demo: '/demo',
       'mentions-legales': '/mentions-legales',
       contact: '/contact',
       login: '/login',
@@ -68,6 +78,7 @@ function AppLayoutRoutes() {
 
   return (
     <AppLayout>
+      <ErrorBoundary level="route">
       <Routes>
         <Route path="/" element={<HomePage onNavigate={handleNavigate} />} />
         <Route
@@ -103,6 +114,14 @@ function AppLayoutRoutes() {
           }
         />
         <Route
+          path="/factures"
+          element={
+            <ProtectedRoute>
+              <FacturesPage onNavigate={handleNavigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/factures-labo"
           element={
             <ProtectedRoute>
@@ -127,12 +146,33 @@ function AppLayoutRoutes() {
           }
         />
         <Route
+          path="/pharmacie"
+          element={
+            <ProtectedRoute>
+              <MaPharmacePage onNavigate={handleNavigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/upload"
+          element={
+            <ProtectedRoute>
+              <UploadPage onNavigate={handleNavigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/demo"
+          element={<DemoPage onNavigate={handleNavigate} />}
+        />
+        <Route
           path="/mentions-legales"
           element={<MentionsLegalesPage onNavigate={handleNavigate} />}
         />
         <Route path="/contact" element={<ContactPage onNavigate={handleNavigate} />} />
         <Route path="*" element={<HomePage onNavigate={handleNavigate} />} />
       </Routes>
+      </ErrorBoundary>
     </AppLayout>
   );
 }
@@ -149,6 +189,8 @@ function AppRoutes() {
       <Routes>
         {/* Routes BARE — pas d'AppLayout */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route
           path="/onboarding"
           element={
@@ -175,9 +217,11 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <ErrorBoundary level="app">
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </ErrorBoundary>
       </AuthProvider>
     </ThemeProvider>
   );

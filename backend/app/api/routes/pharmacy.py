@@ -57,13 +57,13 @@ async def get_my_pharmacy(
 @router.put("/me", response_model=PharmacyResponse)
 async def update_my_pharmacy(
     data: PharmacyUpdate,
-    current_user: User = Depends(get_current_active_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Modifier les informations de la pharmacie courante
 
-    Seul un admin peut modifier les informations de la pharmacie.
+    Tout utilisateur rattache a une pharmacie peut modifier ses informations.
     """
     if not current_user.pharmacy_id:
         raise HTTPException(

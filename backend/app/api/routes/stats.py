@@ -13,6 +13,24 @@ from sqlalchemy import func, and_
 from datetime import datetime, timedelta
 from typing import Optional
 
+from app.config import settings
+
+def _is_sqlite() -> bool:
+    """Check if the database is SQLite (vs PostgreSQL)."""
+    return settings.DATABASE_URL.startswith("sqlite")
+
+def _month_trunc(column):
+    """
+    Truncate a date/datetime column to the first of the month.
+    Compatible with both SQLite and PostgreSQL.
+    """
+    if _is_sqlite():
+        # SQLite: strftime returns a string 'YYYY-MM-01'
+        return func.strftime('%Y-%m-01', column)
+    else:
+        # PostgreSQL: date_trunc returns a timestamp
+        return func.date_trunc('month', column)
+
 from app.schemas import (
     StatsResponse,
     StatsGlobales,
@@ -191,9 +209,10 @@ async def get_statistiques_globales(
     if not date_fin:
         date_fin = datetime.utcnow()
     
-    # Grouper par mois
+    # Grouper par mois (compatible SQLite + PostgreSQL)
+    mois_expr = _month_trunc(Facture.date).label('mois')
     evolution_query = db.query(
-        func.date_trunc('month', Facture.date).label('mois'),
+        mois_expr,
         func.count(Facture.id).label('nombre_factures'),
         func.sum(Facture.montant_brut_ht).label('montant_total')
     ).filter(
@@ -207,7 +226,7 @@ async def get_statistiques_globales(
     for periode in evolution_query.all():
         # Anomalies pour cette période
         anomalies_periode = db.query(func.count(Anomalie.id)).join(Facture).filter(
-            func.date_trunc('month', Facture.date) == periode.mois,
+            _month_trunc(Facture.date) == periode.mois,
             Facture.pharmacy_id == pharmacy_id,
         )
         

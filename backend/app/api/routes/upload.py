@@ -8,9 +8,11 @@ Endpoints pour l'upload et parsing de fichiers (PDF, Excel, CSV)
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from pathlib import Path
 from datetime import datetime
+import re
 
 from app.database import get_db
 from app.models import User
@@ -87,4 +89,37 @@ async def upload_file(
         method=method,
         data=data,
         warnings=warnings if warnings else None,
+    )
+
+
+@router.get("/files/{filename}")
+async def get_uploaded_file(
+    filename: str,
+    current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
+):
+    """
+    Servir un fichier uploade de maniere securisee (authentification requise).
+
+    Remplace le montage StaticFiles public qui exposait tous les fichiers
+    sans authentification.
+    """
+    # Sanitize filename to prevent path traversal attacks
+    safe_name = Path(filename).name
+    if safe_name != filename or ".." in filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nom de fichier invalide"
+        )
+
+    file_path = Path(settings.UPLOAD_DIR) / safe_name
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Fichier non trouve"
+        )
+
+    return FileResponse(
+        path=str(file_path),
+        filename=safe_name,
     )

@@ -420,7 +420,7 @@ async def upload_facture_labo(
     # 8. Lancer la verification automatique
     verification_response = None
     try:
-        engine = VerificationEngine(db)
+        engine = VerificationEngine(db, pharmacy_id=pharmacy_id)
         anomalies = engine.verify(db_facture, accord)
 
         if anomalies:
@@ -818,7 +818,7 @@ async def verify_facture_labo(
         )
 
     # Lancer le moteur de verification
-    engine = VerificationEngine(db)
+    engine = VerificationEngine(db, pharmacy_id=pharmacy_id)
     anomalies = engine.verify(facture, accord)
 
     # Persister les anomalies (remplace les anciennes non resolues)
@@ -974,7 +974,7 @@ async def get_rfa_progression(
         AccordCommercial.actif == True
     ).first()
 
-    engine = VerificationEngine(db)
+    engine = VerificationEngine(db, pharmacy_id=pharmacy_id)
     progression = engine.get_rfa_progression(laboratoire_id, annee, accord)
 
     return RFAProgressionResponse(
