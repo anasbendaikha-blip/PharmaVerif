@@ -23,6 +23,7 @@ import {
   X,
   LogIn,
   LogOut,
+  Handshake,
 } from 'lucide-react';
 import { Logo } from '../Logo';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -65,6 +66,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Factures Labo', path: '/factures-labo', icon: <FlaskConical className="h-5 w-5" />, apiOnly: true },
       { label: 'EMAC', path: '/emac', icon: <ClipboardList className="h-5 w-5" />, apiOnly: true },
+      { label: 'Accords Remises', path: '/agreements', icon: <Handshake className="h-5 w-5" />, apiOnly: true },
     ],
   },
   {

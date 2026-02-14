@@ -32,6 +32,7 @@ from app.api.routes import (
     rapports,
     historique_prix,
     pharmacy,
+    rebate,
 )
 from app.core.exceptions import PharmaVerifException
 
@@ -252,6 +253,12 @@ app.include_router(
     tags=["🏥 Pharmacie (Tenant)"],
 )
 
+app.include_router(
+    rebate.router,
+    prefix=f"{settings.API_V1_PREFIX}/rebate",
+    tags=["💰 Rebate Engine"],
+)
+
 # ========================================
 # ENDPOINTS RACINE
 # ========================================
@@ -285,6 +292,7 @@ async def root():
             "rapports": f"{settings.API_V1_PREFIX}/rapports",
             "prix": f"{settings.API_V1_PREFIX}/prix",
             "pharmacy": f"{settings.API_V1_PREFIX}/pharmacy",
+            "rebate": f"{settings.API_V1_PREFIX}/rebate",
         },
     }
 
@@ -362,6 +370,7 @@ async def startup_event():
     from app.models import User, Grossiste, Facture, LigneFacture, Anomalie, VerificationLog, Session as SessionModel, Pharmacy
     from app.models_labo import Laboratoire, AccordCommercial, FactureLabo, LigneFactureLabo, PalierRFA, AnomalieFactureLabo, HistoriquePrix
     from app.models_emac import EMAC, AnomalieEMAC
+    from app.models_rebate import RebateTemplate, LaboratoryAgreement, InvoiceRebateSchedule, AgreementAuditLog
 
     # Sur PostgreSQL, drop + recreate pour s'assurer que le schema est a jour
     # (create_all ne met pas a jour les colonnes existantes)
@@ -400,6 +409,11 @@ async def startup_event():
         from app.models import init_db_data
         init_db_data(db)
         logger.info("✅ Données initiales vérifiées")
+
+        # Seed templates Rebate Engine
+        from app.models_rebate import seed_rebate_templates
+        seed_rebate_templates(db)
+        logger.info("✅ Templates Rebate Engine vérifiés")
     except Exception as e:
         logger.error(f"⚠️ Erreur lors du seed: {e}")
     finally:

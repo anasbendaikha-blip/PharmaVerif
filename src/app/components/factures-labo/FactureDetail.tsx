@@ -29,6 +29,7 @@ import { AnomaliesDashboard } from './AnomaliesDashboard';
 import { RfaProgressionBar } from './RfaProgressionBar';
 import { LignesDetailTable } from './LignesDetailTable';
 import { RfaReconciliationForm } from './RfaReconciliationForm';
+import { RebateScheduleWidget } from '../Verification/RebateScheduleWidget';
 import type {
   FactureLaboResponse,
   LigneFactureLaboResponse,
@@ -226,6 +227,15 @@ export function FactureDetail({ facture, onClose, onRefresh }: FactureDetailProp
 
         {/* Progression RFA */}
         {rfaProgression && <RfaProgressionBar rfaProgression={rfaProgression} />}
+
+        {/* Calendrier des remises echelonnees (Rebate Engine) */}
+        <div className="px-6 pb-4">
+          <RebateScheduleWidget
+            factureLaboId={facture.id}
+            montantHt={facture.montant_brut_ht}
+            laboratoireNom={facture.laboratoire?.nom}
+          />
+        </div>
 
         {/* Tableau détaillé des lignes */}
         <LignesDetailTable

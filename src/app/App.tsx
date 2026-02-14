@@ -30,6 +30,7 @@ import { MaPharmacePage } from './pages/MaPharmacePage';
 import { FacturesPage } from './pages/FacturesPage';
 import { DemoPage } from './pages/DemoPage';
 import { UploadPage } from './pages/UploadPage';
+import { AgreementsPage } from './pages/AgreementsPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/layout';
 import { initializeDatabase } from './api/endpoints';
@@ -66,6 +67,7 @@ function AppLayoutRoutes() {
       'factures-labo': '/factures-labo',
       emac: '/emac',
       'analyse-prix': '/analyse-prix',
+      agreements: '/agreements',
       pharmacie: '/pharmacie',
       upload: '/upload',
       demo: '/demo',
@@ -142,6 +144,14 @@ function AppLayoutRoutes() {
           element={
             <ProtectedRoute>
               <AnalysePrixPage onNavigate={handleNavigate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/agreements"
+          element={
+            <ProtectedRoute>
+              <AgreementsPage onNavigate={handleNavigate} />
             </ProtectedRoute>
           }
         />

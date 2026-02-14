@@ -20,7 +20,12 @@ sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..'
 # Import de la config et models
 from app.config import settings
 from app.database import Base
-from app import models  # Important : importer tous les models
+# Important : importer TOUS les fichiers de modeles pour que
+# Base.metadata connaisse toutes les tables lors de l'autogenerate
+from app import models  # noqa: F401 — core (Pharmacy, User, Facture, etc.)
+from app import models_labo  # noqa: F401 — laboratoires (Laboratoire, FactureLabo, etc.)
+from app import models_emac  # noqa: F401 — EMAC (EMAC, AnomalieEMAC)
+from app import models_rebate  # noqa: F401 — rebate engine (RebateTemplate, LaboratoryAgreement, etc.)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

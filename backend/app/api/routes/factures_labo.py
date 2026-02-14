@@ -461,6 +461,46 @@ async def upload_facture_labo(
         # La verification ne doit pas bloquer l'upload
         pass
 
+    # 8b. === HOOK REBATE ENGINE ===
+    # Calcul automatique du calendrier de remises echelonnees.
+    # NON BLOQUANT — l'import continue meme si le calcul echoue.
+    try:
+        from app.services.rebate_engine import RebateEngine, NoActiveAgreementError
+
+        rebate_engine = RebateEngine(db)
+
+        # Preparer les lignes pour la classification tranche A/B/OTC
+        invoice_lines = [
+            {
+                "remise_pourcentage": db_ligne.remise_pct or 0.0,
+                "montant_ht": db_ligne.montant_ht or 0.0,
+                "taux_tva": db_ligne.taux_tva or 2.10,
+            }
+            for db_ligne in db_facture.lignes
+        ]
+
+        schedule = rebate_engine.calculate_rebate_schedule(
+            invoice_id=db_facture.id,
+            invoice_amount=db_facture.montant_brut_ht,
+            invoice_date=db_facture.date_facture,
+            pharmacy_id=pharmacy_id,
+            laboratoire_id=laboratoire_id,
+            invoice_lines=invoice_lines,
+        )
+
+        if schedule:
+            logger.info(
+                f"Rebate schedule cree pour facture {db_facture.id}: "
+                f"RFA attendue = {schedule.total_rfa_expected}EUR"
+            )
+    except NoActiveAgreementError:
+        # Pas d'accord Rebate Engine pour ce labo — normal, on continue
+        pass
+    except Exception as e:
+        # NON BLOQUANT — l'import continue meme si le calcul echoue
+        logger.warning(f"Rebate Engine: erreur calcul facture {db_facture.id}: {e}")
+    # === FIN HOOK REBATE ENGINE ===
+
     # 9. Construire la reponse d'analyse
     analyse_response = _build_analyse_response(db_facture, accord)
 
