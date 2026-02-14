@@ -59,51 +59,11 @@ import type {
   RechercheProduitItem,
   AlertePrixItem,
 } from '../api/types';
+import { CHART_PALETTE } from '../components/ui/chart-colors';
+import { formatCurrency, formatDateShortFR, formatSignedPercentage } from '../utils/formatNumber';
 
 interface AnalysePrixPageProps {
   onNavigate: (page: string) => void;
-}
-
-// ========================================
-// COULEURS CHART
-// ========================================
-
-const CHART_COLORS = [
-  '#2563EB', // bleu
-  '#10B981', // vert
-  '#F59E0B', // orange
-  '#EF4444', // rouge
-  '#8B5CF6', // violet
-  '#EC4899', // rose
-  '#06B6D4', // cyan
-  '#F97316', // orange fonce
-];
-
-// ========================================
-// HELPERS
-// ========================================
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  }).format(value);
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '-';
-  try {
-    return new Date(dateStr).toLocaleDateString('fr-FR');
-  } catch {
-    return dateStr;
-  }
-}
-
-function formatPct(value: number | null | undefined): string {
-  if (value === null || value === undefined) return '-';
-  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
 }
 
 // ========================================
@@ -267,7 +227,7 @@ export function AnalysePrixPage({ onNavigate }: AnalysePrixPageProps) {
 
     return Array.from(dateMap.entries())
       .map(([dateStr, values]) => ({
-        date: formatDate(dateStr),
+        date: formatDateShortFR(dateStr),
         dateSort: dateStr,
         ...values,
       }))
@@ -384,7 +344,7 @@ export function AnalysePrixPage({ onNavigate }: AnalysePrixPageProps) {
                         <TableCell className="text-right font-medium">{formatCurrency(p.prix_moyen)}</TableCell>
                         <TableCell className="text-center">{p.nb_achats}</TableCell>
                         <TableCell className="text-center">{p.nb_fournisseurs}</TableCell>
-                        <TableCell>{formatDate(p.derniere_date)}</TableCell>
+                        <TableCell>{formatDateShortFR(p.derniere_date)}</TableCell>
                         <TableCell>
                           <ChevronRight className="h-4 w-4 text-gray-400" />
                         </TableCell>
@@ -483,7 +443,7 @@ export function AnalysePrixPage({ onNavigate }: AnalysePrixPageProps) {
                                 key={labo}
                                 type="monotone"
                                 dataKey={labo}
-                                stroke={CHART_COLORS[idx % CHART_COLORS.length]}
+                                stroke={CHART_PALETTE[idx % CHART_PALETTE.length]}
                                 strokeWidth={2}
                                 dot={{ r: 4 }}
                                 activeDot={{ r: 6 }}
@@ -546,7 +506,7 @@ export function AnalysePrixPage({ onNavigate }: AnalysePrixPageProps) {
                                   {f.evolution_pct != null ? (
                                     <span className={`inline-flex items-center gap-1 ${f.evolution_pct > 0 ? 'text-red-600' : f.evolution_pct < 0 ? 'text-green-600' : 'text-gray-500'}`}>
                                       {f.evolution_pct > 0 ? <ArrowUpRight className="h-3 w-3" /> : f.evolution_pct < 0 ? <ArrowDownRight className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                                      {formatPct(f.evolution_pct)}
+                                      {formatSignedPercentage(f.evolution_pct)}
                                     </span>
                                   ) : '-'}
                                 </TableCell>
@@ -589,7 +549,7 @@ export function AnalysePrixPage({ onNavigate }: AnalysePrixPageProps) {
                           <TableBody>
                             {historique.historique.map((h) => (
                               <TableRow key={h.id}>
-                                <TableCell>{formatDate(h.date_facture)}</TableCell>
+                                <TableCell>{formatDateShortFR(h.date_facture)}</TableCell>
                                 <TableCell>{h.laboratoire_nom || '-'}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(h.prix_unitaire_brut)}</TableCell>
                                 <TableCell className="text-right">{h.remise_pct.toFixed(1)}%</TableCell>
@@ -976,7 +936,7 @@ function AlerteCard({
               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${config.badge}`}>
                 {typeLabels[alerte.type_alerte] || alerte.type_alerte}
               </span>
-              <span className="text-xs text-gray-500">{formatDate(alerte.date_detection)}</span>
+              <span className="text-xs text-gray-500">{formatDateShortFR(alerte.date_detection)}</span>
               <span className="text-xs text-gray-500">- {alerte.laboratoire_nom}</span>
             </div>
             <p className="text-sm text-gray-900 dark:text-white">{alerte.description}</p>
@@ -989,7 +949,7 @@ function AlerteCard({
               )}
               {alerte.ecart_pct != null && (
                 <span className={alerte.ecart_pct > 0 ? 'text-red-600' : 'text-green-600'}>
-                  {formatPct(alerte.ecart_pct)}
+                  {formatSignedPercentage(alerte.ecart_pct)}
                 </span>
               )}
               {alerte.economie_potentielle != null && alerte.economie_potentielle > 0 && (

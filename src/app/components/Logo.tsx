@@ -1,13 +1,16 @@
 /**
- * PharmaVerif - Logo Component (Moderne & Minimaliste)
+ * PharmaVerif - Logo Component (Bouclier + Checkmark)
  * Copyright (c) 2026 Anas BENDAIKHA
- * Tous droits réservés.
+ * Tous droits reserves.
  *
- * Design: Cercle bleu + croix pharma blanche + badge checkmark vert
- * Style: Flat design, formes géométriques pures, sans ombres
+ * Design: Bouclier bleu avec checkmark — symbolise protection & verification
+ * Style: Flat design, bouclier geometrique, sans ombres
+ *
+ * Variantes :
+ *  - icon : bouclier seul
+ *  - horizontal : bouclier + texte "PharmaVerif" sur une ligne
+ *  - full : bouclier + texte + tagline "Verification intelligente"
  */
-
-import React from 'react';
 
 interface LogoProps {
   variant?: 'full' | 'horizontal' | 'icon';
@@ -19,24 +22,65 @@ interface LogoProps {
 // Palette de couleurs
 const colors = {
   light: {
-    circle: '#0EA5E9',       // sky-500
-    cross: '#FFFFFF',        // blanc
-    badge: '#10B981',        // emerald-500
-    check: '#FFFFFF',        // blanc
+    shield: '#1E40AF',       // blue-800
+    shieldBg: '#1E40AF',     // blue-800 (opacity via SVG)
+    check: '#1E40AF',        // blue-800
     textPrimary: '#0F172A',  // slate-900
-    textAccent: '#0EA5E9',   // sky-500
+    textAccent: '#1E40AF',   // blue-800
     tagline: '#94A3B8',      // slate-400
   },
   dark: {
-    circle: '#38BDF8',       // sky-400
-    cross: '#0F172A',        // slate-900
-    badge: '#34D399',        // emerald-400
-    check: '#FFFFFF',        // blanc
+    shield: '#60A5FA',       // blue-400
+    shieldBg: '#60A5FA',     // blue-400 (opacity via SVG)
+    check: '#60A5FA',        // blue-400
     textPrimary: '#F1F5F9',  // slate-100
-    textAccent: '#38BDF8',   // sky-400
+    textAccent: '#60A5FA',   // blue-400
     tagline: '#64748B',      // slate-500
   },
 };
+
+/**
+ * Bouclier SVG reutilisable — le coeur du logo PharmaVerif.
+ * Dessine un bouclier avec fond semi-transparent + contour + checkmark.
+ */
+function ShieldIcon({
+  x = 0,
+  y = 0,
+  scale = 1,
+  c,
+}: {
+  x?: number;
+  y?: number;
+  scale?: number;
+  c: (typeof colors)['light'];
+}) {
+  return (
+    <g transform={`translate(${x}, ${y}) scale(${scale})`}>
+      {/* Bouclier background */}
+      <path
+        d="M25 2 L46 12 L46 27 Q46 44 25 55 Q4 44 4 27 L4 12 Z"
+        fill={c.shieldBg}
+        opacity="0.1"
+      />
+      {/* Bouclier contour */}
+      <path
+        d="M25 2 L46 12 L46 27 Q46 44 25 55 Q4 44 4 27 L4 12 Z"
+        stroke={c.shield}
+        strokeWidth="2.5"
+        fill="none"
+      />
+      {/* Checkmark */}
+      <path
+        d="M14 27 L22 35 L37 18"
+        stroke={c.check}
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </g>
+  );
+}
 
 export function Logo({
   variant = 'horizontal',
@@ -68,62 +112,35 @@ export function Logo({
       <svg
         width={height}
         height={height}
-        viewBox="0 0 50 50"
+        viewBox="0 0 50 57"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className={className}
       >
-        {/* Cercle principal */}
-        <circle cx="25" cy="25" r="22" fill={c.circle} />
-
-        {/* Croix pharma arrondie */}
-        <rect x="22" y="13" width="6" height="24" rx="3" fill={c.cross} />
-        <rect x="13" y="22" width="24" height="6" rx="3" fill={c.cross} />
-
-        {/* Badge checkmark */}
-        <circle cx="38" cy="38" r="9" fill={c.badge} />
-        <path
-          d="M33.5 38L36.5 41L42.5 35"
-          stroke={c.check}
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        <ShieldIcon c={c} />
       </svg>
     );
   }
 
   // ============ HORIZONTAL VARIANT ============
   if (variant === 'horizontal') {
-    const width = height * 4.5;
+    const width = height * 5;
 
     return (
       <svg
         width={width}
         height={height}
-        viewBox="0 0 180 40"
+        viewBox="0 0 200 40"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className={className}
       >
-        {/* Cercle */}
-        <circle cx="20" cy="20" r="17" fill={c.circle} />
-        <rect x="17.5" y="10" width="5" height="20" rx="2.5" fill={c.cross} />
-        <rect x="10" y="17.5" width="20" height="5" rx="2.5" fill={c.cross} />
-
-        {/* Badge check */}
-        <circle cx="31" cy="31" r="7" fill={c.badge} />
-        <path
-          d="M27.5 31L29.5 33.5L34.5 28.5"
-          stroke={c.check}
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        {/* Bouclier (reduit pour s'adapter a 40px de haut) */}
+        <ShieldIcon x={1} y={0} scale={0.68} c={c} />
 
         {/* Texte */}
         <text
-          x="44"
+          x="40"
           y="26"
           fontFamily="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif"
           fontSize="20"
@@ -149,24 +166,12 @@ export function Logo({
       xmlns="http://www.w3.org/2000/svg"
       className={className}
     >
-      {/* Cercle */}
-      <circle cx="30" cy="28" r="22" fill={c.circle} />
-      <rect x="26.5" y="15" width="7" height="26" rx="3.5" fill={c.cross} />
-      <rect x="17" y="24.5" width="26" height="7" rx="3.5" fill={c.cross} />
-
-      {/* Badge check */}
-      <circle cx="44" cy="43" r="9" fill={c.badge} />
-      <path
-        d="M39.5 43L42.5 46L48.5 40"
-        stroke={c.check}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      {/* Bouclier */}
+      <ShieldIcon x={2} y={1} scale={1} c={c} />
 
       {/* Texte PharmaVerif */}
       <text
-        x="62"
+        x="58"
         y="34"
         fontFamily="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif"
         fontSize="26"
@@ -180,14 +185,14 @@ export function Logo({
 
       {/* Tagline */}
       <text
-        x="63"
+        x="59"
         y="50"
         fontFamily="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif"
         fontSize="11"
         fontWeight="400"
         fill={c.tagline}
       >
-        Vérification intelligente
+        Verification intelligente
       </text>
     </svg>
   );

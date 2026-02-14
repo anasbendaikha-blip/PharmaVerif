@@ -66,8 +66,12 @@ class LigneFacture:
             self._classify()
 
     def _classify(self):
-        """Classification par defaut basee sur TVA + remise."""
-        if self.taux_tva == 2.10:
+        """Classification par defaut basee sur TVA + remise.
+
+        Utilise une tolerance de 0.01 pour la comparaison float du taux TVA
+        afin d'eviter les erreurs d'arrondi IEEE 754 (ex: 2.0999999... != 2.10).
+        """
+        if abs(self.taux_tva - 2.10) < 0.01:
             if self.remise_pct <= 2.50:
                 self.categorie = "REMBOURSABLE_FAIBLE_MARGE"
                 self.tranche = "B"

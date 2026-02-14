@@ -10,12 +10,12 @@ Point d'entrée principal de l'API FastAPI
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
+# StaticFiles import removed — uploads are now served via authenticated endpoint
 import time
 import logging
 from pathlib import Path
 
-from app.config import settings
+from app.config import settings, validate_settings
 from app.api.routes import (
     auth,
     users,
@@ -153,10 +153,13 @@ async def general_exception_handler(request: Request, exc: Exception):
 # ROUTES
 # ========================================
 
-# Monter le dossier uploads
+# Créer le dossier uploads (mais ne PAS le monter en StaticFiles publique)
+# Les fichiers uploades contiennent des factures confidentielles et doivent
+# etre servis uniquement via un endpoint authentifie.
 uploads_path = Path(settings.UPLOAD_DIR)
 uploads_path.mkdir(exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=str(uploads_path)), name="uploads")
+# SECURITY: Removed public mount — app.mount("/uploads", StaticFiles(...))
+# Use the authenticated /api/v1/upload/files/{filename} endpoint instead.
 
 # Inclure les routers
 app.include_router(
@@ -344,7 +347,10 @@ async def startup_event():
     logger.info(f"🐛 Debug mode: {settings.DEBUG}")
     logger.info(f"📖 Documentation: /api/docs")
     logger.info("=" * 60)
-    
+
+    # Valider la configuration (bloque le démarrage en production si invalide)
+    validate_settings()
+
     # Créer les dossiers nécessaires
     Path(settings.UPLOAD_DIR).mkdir(exist_ok=True)
     Path("logs").mkdir(exist_ok=True)

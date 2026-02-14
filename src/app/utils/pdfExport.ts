@@ -9,6 +9,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Facture, Anomalie, Grossiste, Fournisseur } from '../types';
+import { formatCurrency, formatDateShortFR } from './formatNumber';
 
 // Déclaration des types pour jsPDF AutoTable
 declare module 'jspdf' {
@@ -33,28 +34,6 @@ const COLORS = {
     light: [229, 231, 235],
   },
 };
-
-/**
- * Formate un nombre en euros
- */
-function formatEuro(amount: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-  }).format(amount);
-}
-
-/**
- * Formate une date en français
- */
-function formatDate(date: string | Date): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-}
 
 /**
  * Dessine le header du PDF avec le logo
@@ -107,7 +86,7 @@ function drawFooter(doc: jsPDF, pageNumber: number) {
   doc.setFont('helvetica', 'normal');
 
   // Date de génération
-  const generationDate = formatDate(new Date());
+  const generationDate = formatDateShortFR(new Date());
   doc.text(`Généré le ${generationDate}`, 15, pageHeight - 12);
 
   // Numéro de page
@@ -192,8 +171,8 @@ export async function generateVerificationPDF(options: PDFExportOptions): Promis
   const infoData = [
     ['Numéro de facture:', facture.numero],
     ['Fournisseur:', fournisseur.nom],
-    ['Date de facture:', formatDate(facture.date)],
-    ['Montant brut HT:', formatEuro(facture.montant_brut_ht)],
+    ['Date de facture:', formatDateShortFR(facture.date)],
+    ['Montant brut HT:', formatCurrency(facture.montant_brut_ht)],
   ];
 
   infoData.forEach(([label, value], index) => {
@@ -213,13 +192,13 @@ export async function generateVerificationPDF(options: PDFExportOptions): Promis
   currentY += 8;
 
   const remisesData = [
-    ['Remises ligne à ligne', formatEuro(facture.remises_ligne_a_ligne || 0)],
-    ['Remises pied de facture', formatEuro(facture.remises_pied_facture || 0)],
+    ['Remises ligne à ligne', formatCurrency(facture.remises_ligne_a_ligne || 0)],
+    ['Remises pied de facture', formatCurrency(facture.remises_pied_facture || 0)],
     [
       'Total des remises',
-      formatEuro((facture.remises_ligne_a_ligne || 0) + (facture.remises_pied_facture || 0)),
+      formatCurrency((facture.remises_ligne_a_ligne || 0) + (facture.remises_pied_facture || 0)),
     ],
-    ['Net à payer', formatEuro(facture.net_a_payer)],
+    ['Net à payer', formatCurrency(facture.net_a_payer)],
   ];
 
   autoTable(doc, {
@@ -290,7 +269,7 @@ export async function generateVerificationPDF(options: PDFExportOptions): Promis
       getAnomalieTypeLabel(anomalie.type_anomalie),
       anomalie.description,
       getSeveriteLabel(anomalie.niveau_severite),
-      formatEuro(anomalie.montant_ecart),
+      formatCurrency(anomalie.montant_ecart),
     ]);
 
     autoTable(doc, {
@@ -333,8 +312,8 @@ export async function generateVerificationPDF(options: PDFExportOptions): Promis
     doc.setFont('helvetica', 'bold');
     doc.text('TOTAL DES ÉCONOMIES POTENTIELLES:', 20, currentY + 7);
     doc.text(
-      formatEuro(totalEcart),
-      pageWidth - 20 - doc.getTextWidth(formatEuro(totalEcart)),
+      formatCurrency(totalEcart),
+      pageWidth - 20 - doc.getTextWidth(formatCurrency(totalEcart)),
       currentY + 7
     );
 
@@ -403,7 +382,7 @@ export async function generateVerificationPDF(options: PDFExportOptions): Promis
       ['Remise de base', `${fournisseur.remise_base}%`],
       ['Coopération commerciale', `${fournisseur.cooperation_commerciale}%`],
       ['Escompte', `${fournisseur.escompte}%`],
-      ['Franco (port gratuit)', formatEuro(fournisseur.franco)],
+      ['Franco (port gratuit)', formatCurrency(fournisseur.franco)],
       [
         'Remise totale théorique',
         `${(fournisseur.remise_base + fournisseur.cooperation_commerciale + fournisseur.escompte).toFixed(2)}%`,

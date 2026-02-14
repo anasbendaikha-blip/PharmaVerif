@@ -13,6 +13,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileCheck,
+  Upload,
+  FileText,
   FlaskConical,
   ClipboardList,
   TrendingUp,
@@ -23,7 +25,6 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { Logo } from '../Logo';
-import { useTheme } from '../../contexts/ThemeContext';
 import { isApiMode } from '../../api/config';
 import { cn } from '../ui/utils';
 
@@ -53,6 +54,8 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Tableau de bord', path: '/dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
       { label: 'Verification', path: '/verification', icon: <FileCheck className="h-5 w-5" /> },
+      { label: 'Importer', path: '/upload', icon: <Upload className="h-5 w-5" /> },
+      { label: 'Factures', path: '/factures', icon: <FileText className="h-5 w-5" /> },
     ],
   },
   {
@@ -90,7 +93,6 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { resolvedTheme } = useTheme();
   const apiMode = isApiMode();
 
   const filteredGroups = navGroups
@@ -123,9 +125,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           title="Accueil"
         >
           {collapsed ? (
-            <Logo variant="icon" theme={resolvedTheme} size="sm" />
+            <Logo variant="icon" theme="dark" size="sm" />
           ) : (
-            <Logo variant="horizontal" theme={resolvedTheme} size="sm" />
+            <Logo variant="horizontal" theme="dark" size="sm" />
           )}
         </button>
       </div>

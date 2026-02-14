@@ -1,12 +1,14 @@
 /**
- * PharmaVerif - Tableau de bord (Redesign Prompt 9)
+ * PharmaVerif - Tableau de bord (Monitoring & Actions)
  * Copyright (c) 2026 Anas BENDAIKHA
  * Tous droits reserves.
  *
  * Layout :
- *  - PageHeader + filtre periode
- *  - 4 StatCards (factures, anomalies, RFA, conformite)
- *  - Anomalies recentes + graphique evolution (2 colonnes)
+ *  - PageHeader + CTA "Verifier une nouvelle facture"
+ *  - 4 StatCards avec tendances mensuelles
+ *  - Alertes prioritaires (ecarts > seuil critique)
+ *  - Charts (repartition anomalies + montants par fournisseur)
+ *  - Anomalies recentes (5 dernieres, sans filtre)
  *  - Dernieres factures analysees (DataTable)
  */
 
@@ -18,28 +20,26 @@ import { DataTable, type DataTableColumn } from '../components/ui/data-table';
 import { StatusBadge, getFactureStatusVariant } from '../components/ui/status-badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
+import { SkeletonChart } from '../components/ui/skeleton';
 import {
   FileText,
   AlertCircle,
   TrendingUp,
   CheckCircle2,
-  Download,
   FileDown,
-  ClipboardList,
   LayoutDashboard,
   FileCheck,
   Loader2,
+  Plus,
+  Bell,
+  ChevronRight,
+  RefreshCw,
 } from 'lucide-react';
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -57,37 +57,21 @@ import { db } from '../data/database';
 import { toast } from 'sonner';
 import { formatCurrency, formatPercentage, formatDateShortFR } from '../utils/formatNumber';
 import { isApiMode } from '../api/config';
-import { emacApi } from '../api/emacApi';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import { OnboardingBanner } from '../components/OnboardingBanner';
 import { useNavigate } from 'react-router-dom';
-import type { EMACDashboardStats } from '../api/types';
+import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert';
+import { CHART_PALETTE, getChartColor } from '../components/ui/chart-colors';
+import { useWindowSize } from '../hooks/useWindowSize';
+import { ANOMALIE_LABELS } from '../constants/anomalyTypes';
 
-// ========================================
-// CONSTANTS
-// ========================================
+/** Couleurs anomalies utilisant la palette centralisee */
+const ANOMALIE_COLORS: Record<string, string> = Object.fromEntries(
+  Object.keys(ANOMALIE_LABELS).map((key, i) => [key, getChartColor(i)])
+);
 
-const ANOMALIE_COLORS: Record<string, string> = {
-  remise_manquante: '#f59e0b',
-  ecart_calcul: '#ef4444',
-  remise_incorrecte: '#8b5cf6',
-  franco_non_respecte: '#3b82f6',
-  prix_suspect: '#ec4899',
-  remise_volume_manquante: '#14b8a6',
-  condition_non_respectee: '#6366f1',
-  rfa_non_appliquee: '#a855f7',
-};
-
-const ANOMALIE_LABELS: Record<string, string> = {
-  remise_manquante: 'Remise manquante',
-  ecart_calcul: 'Ecart de calcul',
-  remise_incorrecte: 'Remise incorrecte',
-  franco_non_respecte: 'Franco non respecte',
-  prix_suspect: 'Prix suspect',
-  remise_volume_manquante: 'Remise volume manquante',
-  condition_non_respectee: 'Condition non respectee',
-  rfa_non_appliquee: 'RFA non appliquee',
-};
+/** Seuil pour les alertes prioritaires (en euros) */
+const SEUIL_ALERTE_PRIORITAIRE = 500;
 
 // ========================================
 // COMPONENT
@@ -103,7 +87,6 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const [bannerDismissed, setBannerDismissed] = useState(
     () => sessionStorage.getItem('pharmaverif_onboarding_banner_dismissed') === 'true'
   );
-  const [filtreType, setFiltreType] = useState<string>('tous');
   const [factures, setFactures] = useState<Facture[]>([]);
   const [anomalies, setAnomalies] = useState<Anomalie[]>([]);
   const [stats, setStats] = useState({
@@ -113,8 +96,15 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     taux_conformite: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [exportingId, setExportingId] = useState<number | null>(null);
-  const [emacStats, setEmacStats] = useState<EMACDashboardStats | null>(null);
+
+  // Responsive chart dimensions
+  const { width: viewportWidth } = useWindowSize();
+  const isMobile = viewportWidth < 640;
+  const isTablet = viewportWidth < 1024;
+  const chartHeight = isMobile ? 200 : isTablet ? 260 : 300;
+  const pieChartHeight = isMobile ? 220 : 280;
 
   useEffect(() => {
     loadData();
@@ -123,6 +113,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const [facturesData, statsData, anomaliesData] = await Promise.all([
         ApiClient.getFactures(),
         ApiClient.getStats(),
@@ -132,21 +123,71 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       setFactures(facturesData);
       setStats(statsData);
       setAnomalies(anomaliesData);
-
-      if (isApiMode()) {
-        try {
-          const eStats = await emacApi.getDashboardStats();
-          setEmacStats(eStats);
-        } catch {
-          // EMAC non disponible
-        }
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des donnees:', error);
+    } catch (err) {
+      console.error('Erreur lors du chargement des donnees:', err);
+      const message = err instanceof Error ? err.message : 'Erreur lors du chargement des donnees';
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
+
+  // ==================== COMPUTED VALUES ====================
+
+  // Tendances mensuelles (mois courant vs mois precedent)
+  const trends = useMemo(() => {
+    const now = new Date();
+    const thisMonth = now.getMonth();
+    const thisYear = now.getFullYear();
+
+    const isThisMonth = (dateStr: string) => {
+      const d = new Date(dateStr);
+      return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+    };
+    const isLastMonth = (dateStr: string) => {
+      const d = new Date(dateStr);
+      const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
+      const lastYear = thisMonth === 0 ? thisYear - 1 : thisYear;
+      return d.getMonth() === lastMonth && d.getFullYear() === lastYear;
+    };
+
+    const facturesThisMonth = factures.filter((f) => isThisMonth(f.date));
+    const facturesLastMonth = factures.filter((f) => isLastMonth(f.date));
+
+    const anomaliesThisMonth = anomalies.filter((a) => isThisMonth(a.created_at || a.date || ''));
+    const anomaliesLastMonth = anomalies.filter((a) => isLastMonth(a.created_at || a.date || ''));
+
+    const ecartThisMonth = anomaliesThisMonth.reduce((s, a) => s + a.montant_ecart, 0);
+    const ecartLastMonth = anomaliesLastMonth.reduce((s, a) => s + a.montant_ecart, 0);
+
+    const computeTrend = (current: number, previous: number) => {
+      if (previous === 0) {
+        return current > 0
+          ? { text: `+${current} ce mois`, direction: 'up' as const }
+          : { text: 'Stable', direction: 'neutral' as const };
+      }
+      const pct = Math.round(((current - previous) / previous) * 100);
+      if (pct === 0) return { text: 'Stable', direction: 'neutral' as const };
+      return {
+        text: `${pct > 0 ? '+' : ''}${pct}% vs mois prec.`,
+        direction: pct > 0 ? ('up' as const) : ('down' as const),
+      };
+    };
+
+    return {
+      factures: computeTrend(facturesThisMonth.length, facturesLastMonth.length),
+      anomalies: computeTrend(anomaliesThisMonth.length, anomaliesLastMonth.length),
+      ecart: computeTrend(ecartThisMonth, ecartLastMonth),
+    };
+  }, [factures, anomalies]);
+
+  // Alertes prioritaires (ecarts > seuil)
+  const alertesPrioritaires = useMemo(() => {
+    return anomalies
+      .filter((a) => a.montant_ecart >= SEUIL_ALERTE_PRIORITAIRE)
+      .sort((a, b) => b.montant_ecart - a.montant_ecart)
+      .slice(0, 3);
+  }, [anomalies]);
 
   // Pie chart data
   const pieData = useMemo(() => {
@@ -177,6 +218,53 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     });
   }, [factures, anomalies]);
 
+  // 5 anomalies les plus recentes
+  const anomaliesRecentes = useMemo(() => {
+    return [...anomalies]
+      .sort((a, b) => {
+        const dateA = new Date(a.created_at || a.date || 0).getTime();
+        const dateB = new Date(b.created_at || b.date || 0).getTime();
+        return dateB - dateA;
+      })
+      .slice(0, 5);
+  }, [anomalies]);
+
+  // Evolution mensuelle (6 derniers mois) pour LineChart
+  const monthlyEvolutionData = useMemo(() => {
+    const now = new Date();
+    const months: { key: string; label: string; year: number; month: number }[] = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthNames = ['Jan', 'Fev', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aout', 'Sep', 'Oct', 'Nov', 'Dec'];
+      months.push({
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: `${monthNames[d.getMonth()]} ${d.getFullYear()}`,
+        year: d.getFullYear(),
+        month: d.getMonth(),
+      });
+    }
+
+    return months.map(({ key, label, year, month }) => {
+      const monthFactures = factures.filter((f) => {
+        const fd = new Date(f.date);
+        return fd.getFullYear() === year && fd.getMonth() === month;
+      });
+      const monthAnomalies = anomalies.filter((a) => {
+        const ad = new Date(a.created_at || a.date || '');
+        return ad.getFullYear() === year && ad.getMonth() === month;
+      });
+      const montant = monthFactures.reduce((sum, f) => sum + f.net_a_payer, 0);
+
+      return {
+        mois: label,
+        factures: monthFactures.length,
+        anomalies: monthAnomalies.length,
+        montant: parseFloat(montant.toFixed(2)),
+      };
+    });
+  }, [factures, anomalies]);
+
   const handleExportFacturePDF = async (factureId: number) => {
     setExportingId(factureId);
     try {
@@ -196,11 +284,6 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       setExportingId(null);
     }
   };
-
-  const anomaliesFiltrees = anomalies.filter((a) => {
-    if (filtreType !== 'tous' && a.type_anomalie !== filtreType) return false;
-    return true;
-  });
 
   // DataTable columns for factures
   const factureColumns: DataTableColumn<Facture>[] = useMemo(
@@ -329,20 +412,24 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         />
       )}
 
-      {/* ===== PAGE HEADER ===== */}
+      {/* ===== PAGE HEADER + CTA ===== */}
       <PageHeader
         title="Tableau de bord"
         description="Vue d'ensemble de vos verifications et anomalies detectees"
         icon={<LayoutDashboard className="h-5 w-5" />}
         actions={
-          <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Exporter</span>
+          <Button
+            onClick={() => onNavigate('verification')}
+            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Verifier une nouvelle facture</span>
+            <span className="sm:hidden">Verifier</span>
           </Button>
         }
       />
 
-      {/* ===== STAT CARDS ===== */}
+      {/* ===== STAT CARDS WITH TRENDS ===== */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Factures verifiees"
@@ -350,6 +437,8 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
           icon={<FileText className="h-5 w-5" />}
           variant="blue"
           loading={loading}
+          trend={trends.factures.text}
+          trendDirection={trends.factures.direction}
         />
         <StatCard
           label="Anomalies detectees"
@@ -357,6 +446,8 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
           icon={<AlertCircle className="h-5 w-5" />}
           variant="orange"
           loading={loading}
+          trend={trends.anomalies.text}
+          trendDirection={trends.anomalies.direction}
         />
         <StatCard
           label="Montant recuperable"
@@ -364,6 +455,8 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
           icon={<TrendingUp className="h-5 w-5" />}
           variant="green"
           loading={loading}
+          trend={trends.ecart.text}
+          trendDirection={trends.ecart.direction}
         />
         <StatCard
           label="Taux de conformite"
@@ -374,8 +467,94 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         />
       </div>
 
+      {/* ===== ERROR STATE ===== */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="size-4" />
+          <AlertTitle>Erreur de chargement</AlertTitle>
+          <AlertDescription className="flex items-center justify-between gap-4">
+            <span>{error}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadData}
+              className="shrink-0 gap-1.5"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Reessayer
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* ===== ALERTES PRIORITAIRES ===== */}
+      {alertesPrioritaires.length > 0 && (
+        <Card className="border-red-200 dark:border-red-800/50">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <div className="relative">
+                  <Bell className="h-5 w-5 text-red-600 dark:text-red-400" />
+                  <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+                  </span>
+                </div>
+                Alertes prioritaires
+              </CardTitle>
+              {anomalies.filter((a) => a.montant_ecart >= SEUIL_ALERTE_PRIORITAIRE).length > 3 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onNavigate('verification')}
+                  className="gap-1.5 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800"
+                >
+                  Voir toutes les alertes
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {alertesPrioritaires.map((alerte) => {
+                const facture = factures.find((f) => f.id === alerte.facture_id);
+                return (
+                  <div
+                    key={alerte.id}
+                    className="flex items-center justify-between gap-4 p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-900/30"
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {alerte.description}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Facture {facture?.numero || `#${alerte.facture_id}`}
+                          {' '}&middot;{' '}
+                          Impact : {formatCurrency(alerte.montant_ecart)}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 gap-1.5 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30"
+                      onClick={() => onNavigate('verification')}
+                    >
+                      Traiter
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ===== CHARTS SECTION ===== */}
-      {(anomalies.length > 0 || factures.length > 0) && (
+      {(loading || anomalies.length > 0 || factures.length > 0) && (
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Repartition par type */}
           <Card>
@@ -383,15 +562,17 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
               <CardTitle className="text-base">Repartition des anomalies</CardTitle>
             </CardHeader>
             <CardContent>
-              {pieData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={280}>
+              {loading ? (
+                <SkeletonChart height={pieChartHeight} variant="pie" />
+              ) : pieData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={pieChartHeight}>
                   <PieChart>
                     <Pie
                       data={pieData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={50}
-                      outerRadius={85}
+                      innerRadius={isMobile ? 35 : 50}
+                      outerRadius={isMobile ? 65 : 85}
                       paddingAngle={4}
                       dataKey="value"
                     >
@@ -416,12 +597,21 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
               <CardTitle className="text-base">Montants recuperables par fournisseur</CardTitle>
             </CardHeader>
             <CardContent>
-              {barData.some((d) => d.montant > 0) ? (
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={barData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              {loading ? (
+                <SkeletonChart height={chartHeight} variant="bar" />
+              ) : barData.some((d) => d.montant > 0) ? (
+                <ResponsiveContainer width="100%" height={chartHeight}>
+                  <BarChart data={barData} margin={{ top: 5, right: isMobile ? 5 : 20, left: isMobile ? -10 : 10, bottom: isMobile ? 5 : 5 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                    <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: isMobile ? 10 : 12 }}
+                      angle={isMobile ? -45 : 0}
+                      textAnchor={isMobile ? 'end' : 'middle'}
+                      height={isMobile ? 60 : 30}
+                      className="fill-muted-foreground"
+                    />
+                    <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} className="fill-muted-foreground" />
                     <RechartsTooltip
                       formatter={(value: number) => [formatCurrency(value), 'Montant']}
                       contentStyle={{
@@ -433,7 +623,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                     />
                     <Bar
                       dataKey="montant"
-                      fill="#3b82f6"
+                      fill={CHART_PALETTE[0]}
                       radius={[4, 4, 0, 0]}
                       name="Montant recuperable"
                     />
@@ -449,119 +639,124 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         </div>
       )}
 
-      {/* ===== EMAC SECTION (API mode) ===== */}
-      {isApiMode() && emacStats && (
+      {/* ===== EVOLUTION MENSUELLE (LineChart) ===== */}
+      {(loading || factures.length > 0) && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <ClipboardList className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                EMAC — Avantages Commerciaux
-              </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onNavigate('emac')}
-              >
-                Voir tout
-              </Button>
-            </div>
+            <CardTitle className="text-base">Evolution mensuelle</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-3 bg-muted/50 rounded-lg text-center">
-                <p className="text-xs text-muted-foreground">EMAC enregistres</p>
-                <p className="text-2xl font-bold text-foreground">{emacStats.total_emacs}</p>
-              </div>
-              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-center">
-                <p className="text-xs text-amber-600 dark:text-amber-400">En attente</p>
-                <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">
-                  {emacStats.emacs_non_verifies}
-                  {emacStats.nb_emacs_manquants > 0 && (
-                    <span className="text-sm ml-1">(+{emacStats.nb_emacs_manquants} manquants)</span>
-                  )}
-                </p>
-              </div>
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-center">
-                <p className="text-xs text-blue-600 dark:text-blue-400">Solde a percevoir</p>
-                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                  {formatCurrency(emacStats.total_solde_a_percevoir)}
-                </p>
-              </div>
-              <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
-                <p className="text-xs text-green-600 dark:text-green-400">Montant recouvrable</p>
-                <p className="text-2xl font-bold text-green-700 dark:text-green-300">
-                  {formatCurrency(emacStats.total_montant_recouvrable)}
-                </p>
-              </div>
-            </div>
-            {emacStats.emacs_ecart > 0 && (
-              <div className="mt-3 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg flex items-center gap-2 text-sm text-red-700 dark:text-red-300">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                {emacStats.emacs_ecart} EMAC avec ecarts detectes
-              </div>
+            {loading ? (
+              <SkeletonChart height={chartHeight} variant="line" />
+            ) : (
+            <ResponsiveContainer width="100%" height={chartHeight}>
+              <LineChart data={monthlyEvolutionData} margin={{ top: 5, right: isMobile ? 5 : 20, left: isMobile ? -10 : 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis
+                  dataKey="mois"
+                  tick={{ fontSize: isMobile ? 10 : 12 }}
+                  interval={isMobile ? 1 : 0}
+                  className="fill-muted-foreground"
+                />
+                <YAxis
+                  yAxisId="left"
+                  tick={{ fontSize: isMobile ? 10 : 12 }}
+                  className="fill-muted-foreground"
+                  allowDecimals={false}
+                />
+                {!isMobile && (
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 12 }}
+                    className="fill-muted-foreground"
+                    tickFormatter={(value: number) => `${(value / 1000).toFixed(0)}k`}
+                  />
+                )}
+                <RechartsTooltip
+                  formatter={(value: number, name: string) => {
+                    if (name === 'Montant HT') return [formatCurrency(value), name];
+                    return [value, name];
+                  }}
+                  contentStyle={{
+                    backgroundColor: 'var(--card)',
+                    borderColor: 'var(--border)',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                  }}
+                />
+                <Legend />
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="factures"
+                  name="Factures"
+                  stroke={CHART_PALETTE[0]}
+                  strokeWidth={2}
+                  dot={{ r: isMobile ? 3 : 4 }}
+                  activeDot={{ r: isMobile ? 4 : 6 }}
+                />
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="anomalies"
+                  name="Anomalies"
+                  stroke={CHART_PALETTE[1]}
+                  strokeWidth={2}
+                  dot={{ r: isMobile ? 3 : 4 }}
+                  activeDot={{ r: isMobile ? 4 : 6 }}
+                />
+                <Line
+                  yAxisId={isMobile ? 'left' : 'right'}
+                  type="monotone"
+                  dataKey="montant"
+                  name="Montant HT"
+                  stroke={CHART_PALETTE[3]}
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  dot={{ r: isMobile ? 2 : 3 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
       )}
 
-      {/* ===== ANOMALIES RECENTES + FILTRE ===== */}
+      {/* ===== ANOMALIES RECENTES (simplifie) ===== */}
       <div>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">
-            Anomalies{' '}
+            Anomalies recentes{' '}
             <span className="text-muted-foreground font-normal text-sm">
-              ({anomaliesFiltrees.length} trouvee{anomaliesFiltrees.length > 1 ? 's' : ''})
+              ({anomalies.length} au total)
             </span>
           </h2>
-          <Select value={filtreType} onValueChange={setFiltreType}>
-            <SelectTrigger className="w-[220px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="tous">Tous les types</SelectItem>
-              <SelectItem value="remise_manquante">Remise manquante</SelectItem>
-              <SelectItem value="ecart_calcul">Ecart de calcul</SelectItem>
-              <SelectItem value="remise_incorrecte">Remise incorrecte</SelectItem>
-              <SelectItem value="franco_non_respecte">Franco non respecte</SelectItem>
-              <SelectItem value="prix_suspect">Prix suspect</SelectItem>
-              <SelectItem value="remise_volume_manquante">Remise volume manquante</SelectItem>
-              <SelectItem value="condition_non_respectee">Condition non respectee</SelectItem>
-              <SelectItem value="rfa_non_appliquee">RFA non appliquee</SelectItem>
-            </SelectContent>
-          </Select>
+          {anomalies.length > 5 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onNavigate('verification')}
+              className="gap-2"
+            >
+              Voir toutes
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
         </div>
 
-        {anomaliesFiltrees.length > 0 ? (
+        {anomaliesRecentes.length > 0 ? (
           <div className="grid gap-4">
-            {anomaliesFiltrees.slice(0, 5).map((anomalie) => (
+            {anomaliesRecentes.map((anomalie) => (
               <AnomalieCard key={anomalie.id} anomalie={anomalie} />
             ))}
-            {anomaliesFiltrees.length > 5 && (
-              <div className="text-center">
-                <Button
-                  variant="outline"
-                  onClick={() => onNavigate('verification')}
-                  className="gap-2"
-                >
-                  <FileCheck className="h-4 w-4" />
-                  Voir toutes les anomalies ({anomaliesFiltrees.length})
-                </Button>
-              </div>
-            )}
           </div>
         ) : (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/20 w-fit mx-auto mb-3">
-                <CheckCircle2 className="h-8 w-8 text-green-500" />
-              </div>
-              <p className="font-medium text-foreground">Aucune anomalie trouvee</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Verifiez des factures pour voir les resultats ici
-              </p>
-            </CardContent>
-          </Card>
+          <Alert variant="success">
+            <CheckCircle2 className="size-4" />
+            <AlertTitle>Aucune anomalie detectee</AlertTitle>
+            <AlertDescription>Toutes les factures recentes sont conformes.</AlertDescription>
+          </Alert>
         )}
       </div>
 
@@ -572,11 +767,11 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onNavigate('verification')}
+            onClick={() => navigate('/factures')}
             className="gap-2"
           >
             <FileCheck className="h-4 w-4" />
-            Verifier une facture
+            Voir toutes les factures
           </Button>
         </div>
 
