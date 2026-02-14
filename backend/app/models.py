@@ -82,6 +82,7 @@ class Pharmacy(Base):
     users = relationship("User", back_populates="pharmacy")
     grossistes = relationship("Grossiste", back_populates="pharmacy")
     factures = relationship("Facture", back_populates="pharmacy")
+    rebate_agreements = relationship("LaboratoryAgreement", back_populates="pharmacy")
 
     def __repr__(self):
         return f"<Pharmacy {self.nom}>"

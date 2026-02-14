@@ -743,6 +743,314 @@ export interface RechercheProduitResponse {
 }
 
 // ========================================
+// REBATE ENGINE (Moteur de remises echelonnees)
+// ========================================
+
+// --- Enums ---
+
+export type RebateTemplateType = 'staged' | 'volume_based' | 'conditional';
+export type AgreementStatusType = 'brouillon' | 'actif' | 'suspendu' | 'expire' | 'archive';
+export type ScheduleStatusType = 'prevu' | 'emis' | 'recu' | 'ecart' | 'annule';
+export type TemplateScopeType = 'system' | 'group' | 'pharmacy';
+
+// --- Template ---
+
+export interface StageCondition {
+  type: string;
+  operator: string;
+  threshold_field: string;
+  unit: string;
+}
+
+export interface TemplateStage {
+  stage_id: string;
+  label: string;
+  delay_months: number;
+  rate_type: string;
+  is_cumulative: boolean;
+  payment_method: string;
+  fields: string[];
+  conditions?: StageCondition[] | null;
+  order?: number | null;
+}
+
+export interface TemplateStructure {
+  type: string;
+  description?: string | null;
+  stages: TemplateStage[];
+  tranches: string[];
+  supports_otc: boolean;
+}
+
+export interface RebateTemplateResponse {
+  id: number;
+  nom: string;
+  description: string | null;
+  laboratoire_nom: string;
+  rebate_type: string;
+  frequence: string;
+  tiers: Record<string, unknown>[];
+  structure: TemplateStructure | null;
+  taux_escompte: number;
+  delai_escompte_jours: number;
+  taux_cooperation: number;
+  gratuites_ratio: string | null;
+  gratuites_seuil_qte: number;
+  version: number;
+  scope: string;
+  actif: boolean;
+  created_at: string;
+  updated_at: string | null;
+  active_agreements_count: number;
+}
+
+// --- Agreement ---
+
+export interface StageConfig {
+  rate?: number | null;
+  incremental_rate?: number | null;
+  cumulative_rate?: number | null;
+  condition_threshold?: number | null;
+}
+
+export interface TrancheConfig {
+  max_rebate: number;
+  classification_criteria: Record<string, unknown>;
+  stages: Record<string, StageConfig>;
+}
+
+export interface AgreementConfig {
+  template_id?: string | null;
+  tranche_configurations: Record<string, TrancheConfig>;
+}
+
+export interface LaboratoryAgreementResponse {
+  id: number;
+  pharmacy_id: number;
+  laboratoire_id: number;
+  laboratoire_nom: string | null;
+  template_id: number | null;
+  template_nom: string | null;
+  template_version: number;
+  nom: string;
+  agreement_config: AgreementConfig | null;
+  custom_tiers: Record<string, unknown>[] | null;
+  taux_escompte: number | null;
+  taux_cooperation: number | null;
+  gratuites_ratio: string | null;
+  objectif_ca_annuel: number | null;
+  ca_cumule: number;
+  remise_cumulee: number;
+  avancement_pct: number;
+  date_debut: string;
+  date_fin: string | null;
+  reference_externe: string | null;
+  version: number;
+  previous_version_id: number | null;
+  statut: AgreementStatusType;
+  notes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface LaboratoryAgreementCreateRequest {
+  laboratoire_id: number;
+  template_id: number;
+  nom: string;
+  agreement_config?: AgreementConfig | null;
+  custom_tiers?: Record<string, unknown>[] | null;
+  taux_escompte?: number | null;
+  taux_cooperation?: number | null;
+  gratuites_ratio?: string | null;
+  objectif_ca_annuel?: number | null;
+  date_debut: string;
+  date_fin?: string | null;
+  reference_externe?: string | null;
+  notes?: string | null;
+  activate?: boolean;
+}
+
+export interface LaboratoryAgreementUpdateRequest {
+  agreement_config?: AgreementConfig | null;
+  custom_tiers?: Record<string, unknown>[] | null;
+  taux_escompte?: number | null;
+  taux_cooperation?: number | null;
+  gratuites_ratio?: string | null;
+  objectif_ca_annuel?: number | null;
+  date_fin?: string | null;
+  reference_externe?: string | null;
+  notes?: string | null;
+  reason?: string | null;
+}
+
+// --- Agreement Version History ---
+
+export interface AgreementVersionHistoryItem {
+  version: number;
+  statut: string;
+  date_debut: string;
+  date_fin: string | null;
+  created_at: string;
+  created_by: number | null;
+  invoices_count: number;
+  summary_changes: string | null;
+}
+
+export interface AgreementVersionHistoryResponse {
+  laboratoire_nom: string;
+  current_version: number;
+  versions: AgreementVersionHistoryItem[];
+}
+
+// --- Schedule ---
+
+export interface ConditionProgress {
+  type: string;
+  threshold: number;
+  current_value: number;
+  current_percentage: number;
+  projection_year_end: number | null;
+  is_likely_met: boolean | null;
+  confidence: string | null;
+}
+
+export interface RebateEntry {
+  stage_id: string;
+  stage_label: string;
+  stage_order: number;
+  tranche_A_amount: number;
+  tranche_B_amount: number;
+  total_amount: number;
+  rate: number | null;
+  incremental_rate: number | null;
+  cumulative_amount: number;
+  cumulative_rate: number;
+  expected_date: string;
+  payment_method: string;
+  status: string;
+  is_conditional: boolean;
+  condition: ConditionProgress | null;
+  actual_amount: number | null;
+  received_date: string | null;
+  variance: number | null;
+  reconciliation_status: string;
+}
+
+export interface InvoiceRebateScheduleResponse {
+  id: number;
+  facture_labo_id: number | null;
+  agreement_id: number;
+  pharmacy_id: number;
+  invoice_amount: number | null;
+  invoice_date: string | null;
+  tranche_type: string | null;
+  tranche_breakdown: Record<string, unknown> | null;
+  laboratoire_nom: string | null;
+  agreement_version: number;
+  rebate_entries: Record<string, unknown> | null;
+  total_rfa_expected: number;
+  total_rfa_percentage: number;
+  statut: string;
+  montant_recu: number | null;
+  ecart: number | null;
+  date_echeance: string;
+  date_reception: string | null;
+  reference_avoir: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+// --- Preview ---
+
+export interface PreviewRequest {
+  template_id: number;
+  agreement_config: AgreementConfig;
+  simulation_amount?: number;
+  simulation_tranche?: string;
+}
+
+export interface PreviewValidation {
+  type: string;
+  message: string;
+}
+
+export interface PreviewResponse {
+  entries: RebateEntry[];
+  total_rfa: number;
+  total_rfa_percentage: number;
+  tranche_breakdown: Record<string, unknown> | null;
+  validations: PreviewValidation[];
+}
+
+// --- Dashboard ---
+
+export interface MonthlyRebateByLab {
+  laboratoire_id: number;
+  laboratoire_nom: string;
+  stage_label: string;
+  invoices_count: number;
+  total_expected: number;
+  deadline_date: string | null;
+  status: string;
+  days_remaining: number | null;
+}
+
+export interface MonthlyRebateDashboardResponse {
+  month: string;
+  laboratories: MonthlyRebateByLab[];
+  total_expected: number;
+  next_month_projection: number | null;
+  next_2_months_projection: number | null;
+}
+
+export interface ConditionalBonus {
+  laboratoire_id: number;
+  laboratoire_nom: string;
+  bonus_label: string;
+  condition_type: string;
+  threshold: number;
+  current_value: number;
+  current_percentage: number;
+  projection_year_end: number | null;
+  bonus_rate: number;
+  estimated_bonus_amount: number;
+  status: string;
+  invoices_contributing: number | null;
+}
+
+export interface ConditionalBonusDashboardResponse {
+  year: number;
+  bonuses: ConditionalBonus[];
+  total_estimated: number;
+}
+
+// --- Audit ---
+
+export interface AgreementAuditLogResponse {
+  id: number;
+  agreement_id: number;
+  user_id: number;
+  action: string;
+  ancien_etat: Record<string, unknown> | null;
+  nouvel_etat: Record<string, unknown> | null;
+  description: string | null;
+  created_at: string;
+}
+
+// --- Stats ---
+
+export interface RebateStatsResponse {
+  total_agreements: number;
+  agreements_actifs: number;
+  ca_cumule_total: number;
+  remises_prevues_total: number;
+  remises_recues_total: number;
+  ecart_total: number;
+  echeances_en_retard: number;
+}
+
+// ========================================
 // GÉNÉRIQUES
 // ========================================
 

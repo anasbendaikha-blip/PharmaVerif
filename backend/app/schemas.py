@@ -464,3 +464,253 @@ class FilterParams(BaseModel):
     grossiste_id: Optional[int] = None
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None
+
+
+# ========================================
+# SCHEMAS REBATE ENGINE
+# ========================================
+
+class RebateType(str, Enum):
+    """Type de remise"""
+    RFA = "rfa"
+    ESCOMPTE = "escompte"
+    COOPERATION = "cooperation"
+    GRATUITE = "gratuite"
+
+
+class RebateFrequency(str, Enum):
+    """Frequence de versement"""
+    MENSUEL = "mensuel"
+    TRIMESTRIEL = "trimestriel"
+    SEMESTRIEL = "semestriel"
+    ANNUEL = "annuel"
+
+
+class AgreementStatus(str, Enum):
+    """Statut d'un accord"""
+    BROUILLON = "brouillon"
+    ACTIF = "actif"
+    SUSPENDU = "suspendu"
+    EXPIRE = "expire"
+    ARCHIVE = "archive"
+
+
+class ScheduleStatus(str, Enum):
+    """Statut d'une echeance"""
+    PREVU = "prevu"
+    EMIS = "emis"
+    RECU = "recu"
+    ECART = "ecart"
+    ANNULE = "annule"
+
+
+# --- Rebate Template ---
+
+class RebateTierSchema(BaseModel):
+    """Un palier de remise"""
+    seuil_min: float = Field(..., ge=0)
+    seuil_max: Optional[float] = Field(None, ge=0)
+    taux: float = Field(..., ge=0, le=100)
+    label: Optional[str] = None
+
+
+class RebateTemplateBase(BaseModel):
+    """Base template de remise"""
+    nom: str = Field(..., min_length=2, max_length=200)
+    description: Optional[str] = None
+    laboratoire_nom: str = Field(..., min_length=2, max_length=200)
+    rebate_type: RebateType = RebateType.RFA
+    frequence: RebateFrequency = RebateFrequency.ANNUEL
+    tiers: List[RebateTierSchema] = Field(default_factory=list)
+    taux_escompte: float = Field(default=0.0, ge=0, le=100)
+    delai_escompte_jours: int = Field(default=30, ge=0)
+    taux_cooperation: float = Field(default=0.0, ge=0, le=100)
+    gratuites_ratio: Optional[str] = None
+    gratuites_seuil_qte: int = Field(default=0, ge=0)
+    actif: bool = True
+
+
+class RebateTemplateCreate(RebateTemplateBase):
+    """Creation d'un template"""
+    pass
+
+
+class RebateTemplateUpdate(BaseModel):
+    """Mise a jour d'un template"""
+    nom: Optional[str] = Field(None, min_length=2, max_length=200)
+    description: Optional[str] = None
+    laboratoire_nom: Optional[str] = Field(None, min_length=2, max_length=200)
+    rebate_type: Optional[RebateType] = None
+    frequence: Optional[RebateFrequency] = None
+    tiers: Optional[List[RebateTierSchema]] = None
+    taux_escompte: Optional[float] = Field(None, ge=0, le=100)
+    delai_escompte_jours: Optional[int] = Field(None, ge=0)
+    taux_cooperation: Optional[float] = Field(None, ge=0, le=100)
+    gratuites_ratio: Optional[str] = None
+    gratuites_seuil_qte: Optional[int] = Field(None, ge=0)
+    actif: Optional[bool] = None
+
+
+class RebateTemplateResponse(RebateTemplateBase):
+    """Reponse template"""
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# --- Laboratory Agreement ---
+
+class LaboratoryAgreementBase(BaseModel):
+    """Base accord laboratoire"""
+    nom: str = Field(..., min_length=2, max_length=200)
+    template_id: Optional[int] = None
+    laboratoire_id: int
+    reference_externe: Optional[str] = Field(None, max_length=100)
+    date_debut: str  # ISO date string (YYYY-MM-DD)
+    date_fin: Optional[str] = None
+    statut: AgreementStatus = AgreementStatus.BROUILLON
+    custom_tiers: Optional[List[RebateTierSchema]] = None
+    taux_escompte: Optional[float] = Field(None, ge=0, le=100)
+    taux_cooperation: Optional[float] = Field(None, ge=0, le=100)
+    gratuites_ratio: Optional[str] = None
+    objectif_ca_annuel: Optional[float] = Field(None, ge=0)
+    notes: Optional[str] = None
+
+
+class LaboratoryAgreementCreate(LaboratoryAgreementBase):
+    """Creation d'un accord"""
+    pass
+
+
+class LaboratoryAgreementUpdate(BaseModel):
+    """Mise a jour d'un accord"""
+    nom: Optional[str] = Field(None, min_length=2, max_length=200)
+    template_id: Optional[int] = None
+    reference_externe: Optional[str] = Field(None, max_length=100)
+    date_debut: Optional[str] = None
+    date_fin: Optional[str] = None
+    statut: Optional[AgreementStatus] = None
+    custom_tiers: Optional[List[RebateTierSchema]] = None
+    taux_escompte: Optional[float] = Field(None, ge=0, le=100)
+    taux_cooperation: Optional[float] = Field(None, ge=0, le=100)
+    gratuites_ratio: Optional[str] = None
+    objectif_ca_annuel: Optional[float] = Field(None, ge=0)
+    notes: Optional[str] = None
+
+
+class LaboratoryAgreementResponse(BaseModel):
+    """Reponse accord laboratoire"""
+    id: int
+    nom: str
+    template_id: Optional[int] = None
+    laboratoire_id: int
+    pharmacy_id: int
+    reference_externe: Optional[str] = None
+    date_debut: str
+    date_fin: Optional[str] = None
+    statut: AgreementStatus
+    custom_tiers: Optional[List[RebateTierSchema]] = None
+    taux_escompte: Optional[float] = None
+    taux_cooperation: Optional[float] = None
+    gratuites_ratio: Optional[str] = None
+    objectif_ca_annuel: Optional[float] = None
+    ca_cumule: float = 0.0
+    remise_cumulee: float = 0.0
+    avancement_pct: float = 0.0
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class LaboratoryAgreementListResponse(BaseModel):
+    """Liste d'accords avec pagination"""
+    agreements: List[LaboratoryAgreementResponse]
+    total: int
+
+
+# --- Invoice Rebate Schedule ---
+
+class InvoiceRebateScheduleBase(BaseModel):
+    """Base echeancier de remise"""
+    agreement_id: int
+    facture_labo_id: Optional[int] = None
+    rebate_type: RebateType
+    montant_base_ht: float = Field(..., ge=0)
+    taux_applique: float = Field(..., ge=0, le=100)
+    montant_prevu: float = Field(..., ge=0)
+    date_echeance: str  # ISO date (YYYY-MM-DD)
+
+
+class InvoiceRebateScheduleCreate(InvoiceRebateScheduleBase):
+    """Creation d'une echeance"""
+    pass
+
+
+class InvoiceRebateScheduleUpdate(BaseModel):
+    """Mise a jour (rapprochement avoir)"""
+    montant_recu: Optional[float] = None
+    date_reception: Optional[str] = None
+    statut: Optional[ScheduleStatus] = None
+    reference_avoir: Optional[str] = Field(None, max_length=100)
+    notes: Optional[str] = None
+
+
+class InvoiceRebateScheduleResponse(BaseModel):
+    """Reponse echeancier"""
+    id: int
+    agreement_id: int
+    facture_labo_id: Optional[int] = None
+    pharmacy_id: int
+    rebate_type: RebateType
+    montant_base_ht: float
+    taux_applique: float
+    montant_prevu: float
+    montant_recu: Optional[float] = None
+    ecart: Optional[float] = None
+    date_echeance: str
+    date_reception: Optional[str] = None
+    statut: ScheduleStatus
+    reference_avoir: Optional[str] = None
+    notes: Optional[str] = None
+    en_retard: bool = False
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# --- Audit Log ---
+
+class AgreementAuditLogResponse(BaseModel):
+    """Reponse journal d'audit"""
+    id: int
+    agreement_id: int
+    user_id: int
+    action: str
+    ancien_etat: Optional[dict] = None
+    nouvel_etat: Optional[dict] = None
+    description: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# --- Stats Rebate ---
+
+class RebateStatsResponse(BaseModel):
+    """Statistiques globales du Rebate Engine"""
+    total_agreements: int = 0
+    agreements_actifs: int = 0
+    ca_cumule_total: float = 0.0
+    remises_prevues_total: float = 0.0
+    remises_recues_total: float = 0.0
+    ecart_total: float = 0.0
+    echeances_en_retard: int = 0

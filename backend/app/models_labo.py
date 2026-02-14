@@ -48,6 +48,7 @@ class Laboratoire(Base):
     accords = relationship("AccordCommercial", back_populates="laboratoire", cascade="all, delete-orphan")
     factures_labo = relationship("FactureLabo", back_populates="laboratoire")
     historique_prix = relationship("HistoriquePrix", back_populates="laboratoire")
+    rebate_agreements = relationship("LaboratoryAgreement", back_populates="laboratoire")
 
     def __repr__(self):
         return f"<Laboratoire {self.nom}>"
@@ -207,6 +208,10 @@ class FactureLabo(Base):
         "HistoriquePrix",
         back_populates="facture_labo",
         cascade="all, delete-orphan"
+    )
+    rebate_schedules = relationship(
+        "InvoiceRebateSchedule",
+        back_populates="facture_labo",
     )
 
     @property
