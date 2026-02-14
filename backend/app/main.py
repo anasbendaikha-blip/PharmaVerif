@@ -363,11 +363,28 @@ async def startup_event():
     from app.models_labo import Laboratoire, AccordCommercial, FactureLabo, LigneFactureLabo, PalierRFA, AnomalieFactureLabo, HistoriquePrix
     from app.models_emac import EMAC, AnomalieEMAC
 
-    Base.metadata.create_all(bind=engine)
-    logger.info("✅ Tables créées/vérifiées")
+    # Sur PostgreSQL, drop + recreate pour s'assurer que le schema est a jour
+    # (create_all ne met pas a jour les colonnes existantes)
+    from sqlalchemy import text, inspect
+    inspector = inspect(engine)
+    existing_tables = inspector.get_table_names()
+
+    if existing_tables:
+        # Verifier si le schema est a jour (colonne pharmacy_id dans users)
+        user_columns = [c['name'] for c in inspector.get_columns('users')] if 'users' in existing_tables else []
+        if 'users' in existing_tables and 'pharmacy_id' not in user_columns:
+            logger.warning("⚠️ Schema obsolete detecte — recreation des tables PostgreSQL")
+            Base.metadata.drop_all(bind=engine)
+            Base.metadata.create_all(bind=engine)
+            logger.info("✅ Tables recréées avec le schema complet")
+        else:
+            Base.metadata.create_all(bind=engine)
+            logger.info("✅ Tables créées/vérifiées")
+    else:
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ Tables créées (première initialisation)")
 
     # Migration v10: ajouter onboarding_completed a pharmacies (PostgreSQL compatible)
-    from sqlalchemy import text
     try:
         with engine.begin() as conn:
             conn.execute(text(
