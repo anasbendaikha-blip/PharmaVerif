@@ -47,8 +47,9 @@ class VerificationEngine:
     # Proximite du palier RFA suivant (en %)
     RFA_PROXIMITE_PCT = 10.0
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, pharmacy_id: Optional[int] = None):
         self.db = db
+        self.pharmacy_id = pharmacy_id
 
     def verify(
         self,
@@ -120,6 +121,9 @@ class VerificationEngine:
 
         for tranche_nom, brut, remise, cible in checks:
             if not brut or brut <= 0:
+                continue
+            # Guard against None values from DB nullable columns
+            if remise is None or cible is None:
                 continue
 
             taux_reel = round(remise / brut * 100, 2)
@@ -445,11 +449,11 @@ class VerificationEngine:
         anomalies = []
 
         for ligne in facture.lignes:
-            pu = ligne.prix_unitaire_ht
-            rem = ligne.remise_pct
+            pu = ligne.prix_unitaire_ht or 0.0
+            rem = ligne.remise_pct or 0.0
             pu_ar = ligne.prix_unitaire_apres_remise
-            qte = ligne.quantite
-            mt_ht = ligne.montant_ht
+            qte = ligne.quantite or 0
+            mt_ht = ligne.montant_ht or 0.0
             mt_brut = ligne.montant_brut
 
             # Check 1: PU * (1 - remise%) ~= PU apres remise
@@ -528,26 +532,38 @@ class VerificationEngine:
     # ========================================
 
     def _get_accord(self, facture: FactureLabo) -> Optional[AccordCommercial]:
-        """Recupere l'accord commercial actif pour le laboratoire de la facture."""
-        return (
-            self.db.query(AccordCommercial)
-            .filter(
-                AccordCommercial.laboratoire_id == facture.laboratoire_id,
-                AccordCommercial.actif == True,
-            )
-            .first()
+        """Recupere l'accord commercial actif pour le laboratoire de la facture.
+
+        Filtre par pharmacy_id pour garantir l'isolation multi-tenant :
+        un accord commercial d'une pharmacie A ne doit jamais etre utilise
+        pour verifier les factures d'une pharmacie B.
+        """
+        query = self.db.query(AccordCommercial).filter(
+            AccordCommercial.laboratoire_id == facture.laboratoire_id,
+            AccordCommercial.actif == True,
         )
+        # Multi-tenant isolation: restrict to current pharmacy
+        if self.pharmacy_id is not None:
+            query = query.filter(AccordCommercial.pharmacy_id == self.pharmacy_id)
+        return query.first()
 
     def _get_cumul_annuel(self, laboratoire_id: int, annee: int) -> float:
-        """Calcule le cumul annuel des achats brut HT pour un laboratoire."""
-        result = (
-            self.db.query(func.coalesce(func.sum(FactureLabo.montant_brut_ht), 0.0))
-            .filter(
-                FactureLabo.laboratoire_id == laboratoire_id,
-                extract("year", FactureLabo.date_facture) == annee,
-            )
-            .scalar()
+        """Calcule le cumul annuel des achats brut HT pour un laboratoire.
+
+        Filtre par pharmacy_id pour l'isolation multi-tenant :
+        le cumul RFA d'une pharmacie ne doit pas inclure les factures
+        d'une autre pharmacie.
+        """
+        query = self.db.query(
+            func.coalesce(func.sum(FactureLabo.montant_brut_ht), 0.0)
+        ).filter(
+            FactureLabo.laboratoire_id == laboratoire_id,
+            extract("year", FactureLabo.date_facture) == annee,
         )
+        # Multi-tenant isolation: restrict to current pharmacy
+        if self.pharmacy_id is not None:
+            query = query.filter(FactureLabo.pharmacy_id == self.pharmacy_id)
+        result = query.scalar()
         return float(result) if result else 0.0
 
     def _get_current_palier(
@@ -605,14 +621,14 @@ class VerificationEngine:
             Dict avec cumul, palier actuel/suivant, progression
         """
         if not accord:
-            accord = (
-                self.db.query(AccordCommercial)
-                .filter(
-                    AccordCommercial.laboratoire_id == laboratoire_id,
-                    AccordCommercial.actif == True,
-                )
-                .first()
+            query = self.db.query(AccordCommercial).filter(
+                AccordCommercial.laboratoire_id == laboratoire_id,
+                AccordCommercial.actif == True,
             )
+            # Multi-tenant isolation
+            if self.pharmacy_id is not None:
+                query = query.filter(AccordCommercial.pharmacy_id == self.pharmacy_id)
+            accord = query.first()
 
         cumul = self._get_cumul_annuel(laboratoire_id, annee)
 

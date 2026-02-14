@@ -10,46 +10,54 @@ Configuration centralisée avec validation Pydantic
 from pydantic_settings import BaseSettings
 from typing import List, Optional
 from pathlib import Path
+import os
 import secrets
+import warnings
+
+
+# Generate a stable fallback key ONCE at module load for development only.
+# In production, SECRET_KEY MUST be set via environment variable.
+_DEV_FALLBACK_KEY = "pharmaverif-dev-insecure-key-change-in-production"
 
 
 class Settings(BaseSettings):
     """
     Configuration de l'application
-    
+
     Toutes les variables sont lues depuis les variables d'environnement (.env)
     """
-    
+
     # ========================================
     # APPLICATION
     # ========================================
-    
+
     APP_NAME: str = "PharmaVerif API"
     APP_VERSION: str = "1.0.0"
     ENVIRONMENT: str = "development"  # development, staging, production
     DEBUG: bool = True
-    
+
     # ========================================
     # SERVER
     # ========================================
-    
+
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     AUTO_RELOAD: bool = True
-    
+
     # ========================================
     # API
     # ========================================
-    
+
     API_V1_PREFIX: str = "/api/v1"
     ENABLE_DOCS: bool = True  # Activer Swagger/ReDoc
-    
+
     # ========================================
     # SECURITY
     # ========================================
-    
-    # JWT
-    SECRET_KEY: str = secrets.token_urlsafe(32)  # CHANGE EN PRODUCTION!
+
+    # JWT — MUST be set via SECRET_KEY env variable in production.
+    # Uses a stable dev fallback so tokens survive restarts in development.
+    SECRET_KEY: str = _DEV_FALLBACK_KEY
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # 1 heure
     
@@ -216,38 +224,52 @@ settings = Settings()
 def validate_settings():
     """
     Valider la configuration au démarrage
-    
+
     Raises:
         ValueError si configuration invalide
     """
     errors = []
-    
-    # Vérifier SECRET_KEY en production
+
+    # Vérifier SECRET_KEY — CRITICAL for production
+    if settings.SECRET_KEY == _DEV_FALLBACK_KEY:
+        if settings.is_production:
+            errors.append(
+                "SECRET_KEY est la clé de développement par défaut. "
+                "Vous DEVEZ définir SECRET_KEY via variable d'environnement en production."
+            )
+        else:
+            warnings.warn(
+                "⚠️  SECRET_KEY utilise la clé de développement par défaut. "
+                "Définissez SECRET_KEY via variable d'environnement avant le déploiement.",
+                UserWarning,
+                stacklevel=2,
+            )
+
     if settings.is_production:
         if len(settings.SECRET_KEY) < 32:
             errors.append("SECRET_KEY doit faire au moins 32 caractères en production")
-        
+
         if settings.DEBUG:
             errors.append("DEBUG doit être False en production")
-        
-        if "localhost" in settings.ALLOWED_ORIGINS:
+
+        if any("localhost" in origin for origin in settings.ALLOWED_ORIGINS):
             errors.append("Retirer localhost de ALLOWED_ORIGINS en production")
-    
+
     # Vérifier DATABASE_URL
     if not settings.DATABASE_URL:
         errors.append("DATABASE_URL est requis")
-    
+
     # Vérifier Tesseract
     if settings.TESSERACT_PATH:
         tesseract_path = Path(settings.TESSERACT_PATH)
         if not tesseract_path.exists():
             print(f"⚠️  Warning: Tesseract non trouvé à {settings.TESSERACT_PATH}")
-    
+
     # Afficher les erreurs
     if errors:
         error_msg = "\n".join(f"  - {error}" for error in errors)
         raise ValueError(f"❌ Configuration invalide:\n{error_msg}")
-    
+
     print("✓ Configuration validée")
 
 

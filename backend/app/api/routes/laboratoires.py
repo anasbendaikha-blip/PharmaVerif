@@ -578,7 +578,7 @@ async def recalculer_factures(
 
     resultats = {"total": len(factures), "succes": 0, "erreurs": 0}
 
-    engine = VerificationEngine(db)
+    engine = VerificationEngine(db, pharmacy_id=pharmacy_id)
 
     for facture in factures:
         try:

@@ -9,6 +9,7 @@ Endpoints d'authentification JWT — Multi-tenant aware
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pydantic import BaseModel, Field, validator
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
@@ -161,14 +162,17 @@ async def register(
     db: Session = Depends(get_db)
 ):
     """
-    Créer un nouveau compte utilisateur
+    Créer un nouveau compte utilisateur (endpoint public)
+
+    Cet endpoint est accessible sans authentification.
+    Pour des raisons de securite :
+    - Le role est force a 'pharmacien' (pas d'escalade de privileges)
+    - Le pharmacy_id est ignore (utiliser /register-pharmacy pour creer une pharmacie)
 
     - **email**: Email unique
     - **password**: Minimum 8 caractères, 1 majuscule, 1 chiffre
     - **nom**: Nom de famille
     - **prenom**: Prénom
-    - **role**: Role (par défaut: pharmacien)
-    - **pharmacy_id**: ID de la pharmacie (optionnel)
     """
     # Vérifier si l'email existe déjà
     existing_user = db.query(User).filter(User.email == user_data.email).first()
@@ -178,14 +182,10 @@ async def register(
             detail="Un compte existe déjà avec cet email"
         )
 
-    # Verifier que la pharmacie existe si fournie
-    if user_data.pharmacy_id:
-        pharmacy = db.query(Pharmacy).filter(Pharmacy.id == user_data.pharmacy_id).first()
-        if not pharmacy:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Pharmacie avec ID {user_data.pharmacy_id} non trouvée"
-            )
+    # SECURITY: Force safe defaults on public registration endpoint.
+    # Role and pharmacy_id can only be set by admin via /admin/create-user.
+    safe_role = "pharmacien"
+    safe_pharmacy_id = None
 
     # Créer l'utilisateur
     hashed_password = get_password_hash(user_data.password)
@@ -195,9 +195,9 @@ async def register(
         hashed_password=hashed_password,
         nom=user_data.nom,
         prenom=user_data.prenom,
-        role=user_data.role,
-        actif=user_data.actif,
-        pharmacy_id=user_data.pharmacy_id,
+        role=safe_role,
+        actif=True,
+        pharmacy_id=safe_pharmacy_id,
     )
 
     db.add(db_user)
@@ -502,10 +502,23 @@ async def admin_create_user(
 
     return db_user
 
+class AdminResetPasswordRequest(BaseModel):
+    """Schema pour la reinitialisation de mot de passe par un admin."""
+    new_password: str = Field(..., min_length=8, max_length=100)
+
+    @validator('new_password')
+    def validate_password(cls, v):
+        if not any(char.isdigit() for char in v):
+            raise ValueError('Le mot de passe doit contenir au moins un chiffre')
+        if not any(char.isupper() for char in v):
+            raise ValueError('Le mot de passe doit contenir au moins une majuscule')
+        return v
+
+
 @router.post("/admin/reset-password/{user_id}", response_model=MessageResponse)
 async def admin_reset_password(
     user_id: int,
-    new_password: str,
+    body: AdminResetPasswordRequest,
     current_admin: User = Depends(get_current_active_admin),
     db: Session = Depends(get_db)
 ):
@@ -513,6 +526,8 @@ async def admin_reset_password(
     [ADMIN] Réinitialiser le mot de passe d'un utilisateur
 
     Seul un admin de la meme pharmacie peut reinitialiser le mot de passe.
+    Le mot de passe est transmis dans le body JSON (pas en query param)
+    pour eviter qu'il apparaisse dans les logs serveur et l'historique navigateur.
     """
     user = db.query(User).filter(
         User.id == user_id,
@@ -525,7 +540,7 @@ async def admin_reset_password(
             detail="Utilisateur non trouvé"
         )
 
-    user.hashed_password = get_password_hash(new_password)
+    user.hashed_password = get_password_hash(body.new_password)
     user.updated_at = datetime.utcnow()
 
     db.commit()
