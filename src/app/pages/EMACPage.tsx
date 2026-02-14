@@ -7,8 +7,8 @@
  * formulaire de saisie manuelle, upload Excel/CSV.
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { PageHeader } from '../components/ui/page-header';
 import {
@@ -36,50 +36,30 @@ import {
   CheckCircle2,
   AlertTriangle,
   AlertCircle,
-  Info,
   ChevronLeft,
   ChevronRight,
   X,
-  TriangleAlert,
   FileSpreadsheet,
-  Check,
   Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { emacApi } from '../api/emacApi';
 import { rapportsApi } from '../api/rapportsApi';
 import { laboratoiresApi } from '../api/laboratoiresApi';
+import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import type {
   EMACResponse,
   LaboratoireResponse,
   TriangleVerificationResponse,
-  TriangleVerificationItem,
-  AnomalieEMACResponse,
   EMACCreateManuel,
   StatutVerificationEMAC,
 } from '../api/types';
+import { EMACComparisonEnhanced } from '../components/EMACComparisonEnhanced';
+import { formatCurrency } from '../utils/formatNumber';
 
 // ========================================
 // HELPERS
 // ========================================
-
-function formatCurrency(amount: number | null | undefined): string {
-  if (amount === null || amount === undefined) return '-';
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-  }).format(amount);
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '-';
-  return new Date(dateStr).toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
 
 function formatPeriode(debut: string, fin: string): string {
   const d = new Date(debut);
@@ -104,17 +84,6 @@ function getStatutBadge(statut: StatutVerificationEMAC) {
       {info.label}
     </span>
   );
-}
-
-function getSeveriteIcon(severite: string) {
-  switch (severite) {
-    case 'critical':
-      return <AlertCircle className="h-4 w-4 text-red-500" />;
-    case 'warning':
-      return <AlertTriangle className="h-4 w-4 text-amber-500" />;
-    default:
-      return <Info className="h-4 w-4 text-blue-500" />;
-  }
 }
 
 // ========================================
@@ -158,6 +127,8 @@ export function EMACPage({ onNavigate }: EMACPageProps) {
   // Loading states
   const [verifying, setVerifying] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // ========================================
   // CHARGEMENT
@@ -220,16 +191,18 @@ export function EMACPage({ onNavigate }: EMACPageProps) {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Supprimer cet EMAC ?')) return;
+  const handleDelete = async () => {
+    if (!deleteTargetId) return;
     try {
-      setDeleting(id);
-      await emacApi.delete(id);
+      setDeleting(deleteTargetId);
+      await emacApi.delete(deleteTargetId);
       toast.success('EMAC supprime');
-      if (showDetail && selectedEmac?.id === id) {
+      setShowDeleteDialog(false);
+      if (showDetail && selectedEmac?.id === deleteTargetId) {
         setShowDetail(false);
         setSelectedEmac(null);
       }
+      setDeleteTargetId(null);
       loadEmacs();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erreur';
@@ -368,7 +341,10 @@ export function EMACPage({ onNavigate }: EMACPageProps) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDelete(emac.id)}
+                            onClick={() => {
+                              setDeleteTargetId(emac.id);
+                              setShowDeleteDialog(true);
+                            }}
                             disabled={deleting === emac.id}
                             title="Supprimer"
                             className="text-red-500 hover:text-red-700"
@@ -432,6 +408,27 @@ export function EMACPage({ onNavigate }: EMACPageProps) {
           onSuccess={() => { setShowUpload(false); loadEmacs(); }}
         />
       )}
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false);
+          setDeleteTargetId(null);
+        }}
+        onConfirm={handleDelete}
+        title="Supprimer cet EMAC ?"
+        description="Les verifications et anomalies associees seront egalement supprimees."
+        itemName={
+          deleteTargetId
+            ? `EMAC ${emacs.find((e) => e.id === deleteTargetId)?.reference || formatPeriode(
+                emacs.find((e) => e.id === deleteTargetId)?.periode_debut || '',
+                emacs.find((e) => e.id === deleteTargetId)?.periode_fin || ''
+              )}`
+            : undefined
+        }
+        loading={deleting !== null}
+      />
     </div>
   );
 }
@@ -457,13 +454,8 @@ function EMACDetailModal({
 }) {
   const laboNom = emac.laboratoire?.nom || labos.find(l => l.id === emac.laboratoire_id)?.nom || 'Inconnu';
 
-  // Grouper anomalies
+  // Anomalies pour le composant enrichi
   const anomalies = triangle?.anomalies || emac.anomalies_emac || [];
-  const grouped = useMemo(() => ({
-    critical: anomalies.filter(a => a.severite === 'critical'),
-    warning: anomalies.filter(a => a.severite === 'warning'),
-    info: anomalies.filter(a => a.severite === 'info'),
-  }), [anomalies]);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center overflow-y-auto p-0 sm:p-4">
@@ -522,106 +514,14 @@ function EMACDetailModal({
             />
           </div>
 
-          {/* Triangle de verification */}
+          {/* Triangle de verification enrichi */}
           {triangle && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <TriangleAlert className="h-5 w-5 text-purple-600" />
-                  Triangle de verification
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Element</TableHead>
-                      <TableHead className="text-right">EMAC (declare)</TableHead>
-                      <TableHead className="text-right">Factures (reel)</TableHead>
-                      <TableHead className="text-right">Conditions (attendu)</TableHead>
-                      <TableHead className="text-right">Ecart</TableHead>
-                      <TableHead className="text-center">Statut</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {triangle.lignes.map((ligne, i) => (
-                      <TriangleLigne key={i} ligne={ligne} />
-                    ))}
-                  </TableBody>
-                </Table>
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="flex items-center gap-1 text-green-600">
-                      <CheckCircle2 className="h-4 w-4" />
-                      {triangle.nb_conformes} conforme(s)
-                    </span>
-                    <span className="flex items-center gap-1 text-red-600">
-                      <AlertCircle className="h-4 w-4" />
-                      {triangle.nb_ecarts} ecart(s)
-                    </span>
-                  </div>
-                  {triangle.montant_recouvrable > 0 && (
-                    <div className="text-sm font-semibold text-green-600">
-                      Montant recouvrable : {formatCurrency(triangle.montant_recouvrable)}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <EMACComparisonEnhanced
+              triangle={triangle}
+              emac={emac}
+              anomalies={anomalies}
+            />
           )}
-
-          {/* Anomalies */}
-          {anomalies.length > 0 && (
-            <div className="space-y-4">
-              {/* Critical */}
-              {grouped.critical.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-red-600 mb-2 flex items-center gap-1">
-                    <AlertCircle className="h-4 w-4" />
-                    Anomalies critiques ({grouped.critical.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {grouped.critical.map(a => <AnomalieCard key={a.id} anomalie={a} />)}
-                  </div>
-                </div>
-              )}
-
-              {/* Warning */}
-              {grouped.warning.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-amber-600 mb-2 flex items-center gap-1">
-                    <AlertTriangle className="h-4 w-4" />
-                    Alertes ({grouped.warning.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {grouped.warning.map(a => <AnomalieCard key={a.id} anomalie={a} />)}
-                  </div>
-                </div>
-              )}
-
-              {/* Info */}
-              {grouped.info.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-blue-600 mb-2 flex items-center gap-1">
-                    <Info className="h-4 w-4" />
-                    Informations ({grouped.info.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {grouped.info.map(a => <AnomalieCard key={a.id} anomalie={a} />)}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Detail avantages */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <MiniCard label="RFA" value={emac.rfa_declaree} />
-            <MiniCard label="COP" value={emac.cop_declaree} />
-            <MiniCard label="Remises diff." value={emac.remises_differees_declarees} />
-            <MiniCard label="Autres" value={emac.autres_avantages} />
-            <MiniCard label="Factures matchees" value={emac.nb_factures_matched} isCurrency={false} />
-          </div>
 
           {/* Notes */}
           {emac.notes && (
@@ -656,88 +556,6 @@ function MontantCard({ label, value, highlight, highlightColor }: {
   );
 }
 
-function MiniCard({ label, value, isCurrency = true }: {
-  label: string;
-  value: number;
-  isCurrency?: boolean;
-}) {
-  return (
-    <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded text-center">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="text-sm font-semibold font-mono">
-        {isCurrency ? formatCurrency(value) : value}
-      </p>
-    </div>
-  );
-}
-
-function TriangleLigne({ ligne }: { ligne: TriangleVerificationItem }) {
-  const isTotal = ligne.label === 'TOTAL AVANTAGES';
-  const ecart = ligne.ecart_emac_factures || ligne.ecart_emac_conditions;
-  return (
-    <TableRow className={isTotal ? 'font-bold bg-gray-50 dark:bg-gray-800' : ''}>
-      <TableCell className={isTotal ? 'font-bold' : ''}>{ligne.label}</TableCell>
-      <TableCell className="text-right font-mono">{formatCurrency(ligne.valeur_emac)}</TableCell>
-      <TableCell className="text-right font-mono">
-        {ligne.valeur_factures !== null ? formatCurrency(ligne.valeur_factures) : '-'}
-      </TableCell>
-      <TableCell className="text-right font-mono">
-        {ligne.valeur_conditions !== null ? formatCurrency(ligne.valeur_conditions) : '-'}
-      </TableCell>
-      <TableCell className="text-right font-mono">
-        {ecart !== null && ecart !== undefined ? (
-          <span className={Math.abs(ecart) > 1 ? 'text-red-600 font-semibold' : ''}>
-            {ecart > 0 ? '+' : ''}{formatCurrency(ecart)}
-            {ligne.ecart_pct !== null && ` (${ligne.ecart_pct}%)`}
-          </span>
-        ) : '-'}
-      </TableCell>
-      <TableCell className="text-center">
-        {ligne.conforme ? (
-          <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />
-        ) : (
-          <AlertCircle className="h-4 w-4 text-red-500 mx-auto" />
-        )}
-      </TableCell>
-    </TableRow>
-  );
-}
-
-function AnomalieCard({ anomalie }: { anomalie: AnomalieEMACResponse }) {
-  return (
-    <div className={`p-3 rounded-lg border ${
-      anomalie.severite === 'critical'
-        ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
-        : anomalie.severite === 'warning'
-        ? 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20'
-        : 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
-    }`}>
-      <div className="flex items-start gap-2">
-        {getSeveriteIcon(anomalie.severite)}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 dark:text-white">
-            {anomalie.description}
-          </p>
-          {anomalie.montant_ecart > 0 && (
-            <p className="text-xs font-mono mt-1 text-gray-600 dark:text-gray-400">
-              Ecart : {formatCurrency(anomalie.montant_ecart)}
-            </p>
-          )}
-          {anomalie.action_suggeree && (
-            <p className="text-xs mt-1 text-gray-500 dark:text-gray-500 italic">
-              {anomalie.action_suggeree}
-            </p>
-          )}
-        </div>
-        {anomalie.resolu && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">
-            <Check className="h-3 w-3" /> Resolu
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ========================================
 // MODAL SAISIE MANUELLE

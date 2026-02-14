@@ -24,6 +24,7 @@ import { Building2, Plus, X, Settings, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import { isApiMode } from '../api/config';
 import { laboratoiresApi } from '../api/laboratoiresApi';
+import { ConfirmDialog } from '../components/ui/confirm-dialog';
 
 import { FournisseursList, FournisseurDetail } from './fournisseurs';
 import {
@@ -155,16 +156,17 @@ export function FournisseursPage({ onNavigate: _onNavigate }: FournisseursPagePr
     loadData();
   };
 
-  const handleDelete = (id: number) => {
-    const f = fournisseurs.find((x) => x.id === id);
+  const handleConfirmDelete = () => {
+    if (!confirmDeleteId) return;
+    const f = fournisseurs.find((x) => x.id === confirmDeleteId);
     if (!f) return;
-    db.deleteFournisseur(id);
+    db.deleteFournisseur(confirmDeleteId);
     toast.success(`Fournisseur "${f.nom}" supprime`);
     setConfirmDeleteId(null);
     loadData();
 
     // If the deleted fournisseur was open in details, close details
-    if (selectedFournisseur?.id === id) {
+    if (selectedFournisseur?.id === confirmDeleteId) {
       setShowDetailsModal(false);
       setSelectedFournisseur(null);
     }
@@ -266,7 +268,7 @@ export function FournisseursPage({ onNavigate: _onNavigate }: FournisseursPagePr
         onFilterStatusChange={setFilterStatus}
         onOpenDetails={openDetails}
         onOpenEdit={openEditModal}
-        onDelete={handleDelete}
+        onDelete={handleConfirmDelete}
         confirmDeleteId={confirmDeleteId}
         onConfirmDeleteChange={setConfirmDeleteId}
       />
@@ -513,6 +515,22 @@ export function FournisseursPage({ onNavigate: _onNavigate }: FournisseursPagePr
           recalculLoading={recalculLoading}
         />
       )}
+
+      {/* ============================================================= */}
+      {/* DELETE CONFIRM DIALOG                                           */}
+      {/* ============================================================= */}
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={handleConfirmDelete}
+        title="Supprimer ce fournisseur ?"
+        description="Toutes les conditions commerciales associees seront egalement supprimees."
+        itemName={
+          confirmDeleteId
+            ? fournisseurs.find((f) => f.id === confirmDeleteId)?.nom
+            : undefined
+        }
+      />
     </div>
   );
 }

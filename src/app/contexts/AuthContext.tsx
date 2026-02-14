@@ -5,12 +5,19 @@
  *
  * Mode API (VITE_API_URL défini) : auth JWT via backend FastAPI
  * Mode localStorage (VITE_API_URL vide) : auth locale SHA-256 (démo)
+ *
+ * Fonctionnalités :
+ *  - Login / Register / Logout
+ *  - Remember Me (localStorage persistant vs sessionStorage)
+ *  - clearError() pour effacer les erreurs au changement de page
+ *  - Restauration de session au démarrage
  */
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { isApiMode } from '../api/config';
 import { http, setStoredToken, getStoredToken, clearStoredToken } from '../api/httpClient';
 import type { LoginResponse, BackendUser } from '../api/types';
+import { AUTH_ERRORS, extractAuthError } from '../utils/authErrors';
 
 // ========================================
 // TYPES
@@ -30,9 +37,10 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<boolean>;
   register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  clearError: () => void;
   error: string | null;
 }
 
@@ -73,6 +81,53 @@ function getStoredUsers(): StoredUser[] {
 
 function saveStoredUsers(users: StoredUser[]): void {
   localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
+}
+
+// ========================================
+// SESSION STORAGE HELPERS
+// ========================================
+
+/**
+ * Sauvegarde la session dans le storage approprié selon rememberMe.
+ * - rememberMe = true → localStorage (persistant entre sessions navigateur)
+ * - rememberMe = false → sessionStorage (perdu à la fermeture)
+ */
+function saveSession(userData: User, rememberMe: boolean): void {
+  const json = JSON.stringify(userData);
+  if (rememberMe) {
+    localStorage.setItem(STORAGE_KEYS.session, json);
+    sessionStorage.removeItem(STORAGE_KEYS.session);
+  } else {
+    sessionStorage.setItem(STORAGE_KEYS.session, json);
+    localStorage.removeItem(STORAGE_KEYS.session);
+  }
+}
+
+/**
+ * Restaure la session depuis sessionStorage (priorité) ou localStorage.
+ */
+function restoreSessionFromStorage(): User | null {
+  try {
+    const sessionData =
+      sessionStorage.getItem(STORAGE_KEYS.session) ||
+      localStorage.getItem(STORAGE_KEYS.session);
+    if (sessionData) {
+      return JSON.parse(sessionData);
+    }
+  } catch {
+    // Nettoyage en cas de JSON invalide
+    sessionStorage.removeItem(STORAGE_KEYS.session);
+    localStorage.removeItem(STORAGE_KEYS.session);
+  }
+  return null;
+}
+
+/**
+ * Nettoie la session de tous les storages.
+ */
+function clearSession(): void {
+  sessionStorage.removeItem(STORAGE_KEYS.session);
+  localStorage.removeItem(STORAGE_KEYS.session);
 }
 
 // ========================================
@@ -129,23 +184,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const backendUser = await http.get<BackendUser>('/auth/me');
             const userData = backendUserToUser(backendUser);
             setUser(userData);
-            localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(userData));
+            // Mettre à jour les deux storages potentiels
+            const existingSession = restoreSessionFromStorage();
+            if (existingSession) {
+              // Garder le storage où la session existait déjà
+              const inSession = sessionStorage.getItem(STORAGE_KEYS.session);
+              if (inSession) {
+                sessionStorage.setItem(STORAGE_KEYS.session, JSON.stringify(userData));
+              } else {
+                localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(userData));
+              }
+            } else {
+              localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(userData));
+            }
           } catch {
             // Token expiré ou invalide → clear silencieusement
             clearStoredToken();
-            localStorage.removeItem(STORAGE_KEYS.session);
+            clearSession();
           }
         }
       } else {
         // Mode localStorage : restaurer depuis le storage
-        try {
-          const session = localStorage.getItem(STORAGE_KEYS.session);
-          if (session) {
-            const parsed = JSON.parse(session);
-            setUser({ name: parsed.name, email: parsed.email });
-          }
-        } catch {
-          localStorage.removeItem(STORAGE_KEYS.session);
+        const stored = restoreSessionFromStorage();
+        if (stored) {
+          setUser({ name: stored.name, email: stored.email });
         }
       }
       setIsLoading(false);
@@ -154,141 +216,156 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     restoreSession();
   }, []);
 
+  // ==================== CLEAR ERROR ====================
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
   // ==================== LOGIN ====================
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    setError(null);
+  const login = useCallback(
+    async (email: string, password: string, rememberMe = true): Promise<boolean> => {
+      setError(null);
 
-    if (!email || !password) {
-      setError('Veuillez remplir tous les champs');
-      return false;
-    }
+      if (!email || !password) {
+        setError(AUTH_ERRORS.EMPTY_FIELDS);
+        return false;
+      }
 
-    if (isApiMode()) {
-      // Mode API : authentification JWT
-      try {
-        const response = await http.post<LoginResponse>('/auth/login', {
-          email,
-          password,
-        });
+      if (isApiMode()) {
+        // Mode API : authentification JWT
+        try {
+          const response = await http.post<LoginResponse>('/auth/login', {
+            email,
+            password,
+          });
 
-        // Stocker le token JWT
-        setStoredToken(response.token.access_token);
+          // Stocker le token JWT
+          setStoredToken(response.token.access_token);
 
-        // Construire l'objet User
-        const userData = backendUserToUser(response.user);
-        setUser(userData);
-        localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(userData));
+          // Construire l'objet User
+          const userData = backendUserToUser(response.user);
+          setUser(userData);
+          saveSession(userData, rememberMe);
 
-        return true;
-      } catch (err: unknown) {
-        const httpErr = err as { message?: string; status?: number };
-        if (httpErr.status === 401) {
-          setError('Email ou mot de passe incorrect');
-        } else {
-          setError(httpErr.message || 'Erreur de connexion au serveur');
+          return true;
+        } catch (err: unknown) {
+          setError(extractAuthError(err));
+          return false;
         }
-        return false;
-      }
-    } else {
-      // Mode localStorage : auth locale SHA-256
-      const users = getStoredUsers();
-      const hash = await hashPassword(password);
-      const found = users.find((u) => u.email === email && u.passwordHash === hash);
+      } else {
+        // Mode localStorage : auth locale SHA-256
+        const users = getStoredUsers();
+        const hash = await hashPassword(password);
+        const found = users.find((u) => u.email === email && u.passwordHash === hash);
 
-      if (!found) {
-        setError('Email ou mot de passe incorrect');
-        return false;
-      }
+        if (!found) {
+          setError(AUTH_ERRORS.INVALID_CREDENTIALS);
+          return false;
+        }
 
-      const userData = { name: found.name, email: found.email };
-      setUser(userData);
-      localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(userData));
-      return true;
-    }
-  };
+        const userData = { name: found.name, email: found.email };
+        setUser(userData);
+        saveSession(userData, rememberMe);
+        return true;
+      }
+    },
+    []
+  );
 
   // ==================== REGISTER ====================
 
-  const register = async (name: string, email: string, password: string): Promise<boolean> => {
-    setError(null);
+  const register = useCallback(
+    async (name: string, email: string, password: string): Promise<boolean> => {
+      setError(null);
 
-    if (!name || !email || !password) {
-      setError('Veuillez remplir tous les champs');
-      return false;
-    }
+      if (!name || !email || !password) {
+        setError(AUTH_ERRORS.EMPTY_FIELDS);
+        return false;
+      }
 
-    if (isApiMode()) {
-      // Mode API : inscription via backend
-      try {
-        const { prenom, nom } = splitName(name);
+      if (isApiMode()) {
+        // Mode API : inscription via backend
+        try {
+          const { prenom, nom } = splitName(name);
 
-        // Le backend register retourne un UserResponse (pas de token auto)
-        // On fait register puis login
-        await http.post<BackendUser>('/auth/register', {
-          email,
-          password,
-          nom,
-          prenom,
-        });
+          // Le backend register retourne un UserResponse (pas de token auto)
+          // On fait register puis login
+          await http.post<BackendUser>('/auth/register', {
+            email,
+            password,
+            nom,
+            prenom,
+          });
 
-        // Après inscription réussie, on se connecte pour obtenir le token
-        const loginResponse = await http.post<LoginResponse>('/auth/login', {
-          email,
-          password,
-        });
+          // Après inscription réussie, on se connecte pour obtenir le token
+          const loginResponse = await http.post<LoginResponse>('/auth/login', {
+            email,
+            password,
+          });
 
-        setStoredToken(loginResponse.token.access_token);
-        const userData = backendUserToUser(loginResponse.user);
+          setStoredToken(loginResponse.token.access_token);
+          const userData = backendUserToUser(loginResponse.user);
+          setUser(userData);
+          saveSession(userData, true); // Toujours remember après inscription
+
+          return true;
+        } catch (err: unknown) {
+          setError(extractAuthError(err));
+          return false;
+        }
+      } else {
+        // Mode localStorage : inscription locale
+        if (password.length < 6) {
+          setError('Le mot de passe doit contenir au moins 6 caractères');
+          return false;
+        }
+
+        const users = getStoredUsers();
+        if (users.find((u) => u.email === email)) {
+          setError(AUTH_ERRORS.EMAIL_EXISTS);
+          return false;
+        }
+
+        const hash = await hashPassword(password);
+        users.push({ name, email, passwordHash: hash });
+        saveStoredUsers(users);
+
+        const userData = { name, email };
         setUser(userData);
-        localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(userData));
-
+        saveSession(userData, true); // Toujours remember après inscription
         return true;
-      } catch (err: unknown) {
-        const httpErr = err as { message?: string; detail?: string };
-        setError(httpErr.detail || httpErr.message || "Erreur lors de l'inscription");
-        return false;
       }
-    } else {
-      // Mode localStorage : inscription locale
-      if (password.length < 6) {
-        setError('Le mot de passe doit contenir au moins 6 caractères');
-        return false;
-      }
-
-      const users = getStoredUsers();
-      if (users.find((u) => u.email === email)) {
-        setError('Un compte existe déjà avec cet email');
-        return false;
-      }
-
-      const hash = await hashPassword(password);
-      users.push({ name, email, passwordHash: hash });
-      saveStoredUsers(users);
-
-      const userData = { name, email };
-      setUser(userData);
-      localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(userData));
-      return true;
-    }
-  };
+    },
+    []
+  );
 
   // ==================== LOGOUT ====================
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null);
     setError(null);
-    localStorage.removeItem(STORAGE_KEYS.session);
+    clearSession();
 
     // En mode API, supprimer aussi le token JWT
     if (isApiMode()) {
       clearStoredToken();
     }
-  };
+  }, []);
 
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, isLoading, login, register, logout, error }}
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isLoading,
+        login,
+        register,
+        logout,
+        clearError,
+        error,
+      }}
     >
       {children}
     </AuthContext.Provider>

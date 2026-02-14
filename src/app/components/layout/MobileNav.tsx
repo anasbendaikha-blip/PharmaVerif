@@ -12,6 +12,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileCheck,
+  Upload,
+  FileText,
   FlaskConical,
   ClipboardList,
   TrendingUp,
@@ -54,6 +56,8 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Tableau de bord', path: '/dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
       { label: 'Verification', path: '/verification', icon: <FileCheck className="h-5 w-5" /> },
+      { label: 'Importer', path: '/upload', icon: <Upload className="h-5 w-5" /> },
+      { label: 'Factures', path: '/factures', icon: <FileText className="h-5 w-5" /> },
     ],
   },
   {
