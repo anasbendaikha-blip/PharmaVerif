@@ -47,6 +47,35 @@ export interface HttpError {
 }
 
 // ========================================
+// ERROR HELPER
+// ========================================
+
+/**
+ * Extraire un message d'erreur lisible depuis n'importe quel type d'erreur.
+ * Gere les HttpError (plain objects lances par request()), les Error natifs,
+ * et les cas inconnus.
+ */
+export function getErrorMessage(err: unknown, fallback = 'Une erreur est survenue'): string {
+  if (err && typeof err === 'object') {
+    const obj = err as Record<string, unknown>;
+    if (typeof obj.message === 'string' && obj.message) return obj.message;
+    if (typeof obj.detail === 'string' && obj.detail) return obj.detail;
+  }
+  if (err instanceof Error) return err.message;
+  return fallback;
+}
+
+/**
+ * Extraire le code HTTP depuis une erreur HttpError. Retourne 0 si inconnu.
+ */
+export function getErrorStatus(err: unknown): number {
+  if (err && typeof err === 'object' && 'status' in err) {
+    return (err as HttpError).status;
+  }
+  return 0;
+}
+
+// ========================================
 // CORE FETCH WRAPPER
 // ========================================
 

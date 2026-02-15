@@ -30,6 +30,7 @@ import {
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { rebateApi } from '../../api/rebateApi';
+import { getErrorMessage, getErrorStatus } from '../../api/httpClient';
 import { formatCurrency, formatPercentage, formatDateShortFR, formatDateMediumFR } from '../../utils/formatNumber';
 import {
   getEntryStatusVariant,
@@ -81,8 +82,9 @@ export function RebateScheduleWidget({
       const result = await rebateApi.getScheduleByInvoice(factureLaboId);
       setSchedule(result);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : '';
-      if (message.includes('404') || message.includes('not found') || message.includes('Aucun')) {
+      const status = getErrorStatus(err);
+      const message = getErrorMessage(err, '');
+      if (status === 404 || message.includes('not found') || message.includes('Aucun')) {
         setNotFound(true);
       }
       setSchedule(null);
@@ -107,8 +109,7 @@ export function RebateScheduleWidget({
       setNotFound(false);
       toast.success('Calendrier de remises calcule');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur lors du calcul';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur lors du calcul'));
     } finally {
       setCalculating(false);
     }
@@ -121,8 +122,7 @@ export function RebateScheduleWidget({
       setSchedule(result);
       toast.success('Calendrier recalcule');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur lors du recalcul';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur lors du recalcul'));
     } finally {
       setCalculating(false);
     }

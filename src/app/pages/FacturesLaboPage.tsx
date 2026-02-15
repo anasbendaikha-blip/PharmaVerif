@@ -34,6 +34,7 @@ import { UploadSection, FactureDetail, StatutBadgeLabo } from '../components/fac
 import { formatCurrency, formatDateShortFR } from '../utils/formatNumber';
 import { PILL_STYLES, getAnomalyCountSeverity } from '../utils/statusColors';
 import type { FactureLaboResponse } from '../api/types';
+import { getErrorMessage } from '../api/httpClient';
 
 interface FacturesLaboPageProps {
   onNavigate: (page: string) => void;
@@ -115,8 +116,7 @@ export function FacturesLaboPage({ onNavigate }: FacturesLaboPageProps) {
                   await rapportsApi.downloadRapportMensuel(laboId, mois, annee);
                   toast.success('Rapport mensuel telecharge');
                 } catch (err: unknown) {
-                  const msg = err instanceof Error ? err.message : 'Erreur';
-                  toast.error(msg);
+                  toast.error(getErrorMessage(err, 'Erreur'));
                 }
               }}
               className="flex items-center gap-2"

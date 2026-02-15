@@ -57,6 +57,7 @@ import { db } from '../data/database';
 import { toast } from 'sonner';
 import { formatCurrency, formatPercentage, formatDateShortFR } from '../utils/formatNumber';
 import { isApiMode } from '../api/config';
+import { getErrorMessage } from '../api/httpClient';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import { OnboardingBanner } from '../components/OnboardingBanner';
 import { useNavigate } from 'react-router-dom';
@@ -125,7 +126,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       setAnomalies(anomaliesData);
     } catch (err) {
       console.error('Erreur lors du chargement des donnees:', err);
-      const message = err instanceof Error ? err.message : 'Erreur lors du chargement des donnees';
+      const message = getErrorMessage(err, 'Erreur lors du chargement des donnees');
       setError(message);
     } finally {
       setLoading(false);

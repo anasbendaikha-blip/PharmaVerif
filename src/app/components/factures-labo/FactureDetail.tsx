@@ -20,6 +20,7 @@ import { Button } from '../ui/button';
 import { toast } from 'sonner';
 import { facturesLaboApi } from '../../api/facturesLabo';
 import { rapportsApi } from '../../api/rapportsApi';
+import { getErrorMessage } from '../../api/httpClient';
 import { formatDateShortFR } from '../../utils/formatNumber';
 import { verifyLigne, computeTvaBreakdown } from './verification';
 import { StatutBadgeLabo } from './StatutBadgeLabo';
@@ -156,8 +157,7 @@ export function FactureDetail({ facture, onClose, onRefresh }: FactureDetailProp
                   await rapportsApi.downloadFactureVerification(facture.id);
                   toast.success('PDF telecharge');
                 } catch (err: unknown) {
-                  const msg = err instanceof Error ? err.message : 'Erreur';
-                  toast.error(msg);
+                  toast.error(getErrorMessage(err, 'Erreur'));
                 }
               }}
               className="text-xs"
@@ -178,8 +178,7 @@ export function FactureDetail({ facture, onClose, onRefresh }: FactureDetailProp
                     });
                     toast.success('Reclamation PDF telecharge');
                   } catch (err: unknown) {
-                    const msg = err instanceof Error ? err.message : 'Erreur';
-                    toast.error(msg);
+                    toast.error(getErrorMessage(err, 'Erreur'));
                   }
                 }}
                 className="text-xs text-red-600 hover:text-red-700 border-red-200"

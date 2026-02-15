@@ -51,6 +51,7 @@ import {
 import { toast } from 'sonner';
 import { rebateApi } from '../api/rebateApi';
 import { laboratoiresApi } from '../api/laboratoiresApi';
+import { getErrorMessage } from '../api/httpClient';
 import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import { AgreementForm } from '../components/Agreements/AgreementForm';
 import { formatCurrency, formatPercentage, formatDateShortFR } from '../utils/formatNumber';
@@ -168,8 +169,7 @@ export function AgreementsPage({ onNavigate }: AgreementsPageProps) {
       const result = await rebateApi.listAgreements(params as never);
       setAgreements(result);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur de chargement des accords';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur de chargement des accords'));
     } finally {
       setLoading(false);
     }
@@ -261,8 +261,7 @@ export function AgreementsPage({ onNavigate }: AgreementsPageProps) {
       loadStats();
       loadRemontees();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur lors de l\'activation';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur lors de l\'activation'));
     }
   };
 
@@ -282,8 +281,7 @@ export function AgreementsPage({ onNavigate }: AgreementsPageProps) {
       loadStats();
       loadRemontees();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur lors de la suppression';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur lors de la suppression'));
     } finally {
       setDeleting(null);
     }
