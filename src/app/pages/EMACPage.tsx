@@ -46,6 +46,7 @@ import { toast } from 'sonner';
 import { emacApi } from '../api/emacApi';
 import { rapportsApi } from '../api/rapportsApi';
 import { laboratoiresApi } from '../api/laboratoiresApi';
+import { getErrorMessage } from '../api/httpClient';
 import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import type {
   EMACResponse,
@@ -146,8 +147,7 @@ export function EMACPage({ onNavigate }: EMACPageProps) {
       setTotal(result.total);
       setTotalPages(result.total_pages);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur de chargement';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur de chargement'));
     } finally {
       setLoading(false);
     }
@@ -184,8 +184,7 @@ export function EMACPage({ onNavigate }: EMACPageProps) {
       toast.success('Verification terminee');
       loadEmacs();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur'));
     } finally {
       setVerifying(false);
     }
@@ -205,8 +204,7 @@ export function EMACPage({ onNavigate }: EMACPageProps) {
       setDeleteTargetId(null);
       loadEmacs();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur'));
     } finally {
       setDeleting(null);
     }
@@ -482,8 +480,7 @@ function EMACDetailModal({
                   await rapportsApi.downloadEmacReport(emac.id);
                   toast.success('PDF EMAC telecharge');
                 } catch (err: unknown) {
-                  const msg = err instanceof Error ? err.message : 'Erreur';
-                  toast.error(msg);
+                  toast.error(getErrorMessage(err, 'Erreur'));
                 }
               }}
             >
@@ -608,8 +605,7 @@ function EMACFormModal({
       toast.success('EMAC cree avec succes');
       onSuccess();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur'));
     } finally {
       setSaving(false);
     }
@@ -792,8 +788,7 @@ function EMACUploadModal({
         toast.error(result.message);
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur upload';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur upload'));
     } finally {
       setUploading(false);
     }

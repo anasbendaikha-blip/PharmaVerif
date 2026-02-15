@@ -50,6 +50,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { historiquePrixApi } from '../api/historiquePrixApi';
+import { getErrorMessage } from '../api/httpClient';
 import type {
   HistoriquePrixListResponse,
   ComparaisonProduitResponse,
@@ -112,8 +113,7 @@ export function AnalysePrixPage({ onNavigate }: AnalysePrixPageProps) {
         toast.info('Aucun produit trouve pour cette recherche');
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur recherche';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur recherche'));
     } finally {
       setIsSearching(false);
     }
@@ -134,8 +134,7 @@ export function AnalysePrixPage({ onNavigate }: AnalysePrixPageProps) {
       setHistorique(hist);
       setComparaison(comp);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur chargement';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur chargement'));
     } finally {
       setLoadingDetail(false);
     }
@@ -151,8 +150,7 @@ export function AnalysePrixPage({ onNavigate }: AnalysePrixPageProps) {
       const result = await historiquePrixApi.getTopProduits({ critere: topCritere, limit: 20 });
       setTopProduits(result);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur chargement';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur chargement'));
     } finally {
       setLoadingTop(false);
     }
@@ -168,8 +166,7 @@ export function AnalysePrixPage({ onNavigate }: AnalysePrixPageProps) {
       const result = await historiquePrixApi.getAlertes();
       setAlertes(result);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur chargement';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur chargement'));
     } finally {
       setLoadingAlertes(false);
     }
@@ -185,8 +182,7 @@ export function AnalysePrixPage({ onNavigate }: AnalysePrixPageProps) {
       const result = await historiquePrixApi.getEconomiesPotentielles();
       setEconomies(result);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur chargement';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur chargement'));
     } finally {
       setLoadingEconomies(false);
     }

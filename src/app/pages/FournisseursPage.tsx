@@ -24,6 +24,7 @@ import { Building2, Plus, X, Settings, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import { isApiMode } from '../api/config';
 import { laboratoiresApi } from '../api/laboratoiresApi';
+import { getErrorMessage } from '../api/httpClient';
 import { ConfirmDialog } from '../components/ui/confirm-dialog';
 
 import { FournisseursList, FournisseurDetail } from './fournisseurs';
@@ -190,8 +191,7 @@ export function FournisseursPage({ onNavigate: _onNavigate }: FournisseursPagePr
         );
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
-      toast.error(`Echec du recalcul : ${msg}`);
+      toast.error(`Echec du recalcul : ${getErrorMessage(err, 'Erreur inconnue')}`);
     } finally {
       setRecalculLoading(false);
     }
@@ -204,8 +204,7 @@ export function FournisseursPage({ onNavigate: _onNavigate }: FournisseursPagePr
       toast.success(res.message || 'Templates laboratoires initialises');
       loadData();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
-      toast.error(`Echec de l'initialisation : ${msg}`);
+      toast.error(`Echec de l'initialisation : ${getErrorMessage(err, 'Erreur inconnue')}`);
     } finally {
       setInitTemplatesLoading(false);
     }

@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { rebateApi } from '../../api/rebateApi';
+import { getErrorMessage } from '../../api/httpClient';
 import { formatCurrency, formatPercentage } from '../../utils/formatNumber';
 import type {
   RebateTemplateResponse,
@@ -308,8 +309,7 @@ export function AgreementForm({
       });
       setPreview(result);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur de previsualisation';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur de previsualisation'));
     } finally {
       setPreviewLoading(false);
     }
@@ -362,8 +362,7 @@ export function AgreementForm({
 
       onSuccess();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur lors de l\'enregistrement';
-      toast.error(message);
+      toast.error(getErrorMessage(err, 'Erreur lors de l\'enregistrement'));
     } finally {
       setSubmitting(false);
     }
