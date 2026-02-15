@@ -595,3 +595,38 @@ class RebateStatsResponse(BaseModel):
     remises_recues_total: float = 0.0
     ecart_total: float = 0.0
     echeances_en_retard: int = 0
+
+
+# ============================================================================
+# SCHEMAS : Dashboard Remontees M0/M+1
+# ============================================================================
+
+class RemonteeEntrySchema(BaseModel):
+    """Une echeance de remontee (M0, M+1, M+2, etc.)"""
+    schedule_id: int
+    facture_numero: Optional[str] = None
+    facture_date: Optional[str] = None
+    laboratoire_nom: str
+    stage_id: str
+    stage_label: str
+    payment_method: str
+    total_amount: float
+    tranche_A_amount: float = 0.0
+    tranche_B_amount: float = 0.0
+    expected_date: Optional[str] = None
+    status: str
+    is_conditional: bool = False
+
+
+class RemonteesSummaryResponse(BaseModel):
+    """Resume agrege de toutes les remontees M0/M+1/M+2"""
+    total_m0_received: float = 0.0
+    total_m1_pending: float = 0.0
+    total_m1_received: float = 0.0
+    total_m2_pending: float = 0.0
+    total_conditional: float = 0.0
+    upcoming_remontees: List[RemonteeEntrySchema] = []
+    late_remontees: List[RemonteeEntrySchema] = []
+    count_pending: int = 0
+    count_late: int = 0
+    count_received: int = 0

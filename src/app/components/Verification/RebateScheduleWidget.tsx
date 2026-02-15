@@ -28,8 +28,15 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import { rebateApi } from '../../api/rebateApi';
 import { formatCurrency, formatPercentage, formatDateShortFR, formatDateMediumFR } from '../../utils/formatNumber';
+import {
+  getEntryStatusVariant,
+  getEntryStatusLabel,
+  getPaymentMethodLabel,
+  getStageLabel,
+} from '../../utils/rebateLabels';
 import type {
   InvoiceRebateScheduleResponse,
   RebateEntry,
@@ -49,54 +56,6 @@ interface RebateScheduleWidgetProps {
 }
 
 // ========================================
-// HELPERS
-// ========================================
-
-function getEntryStatusVariant(status: string): 'success' | 'warning' | 'error' | 'info' | 'neutral' {
-  switch (status) {
-    case 'received':
-    case 'recu':
-      return 'success';
-    case 'pending':
-    case 'prevu':
-      return 'info';
-    case 'late':
-    case 'en_retard':
-      return 'error';
-    case 'partial':
-    case 'ecart':
-      return 'warning';
-    default:
-      return 'neutral';
-  }
-}
-
-function getEntryStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    received: 'Recu',
-    recu: 'Recu',
-    pending: 'Prevu',
-    prevu: 'Prevu',
-    late: 'En retard',
-    en_retard: 'En retard',
-    partial: 'Partiel',
-    ecart: 'Ecart',
-    not_applicable: 'N/A',
-  };
-  return labels[status] || status;
-}
-
-function getPaymentMethodLabel(method: string): string {
-  const labels: Record<string, string> = {
-    invoice_deduction: 'Deduction facture',
-    emac_transfer: 'Virement EMAC',
-    year_end_transfer: 'Virement fin d\'annee',
-    credit_note: 'Avoir',
-  };
-  return labels[method] || method;
-}
-
-// ========================================
 // COMPOSANT PRINCIPAL
 // ========================================
 
@@ -105,6 +64,7 @@ export function RebateScheduleWidget({
   montantHt,
   laboratoireNom,
 }: RebateScheduleWidgetProps) {
+  const navigate = useNavigate();
   const [schedule, setSchedule] = useState<InvoiceRebateScheduleResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
@@ -216,24 +176,39 @@ export function RebateScheduleWidget({
           </h3>
         </CardHeader>
         <CardContent className="text-center py-6">
-          <Calendar className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground mb-4">
+          <Handshake className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
+          <p className="text-sm font-medium mb-1">
             {notFound
-              ? 'Aucun calendrier de remises pour cette facture.'
-              : 'Impossible de charger le calendrier.'}
+              ? 'Aucun calendrier de remises pour cette facture'
+              : 'Impossible de charger le calendrier'}
           </p>
-          <Button
-            size="sm"
-            onClick={handleCalculate}
-            disabled={calculating}
-          >
-            {calculating ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Calculator className="h-4 w-4 mr-1" />
-            )}
-            Calculer les remises
-          </Button>
+          <p className="text-xs text-muted-foreground mb-4 max-w-xs mx-auto">
+            {notFound
+              ? 'Verifiez qu\'un accord commercial est actif pour ce laboratoire, puis calculez les remises M0/M+1.'
+              : 'Une erreur est survenue. Reessayez ou verifiez la configuration des accords.'}
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <Button
+              size="sm"
+              onClick={handleCalculate}
+              disabled={calculating}
+            >
+              {calculating ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Calculator className="h-4 w-4 mr-1" />
+              )}
+              Calculer les remises
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate('/agreements')}
+            >
+              <Handshake className="h-4 w-4 mr-1" />
+              Voir les accords
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );

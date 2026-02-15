@@ -21,6 +21,8 @@ import type {
   ConditionalBonusDashboardResponse,
   AgreementAuditLogResponse,
   RebateStatsResponse,
+  RemonteesSummaryResponse,
+  SchedulesListParams,
   MessageResponse,
 } from './types';
 
@@ -30,13 +32,6 @@ import type {
 
 export interface AgreementsListParams {
   laboratoire_id?: number;
-  statut?: string;
-  skip?: number;
-  limit?: number;
-}
-
-export interface SchedulesListParams {
-  agreement_id?: number;
   statut?: string;
   skip?: number;
   limit?: number;
@@ -288,6 +283,15 @@ export const rebateApi = {
     return http.get<ConditionalBonusDashboardResponse>(
       `/rebate/dashboard/conditional-bonuses${params}`
     );
+  },
+
+  /**
+   * Dashboard remontees M0/M+1/M+2
+   *
+   * GET /api/v1/rebate/dashboard/remontees
+   */
+  async getRemonteesSummary(): Promise<RemonteesSummaryResponse> {
+    return http.get<RemonteesSummaryResponse>('/rebate/dashboard/remontees');
   },
 
   // ------------------------------------------

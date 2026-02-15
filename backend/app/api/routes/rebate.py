@@ -47,6 +47,9 @@ from app.schemas_rebate import (
     AgreementAuditLogResponse,
     # Stats
     RebateStatsResponse,
+    # Dashboard Remontees M0/M+1
+    RemonteesSummaryResponse,
+    RemonteeEntrySchema,
 )
 from app.database import get_db
 from app.models import User
@@ -1257,4 +1260,161 @@ async def get_rebate_stats(
         remises_recues_total=round(float(remises_recues), 2),
         ecart_total=ecart,
         echeances_en_retard=echeances_retard,
+    )
+
+
+# ============================================================================
+# P3 — DASHBOARD REMONTEES M0/M+1
+# ============================================================================
+
+@router.get("/dashboard/remontees", response_model=RemonteesSummaryResponse)
+async def get_remontees_summary(
+    current_user: User = Depends(get_current_user),
+    pharmacy_id: int = Depends(get_current_pharmacy_id),
+    db: Session = Depends(get_db),
+):
+    """
+    Vue agregee de toutes les remontees M0/M+1/M+2.
+
+    Parse le champ rebate_entries JSON de chaque InvoiceRebateSchedule
+    pour agreger par type de paiement et statut.
+    Retourne les totaux M0/M+1/M+2, les echeances a venir et en retard.
+    """
+    schedules = db.query(InvoiceRebateSchedule).filter(
+        InvoiceRebateSchedule.pharmacy_id == pharmacy_id,
+    ).all()
+
+    total_m0_received = 0.0
+    total_m1_pending = 0.0
+    total_m1_received = 0.0
+    total_m2_pending = 0.0
+    total_conditional = 0.0
+    upcoming = []
+    late = []
+    count_pending = 0
+    count_late = 0
+    count_received = 0
+
+    today = date.today()
+
+    for schedule in schedules:
+        # Obtenir le nom du labo via l'accord
+        labo_nom = "Laboratoire"
+        facture_numero = None
+        facture_date_str = None
+
+        if schedule.agreement and schedule.agreement.laboratoire:
+            labo_nom = schedule.agreement.laboratoire.nom
+        elif schedule.laboratoire_nom:
+            labo_nom = schedule.laboratoire_nom
+
+        if schedule.facture_labo:
+            facture_numero = schedule.facture_labo.numero_facture
+            if schedule.facture_labo.date_facture:
+                facture_date_str = schedule.facture_labo.date_facture.isoformat()
+
+        # Parser rebate_entries
+        entries_raw = schedule.rebate_entries
+        if not entries_raw:
+            continue
+
+        entries = []
+        if isinstance(entries_raw, list):
+            entries = entries_raw
+        elif isinstance(entries_raw, dict):
+            # Peut etre un dict keyed par stage_id ou un dict avec "entries"
+            if "entries" in entries_raw and isinstance(entries_raw["entries"], list):
+                entries = entries_raw["entries"]
+            else:
+                entries = list(entries_raw.values())
+
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+
+            stage_id = entry.get("stage_id", "")
+            stage_label = entry.get("stage_label", stage_id)
+            payment_method = entry.get("payment_method", "")
+            total_amount = float(entry.get("total_amount", 0))
+            tranche_a = float(entry.get("tranche_A_amount", 0))
+            tranche_b = float(entry.get("tranche_B_amount", 0))
+            entry_status = entry.get("status", "pending")
+            expected_date_str = entry.get("expected_date")
+            is_conditional = entry.get("is_conditional", False)
+            delay_months = entry.get("delay_months", -1)
+
+            # Classifier par type
+            if payment_method == "invoice_deduction" or delay_months == 0:
+                # M0 — Remise directe
+                total_m0_received += total_amount
+                count_received += 1
+            elif is_conditional or payment_method == "year_end_transfer":
+                # Prime conditionnelle / annuelle
+                total_conditional += total_amount
+                if entry_status == "received":
+                    count_received += 1
+                else:
+                    count_pending += 1
+            else:
+                # M+1, M+2, etc. (emac_transfer)
+                if delay_months <= 1 or "m1" in stage_id.lower():
+                    if entry_status == "received":
+                        total_m1_received += total_amount
+                        count_received += 1
+                    else:
+                        total_m1_pending += total_amount
+                        count_pending += 1
+                else:
+                    total_m2_pending += total_amount
+                    count_pending += 1
+
+            # Construire l'entree pour les listes upcoming / late
+            remontee_entry = RemonteeEntrySchema(
+                schedule_id=schedule.id,
+                facture_numero=facture_numero,
+                facture_date=facture_date_str,
+                laboratoire_nom=labo_nom,
+                stage_id=stage_id,
+                stage_label=stage_label,
+                payment_method=payment_method,
+                total_amount=round(total_amount, 2),
+                tranche_A_amount=round(tranche_a, 2),
+                tranche_B_amount=round(tranche_b, 2),
+                expected_date=expected_date_str,
+                status=entry_status,
+                is_conditional=is_conditional,
+            )
+
+            # Classer comme upcoming, late, ou received
+            if entry_status == "received":
+                continue  # Deja recu, pas a suivre
+
+            if expected_date_str:
+                try:
+                    expected = date.fromisoformat(expected_date_str)
+                    if expected < today:
+                        late.append(remontee_entry)
+                        count_late += 1
+                    else:
+                        upcoming.append(remontee_entry)
+                except (ValueError, TypeError):
+                    upcoming.append(remontee_entry)
+            else:
+                upcoming.append(remontee_entry)
+
+    # Trier les upcoming par date attendue
+    upcoming.sort(key=lambda x: x.expected_date or "9999-99-99")
+    late.sort(key=lambda x: x.expected_date or "0000-00-00")
+
+    return RemonteesSummaryResponse(
+        total_m0_received=round(total_m0_received, 2),
+        total_m1_pending=round(total_m1_pending, 2),
+        total_m1_received=round(total_m1_received, 2),
+        total_m2_pending=round(total_m2_pending, 2),
+        total_conditional=round(total_conditional, 2),
+        upcoming_remontees=upcoming[:50],  # Limiter a 50
+        late_remontees=late[:50],
+        count_pending=count_pending,
+        count_late=count_late,
+        count_received=count_received,
     )

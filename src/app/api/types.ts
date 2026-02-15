@@ -1050,8 +1050,48 @@ export interface RebateStatsResponse {
   echeances_en_retard: number;
 }
 
+// --- Dashboard Remontees M0/M+1 ---
+
+export interface RemonteeEntry {
+  schedule_id: number;
+  facture_numero: string | null;
+  facture_date: string | null;
+  laboratoire_nom: string;
+  stage_id: string;
+  stage_label: string;
+  payment_method: string;
+  total_amount: number;
+  tranche_A_amount: number;
+  tranche_B_amount: number;
+  expected_date: string | null;
+  status: string;
+  is_conditional: boolean;
+}
+
+export interface RemonteesSummaryResponse {
+  total_m0_received: number;
+  total_m1_pending: number;
+  total_m1_received: number;
+  total_m2_pending: number;
+  total_conditional: number;
+  upcoming_remontees: RemonteeEntry[];
+  late_remontees: RemonteeEntry[];
+  count_pending: number;
+  count_late: number;
+  count_received: number;
+}
+
+// --- Params filtres schedules ---
+
+export interface SchedulesListParams {
+  agreement_id?: number;
+  laboratoire_id?: number;
+  statut?: string;
+  en_retard?: boolean;
+}
+
 // ========================================
-// GÉNÉRIQUES
+// GENERIQUES
 // ========================================
 
 export interface MessageResponse {
