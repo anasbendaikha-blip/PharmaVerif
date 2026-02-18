@@ -33,6 +33,8 @@ const breadcrumbLabels: Record<string, string> = {
   '/verification': 'Verification',
   '/factures-labo': 'Factures Labo',
   '/emac': 'EMAC',
+  '/agreements': 'Remises & Remontees',
+  '/factures': 'Factures',
   '/analyse-prix': 'Historique Prix',
   '/reports': 'Rapports',
   '/fournisseurs': 'Fournisseurs',

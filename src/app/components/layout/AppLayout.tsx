@@ -57,7 +57,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const marginLeft = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       {/* Sidebar (desktop/tablet — hidden below md via Sidebar component) */}
       <Sidebar collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} />
 
