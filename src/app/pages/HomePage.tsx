@@ -76,18 +76,18 @@ export function HomePage({ onNavigate }: HomePageProps) {
           </div>
 
           {/* Titre de l'application */}
-          <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-4">PharmaVerif</h1>
+          <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-4">PharmaVerif</h1>
 
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
+          <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8 px-2">
             Vérifiez automatiquement vos factures de grossistes pharmaceutiques et détectez les
             remises manquantes en quelques clics
           </p>
 
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full px-4">
             <Button
               size="lg"
               onClick={() => onNavigate('verification')}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg gap-2"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 text-base sm:px-8 sm:py-6 sm:text-lg gap-2 w-full sm:w-auto"
             >
               <FileCheck className="h-5 w-5" />
               <span>Vérifier une facture</span>
@@ -96,7 +96,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
               size="lg"
               variant="outline"
               onClick={() => onNavigate('dashboard')}
-              className="px-8 py-6 text-lg"
+              className="px-6 py-4 text-base sm:px-8 sm:py-6 sm:text-lg w-full sm:w-auto"
             >
               Voir le tableau de bord
             </Button>
@@ -114,7 +114,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
                 </div>
               ) : (
                 <>
-                  <p className="text-4xl font-bold text-blue-600 mb-2">
+                  <p className="text-2xl sm:text-4xl font-bold text-blue-600 mb-2">
                     {formatCurrency(stats.montantRecuperable)}
                   </p>
                   <p className="text-gray-600 dark:text-gray-400">Recuperables ce mois</p>
@@ -131,7 +131,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
                 </div>
               ) : (
                 <>
-                  <p className="text-4xl font-bold text-green-600 mb-2">
+                  <p className="text-2xl sm:text-4xl font-bold text-green-600 mb-2">
                     {formatPercentage(stats.tauxConformite)}
                   </p>
                   <p className="text-gray-600 dark:text-gray-400">Taux de conformite</p>
@@ -148,7 +148,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
                 </div>
               ) : (
                 <>
-                  <p className="text-4xl font-bold text-orange-600 mb-2">{stats.anomaliesDetectees}</p>
+                  <p className="text-2xl sm:text-4xl font-bold text-orange-600 mb-2">{stats.anomaliesDetectees}</p>
                   <p className="text-gray-600 dark:text-gray-400">Anomalies detectees</p>
                 </>
               )}

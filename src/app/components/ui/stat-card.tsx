@@ -149,7 +149,7 @@ export function StatCard({
   return (
     <Wrapper
       className={cn(
-        'bg-card text-card-foreground rounded-xl border p-5 text-left w-full',
+        'bg-card text-card-foreground rounded-xl border p-4 sm:p-5 text-left w-full',
         'transition-all duration-200',
         onClick && 'cursor-pointer hover:shadow-md hover:border-blue-200 dark:hover:border-blue-800 active:scale-[0.98]',
         className
@@ -159,8 +159,8 @@ export function StatCard({
       <div className="flex items-start justify-between gap-3">
         {/* Value + Label */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-muted-foreground truncate">{label}</p>
-          <p className="mt-1 text-2xl font-bold text-foreground tabular-nums">{value}</p>
+          <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate" title={typeof label === 'string' ? label : undefined}>{label}</p>
+          <p className="mt-1 text-lg sm:text-2xl font-bold text-foreground tabular-nums">{value}</p>
 
           {/* Trend */}
           {trend && (
@@ -178,7 +178,7 @@ export function StatCard({
 
         {/* Icon */}
         {icon && (
-          <div className={cn('shrink-0 p-2.5 rounded-lg', styles.iconBg, styles.iconColor)}>
+          <div className={cn('shrink-0 p-2 sm:p-2.5 rounded-lg', styles.iconBg, styles.iconColor)}>
             {icon}
           </div>
         )}
