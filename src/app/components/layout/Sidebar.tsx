@@ -13,14 +13,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileCheck,
-  Upload,
-  FileText,
   FlaskConical,
   ClipboardList,
   TrendingUp,
   FileBarChart,
   Building2,
-  Store,
   ChevronLeft,
   ChevronRight,
   Handshake,
@@ -49,28 +46,42 @@ interface NavGroup {
 // NAVIGATION STRUCTURE
 // ========================================
 
+// Navigation simplifiee (phase-3-2) : 7 entrees au lieu de 11.
+//
+// Retire du sidebar (routes conservees, accessibles directement via URL) :
+//   - /upload         : l'upload se fait desormais depuis la page Factures et
+//                       depuis Verification. Lien doublon retire.
+//   - /pharmacie      : page profil/parametres, accessible via le menu
+//                       utilisateur dans le header (pas de valeur en nav primaire).
+//   - /factures       : doublon avec /factures-labo (meme workflow cote pharma).
+//                       La page reste routable en mode non-API mais la sidebar
+//                       pointe sur /factures-labo par defaut.
+//
+// TODO [phase-3-2-follow-up] :
+//   - Fusionner FacturesPage + FacturesLaboPage en une seule page a onglets.
+//   - Fusionner FournisseursPage + AgreementsPage en ConfigurationPage.
+//   Scope important (state management + schemas differents), a faire dans une
+//   tache dediee avec tests UI manuels ou Playwright.
 const navGroups: NavGroup[] = [
   {
     title: '',
     items: [
       { label: 'Tableau de bord', path: '/dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
       { label: 'Verification', path: '/verification', icon: <FileCheck className="h-5 w-5" /> },
-      { label: 'Importer', path: '/upload', icon: <Upload className="h-5 w-5" /> },
-      { label: 'Factures', path: '/factures', icon: <FileText className="h-5 w-5" /> },
+      { label: 'Factures', path: '/factures-labo', icon: <FlaskConical className="h-5 w-5" />, apiOnly: true },
     ],
   },
   {
-    title: 'FACTURES',
+    title: 'SUIVI',
     items: [
-      { label: 'Factures Labo', path: '/factures-labo', icon: <FlaskConical className="h-5 w-5" />, apiOnly: true },
       { label: 'EMAC', path: '/emac', icon: <ClipboardList className="h-5 w-5" />, apiOnly: true },
       { label: 'Remises & Remontees', path: '/agreements', icon: <Handshake className="h-5 w-5" />, apiOnly: true },
+      { label: 'Historique Prix', path: '/analyse-prix', icon: <TrendingUp className="h-5 w-5" />, apiOnly: true },
     ],
   },
   {
-    title: 'ANALYSE',
+    title: 'REPORTING',
     items: [
-      { label: 'Historique Prix', path: '/analyse-prix', icon: <TrendingUp className="h-5 w-5" />, apiOnly: true },
       { label: 'Rapports', path: '/reports', icon: <FileBarChart className="h-5 w-5" /> },
     ],
   },
@@ -78,7 +89,6 @@ const navGroups: NavGroup[] = [
     title: 'CONFIGURATION',
     items: [
       { label: 'Fournisseurs', path: '/fournisseurs', icon: <Building2 className="h-5 w-5" /> },
-      { label: 'Ma Pharmacie', path: '/pharmacie', icon: <Store className="h-5 w-5" /> },
     ],
   },
 ];
