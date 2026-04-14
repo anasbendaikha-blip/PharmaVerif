@@ -69,6 +69,15 @@ from app.models_rebate import (
 )
 from app.models_labo import Laboratoire, FactureLabo, LigneFactureLabo
 from app.api.routes.auth import get_current_user, get_current_pharmacy_id
+# TODO [phase-1-5-follow-up]: basculer sur app.domain.rebate.RebateCalculator
+# (corrections A/B + formule verifiees par tests/test_domain_rebate.py).
+# La bascule necessite :
+#   1. Reecrire les endpoints qui retournent `entries[]` (stages M+0/M+1/M+2)
+#      car le domain RebateResult ne stage pas (synthese globale uniquement).
+#   2. Resoudre les taux depuis `agreement.agreement_config` (JSON libre) via
+#      un helper dedie avant d'appeler app.domain.adapters.laboratory_agreement_to_rebate_input.
+#   3. Mettre a jour VerificationLaboResponse et schemas_rebate.py pour
+#      absorber la nouvelle forme.
 from app.services.rebate_engine import (
     RebateEngine,
     AgreementVersioningService,

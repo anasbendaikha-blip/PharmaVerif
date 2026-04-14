@@ -48,6 +48,12 @@ from app.models_labo import (
 )
 from app.api.routes.auth import get_current_user, get_current_pharmacy_id
 from app.config import settings
+# TODO [phase-1-5-follow-up]: basculer sur app.domain.verification.VerificationEngine
+# via app.domain.adapters.facture_labo_to_verification_input / anomalies_domain_to_orm.
+# Parite prouvee par tests/test_domain_adapters.py (remises, escompte, gratuites,
+# rfa). La bascule necessite de reecrire la section `persist_anomalies` et de
+# mapper `severite` (critical/opportunity/info) + `type_anomalie` via les
+# _SEVERITE_DOMAIN_TO_LEGACY / _TYPE_DOMAIN_TO_LEGACY de adapters.py.
 from app.services.verification_engine import VerificationEngine
 
 router = APIRouter()

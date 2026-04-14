@@ -37,6 +37,8 @@ from app.services.pdf_generator import (
     generate_reclamation_pdf,
     generate_emac_report_pdf,
 )
+# TODO [phase-1-5-follow-up]: basculer sur app.domain.verification.VerificationEngine
+# (cf tests/test_domain_adapters.py pour la parite).
 from app.services.verification_engine import VerificationEngine
 
 logger = logging.getLogger(__name__)

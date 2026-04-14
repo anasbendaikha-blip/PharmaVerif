@@ -34,6 +34,8 @@ from app.models_labo import (
     PalierRFA,
 )
 from app.api.routes.auth import get_current_user, get_current_pharmacy_id
+# TODO [phase-1-5-follow-up]: basculer sur app.domain.verification.VerificationEngine
+# (cf tests/test_domain_adapters.py pour la parite).
 from app.services.verification_engine import VerificationEngine
 
 logger = logging.getLogger(__name__)
