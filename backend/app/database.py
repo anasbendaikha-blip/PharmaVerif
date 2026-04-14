@@ -66,8 +66,19 @@ def get_db() -> Generator:
     db = SessionLocal()
     try:
         yield db
+    except Exception:
+        # MT-001: rollback any in-flight transaction before propagating
+        # so that a failed request cannot leave the session in a broken
+        # state and poison the connection pool.
+        db.rollback()
+        raise
     finally:
         db.close()
+
+    # Autres SessionLocal() dans le code (OK — chacun a sa propre gestion) :
+    #   - database.py:init_database / check_database_connection (scripts, try/finally)
+    #   - database.py:DatabaseContext (context manager avec rollback explicite)
+    #   - main.py:407 (startup hook — execution unique au demarrage)
 
 
 # ========================================
