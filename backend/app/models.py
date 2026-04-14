@@ -498,8 +498,8 @@ def init_db_data(db_session):
 
     print("✓ Base de données initialisée avec succès")
     print(f"✓ Pharmacie: {default_pharmacy.nom} (ID={default_pharmacy.id})")
-    print(f"✓ Admin: admin@pharmaverif.com / Admin123!")
-    print(f"✓ Pharmacien: pharmacien@pharmaverif.com / Pharma123!")
+    # MT-004: ne pas logger les credentials en clair — cf documentation dev.
+    print("✓ Admin et pharmacien crees (credentials dans la documentation)")
     print(f"✓ {len(grossistes_data)} grossistes créés")
 
 
