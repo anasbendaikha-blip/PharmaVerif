@@ -65,12 +65,17 @@ class PharmacyCreate(PharmacyBase):
 
 
 class PharmacyUpdate(BaseModel):
-    """Mise a jour d'une pharmacie"""
+    """
+    Mise a jour d'une pharmacie (self-service — PUT /pharmacy/me).
+
+    MT-003: le champ `plan` a ete retire pour empecher un utilisateur de
+    s'auto-upgrader (ex: FREE -> ENTERPRISE) via mass-assignment. Seul un
+    endpoint admin/billing dedie doit pouvoir modifier le plan.
+    """
     nom: Optional[str] = Field(None, min_length=2, max_length=300)
     adresse: Optional[str] = Field(None, max_length=500)
     siret: Optional[str] = Field(None, max_length=14)
     titulaire: Optional[str] = Field(None, max_length=200)
-    plan: Optional[PlanPharmacie] = None
     onboarding_completed: Optional[bool] = None
 
 
@@ -112,7 +117,25 @@ class UserCreate(UserBase):
         return v
 
 class UserUpdate(BaseModel):
-    """Mise à jour utilisateur"""
+    """
+    Mise à jour utilisateur (self-service — PUT /users/me).
+
+    MT-003: les champs sensibles `role` et `actif` ont ete retires pour
+    empecher l'escalade de privileges via mass-assignment. Seul un endpoint
+    administrateur dedie doit pouvoir les modifier (voir AdminUserUpdate).
+    """
+    email: Optional[EmailStr] = None
+    nom: Optional[str] = Field(None, min_length=2, max_length=100)
+    prenom: Optional[str] = Field(None, min_length=2, max_length=100)
+
+
+class AdminUserUpdate(BaseModel):
+    """
+    Mise à jour utilisateur par un administrateur (endpoint dedie requis).
+
+    MT-003: reserve aux endpoints admin, non utilise par PUT /users/me.
+    A brancher sur un endpoint admin en phase-2.
+    """
     email: Optional[EmailStr] = None
     nom: Optional[str] = Field(None, min_length=2, max_length=100)
     prenom: Optional[str] = Field(None, min_length=2, max_length=100)
