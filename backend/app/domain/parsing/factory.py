@@ -14,6 +14,7 @@ from typing import List, Dict, Optional, Type, Tuple
 from app.domain.parsing.base import BaseInvoiceParser
 from app.domain.parsing.models import FournisseurInfo, ParsedInvoice
 from app.domain.parsing.biogaran import BiogaranParser
+from app.domain.parsing.facturx import FacturXParser, has_embedded_facturx
 from app.domain.parsing.generic import GenericParser
 
 
@@ -23,6 +24,7 @@ from app.domain.parsing.generic import GenericParser
 
 # Tous les parsers disponibles, ordonnes par priorite
 PARSER_REGISTRY: List[Type[BaseInvoiceParser]] = [
+    FacturXParser,     # Priorite 0 : detection via has_embedded_facturx
     BiogaranParser,
     # Futurs parsers :
     # TevaParser,
@@ -80,9 +82,12 @@ SUPPLIER_KEYWORDS: Dict[str, Dict] = {
 
 def detect_supplier(pdf_path: str) -> FournisseurInfo:
     """
-    Detecte le fournisseur a partir du texte du PDF.
+    Detecte le fournisseur a partir du PDF.
 
-    1. Extrait le texte des 2 premieres pages
+    0. PRIORITE ABSOLUE : si un XML Factur-X est embarque, retourner le
+       parser Factur-X (donnees structurees, confiance 0.95). Plus besoin
+       d'OCR ou de matching par mots-cles.
+    1. Extrait le texte des 2 premieres pages (fallback si pas Factur-X)
     2. Teste chaque parser enregistre (score de correspondance)
     3. Si aucun parser dedie ne matche, cherche dans SUPPLIER_KEYWORDS
     4. Fallback sur "Fournisseur non reconnu"
@@ -90,6 +95,19 @@ def detect_supplier(pdf_path: str) -> FournisseurInfo:
     Returns:
         FournisseurInfo avec nom, type, parser_id et confiance
     """
+    # 0. Factur-X (priorite maximale)
+    if has_embedded_facturx(pdf_path):
+        # Le nom du fournisseur sera ecrit par le parser lui-meme
+        # depuis SellerTradeParty/Name, mais on renvoie deja FacturX ici
+        # pour que `get_parser` choisisse le bon.
+        return FournisseurInfo(
+            nom="Factur-X",
+            type="laboratoire",
+            detecte_auto=True,
+            parser_id=FacturXParser.PARSER_ID,
+            confiance=FacturXParser.CONFIANCE,
+        )
+
     text = _extract_text_for_detection(pdf_path)
     text_upper = text.upper()
 

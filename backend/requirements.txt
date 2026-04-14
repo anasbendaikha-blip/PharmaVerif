@@ -125,6 +125,14 @@ python-dotenv==1.0.0
 click==8.1.7
 
 # ========================================
+# FACTUR-X (EN 16931) — phase-4
+# ========================================
+# PDF facture electronique avec XML CII embarque (obligatoire FR sept 2026).
+# factur-x extrait le XML du PDF, lxml parse les namespaces.
+factur-x==4.2
+lxml>=6.0
+
+# ========================================
 # DEPLOYMENT
 # ========================================
 gunicorn==21.2.0
