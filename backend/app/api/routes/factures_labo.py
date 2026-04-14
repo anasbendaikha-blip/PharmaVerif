@@ -47,6 +47,8 @@ from app.models_labo import (
     AnomalieFactureLabo, PalierRFA, HistoriquePrix,
 )
 from app.api.routes.auth import get_current_user, get_current_pharmacy_id
+from app.api.deps import get_invoice_repo
+from app.infrastructure.repositories.invoice_repo import InvoiceLaboRepository
 from app.config import settings
 # TODO [phase-1-5-follow-up]: basculer sur app.domain.verification.VerificationEngine
 # via app.domain.adapters.facture_labo_to_verification_input / anomalies_domain_to_orm.
@@ -620,8 +622,7 @@ async def list_factures_labo(
 async def get_facture_labo(
     facture_id: int,
     current_user: User = Depends(get_current_user),
-    pharmacy_id: int = Depends(get_current_pharmacy_id),
-    db: Session = Depends(get_db)
+    invoice_repo: InvoiceLaboRepository = Depends(get_invoice_repo),
 ):
     """
     Obtenir le detail d'une facture laboratoire par ID
@@ -633,14 +634,13 @@ async def get_facture_labo(
     - RFA attendue vs recue
     - Lignes de produits
     """
-    facture = db.query(FactureLabo).filter(FactureLabo.id == facture_id, FactureLabo.pharmacy_id == pharmacy_id).first()
-
+    # Repository-backed : isolation pharmacy_id forcee par InvoiceLaboRepository.
+    facture = invoice_repo.get(facture_id)
     if not facture:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Facture labo avec ID {facture_id} non trouvee"
+            detail=f"Facture labo avec ID {facture_id} non trouvee",
         )
-
     return facture
 
 
@@ -653,8 +653,7 @@ async def get_facture_labo_lignes(
     facture_id: int,
     tranche: Optional[str] = Query(None, description="Filtrer par tranche (A, B, OTC)"),
     current_user: User = Depends(get_current_user),
-    pharmacy_id: int = Depends(get_current_pharmacy_id),
-    db: Session = Depends(get_db)
+    invoice_repo: InvoiceLaboRepository = Depends(get_invoice_repo),
 ):
     """
     Obtenir toutes les lignes d'une facture laboratoire
@@ -662,20 +661,16 @@ async def get_facture_labo_lignes(
     **Filtres:**
     - Par tranche (A, B, OTC)
     """
-    facture = db.query(FactureLabo).filter(FactureLabo.id == facture_id, FactureLabo.pharmacy_id == pharmacy_id).first()
-
-    if not facture:
+    # invoice_repo.get_lignes() controle que la facture appartient au tenant.
+    if not invoice_repo.exists(facture_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Facture labo avec ID {facture_id} non trouvee"
+            detail=f"Facture labo avec ID {facture_id} non trouvee",
         )
-
-    query = db.query(LigneFactureLabo).filter(LigneFactureLabo.facture_id == facture_id)
-
+    lignes = invoice_repo.get_lignes(facture_id)
     if tranche:
-        query = query.filter(LigneFactureLabo.tranche == tranche.upper())
-
-    return query.all()
+        lignes = [l for l in lignes if l.tranche == tranche.upper()]
+    return lignes
 
 
 # ========================================
@@ -920,9 +915,11 @@ async def get_facture_anomalies(
     **Filtres:**
     - Par severite (critical, opportunity, info)
     """
-    facture = db.query(FactureLabo).filter(FactureLabo.id == facture_id, FactureLabo.pharmacy_id == pharmacy_id).first()
-
-    if not facture:
+    # Controle d'acces scope via invoice_repo (pharmacy_id obligatoire).
+    if not db.query(FactureLabo).filter(
+        FactureLabo.id == facture_id,
+        FactureLabo.pharmacy_id == pharmacy_id,
+    ).first():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Facture labo avec ID {facture_id} non trouvee"

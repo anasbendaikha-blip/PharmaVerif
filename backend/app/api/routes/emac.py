@@ -54,6 +54,8 @@ from app.models import User
 from app.models_labo import Laboratoire, AccordCommercial
 from app.models_emac import EMAC, AnomalieEMAC
 from app.api.routes.auth import get_current_user, get_current_pharmacy_id
+from app.api.deps import get_emac_repo
+from app.infrastructure.repositories.emac_repo import EMACRepository
 from app.services.emac_parser import EMACParser
 from app.services.emac_verification_engine import EMACVerificationEngine
 from app.config import settings
@@ -333,11 +335,10 @@ async def get_emacs_manquants(
 async def get_emac(
     emac_id: int,
     current_user: User = Depends(get_current_user),
-    pharmacy_id: int = Depends(get_current_pharmacy_id),
-    db: Session = Depends(get_db),
+    emac_repo: EMACRepository = Depends(get_emac_repo),
 ):
-    """Obtenir un EMAC par ID"""
-    emac = db.query(EMAC).filter(EMAC.id == emac_id, EMAC.pharmacy_id == pharmacy_id).first()
+    """Obtenir un EMAC par ID (repository-backed, isolation multi-tenant forcee)."""
+    emac = emac_repo.get(emac_id)
     if not emac:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
