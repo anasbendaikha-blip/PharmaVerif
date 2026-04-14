@@ -52,7 +52,7 @@ import {
 } from 'recharts';
 import { ApiClient } from '../api/client';
 import { Facture, Anomalie } from '../types';
-import { exportVerificationReport } from '../utils/pdfExport';
+import { rapportsApi } from '../api/rapportsApi';
 import { db } from '../data/database';
 import { toast } from 'sonner';
 import { formatCurrency, formatPercentage, formatDateShortFR } from '../utils/formatNumber';
@@ -271,10 +271,8 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     try {
       const facture = factures.find((f) => f.id === factureId);
       if (!facture) throw new Error('Facture non trouvee');
-      const fournisseur = db.getFournisseurById(facture.fournisseur_id);
-      if (!fournisseur) throw new Error('Fournisseur non trouve');
-      const factureAnomalies = anomalies.filter((a) => a.facture_id === factureId);
-      await exportVerificationReport({ facture, anomalies: factureAnomalies, fournisseur });
+      // Backend genere le PDF (phase-3) — remplace l'ancien jsPDF cote client.
+      await rapportsApi.downloadFactureVerification(factureId);
       toast.success('Rapport PDF telecharge !', {
         description: `Rapport pour la facture ${facture.numero}`,
       });

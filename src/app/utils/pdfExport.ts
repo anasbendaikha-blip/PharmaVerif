@@ -1,9 +1,16 @@
 /**
- * PharmaVerif - Export PDF
+ * PharmaVerif - Export PDF (client-side, legacy).
  * Copyright (c) 2026 Anas BENDAIKHA
- * Tous droits réservés.
  *
- * Génère des rapports PDF professionnels pour les factures vérifiées.
+ * TODO [phase-3-follow-up]: ce module genere des PDF cote client via jsPDF,
+ * ce qui duplique le generateur backend (ReportLab dans backend/app/services/
+ * pdf_generator.py). Les pages connectees au backend (DashboardPage,
+ * FacturesPage) ont ete migrees vers rapportsApi.downloadFactureVerification()
+ * en phase-3-1. Seul usage residuel : VerificationPage.tsx (flux mock
+ * client-side avant persistance backend). A retirer quand le flux upload
+ * -> parse backend sera branche sur VerificationPage.
+ *
+ * Impact bundle actuel : vendor-pdf.js ~ 400 KB gzip 131 KB.
  */
 
 import { jsPDF } from 'jspdf';
