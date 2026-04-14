@@ -2,12 +2,16 @@
 
 from app.infrastructure.repositories.base import BaseRepository
 from app.infrastructure.repositories.emac_repo import EMACRepository
+from app.infrastructure.repositories.grossiste_repo import GrossisteRepository
 from app.infrastructure.repositories.invoice_repo import InvoiceLaboRepository
+from app.infrastructure.repositories.lab_repo import LaboratoireRepository
 from app.infrastructure.repositories.rebate_repo import RebateRepository
 
 __all__ = [
     "BaseRepository",
     "EMACRepository",
+    "GrossisteRepository",
     "InvoiceLaboRepository",
+    "LaboratoireRepository",
     "RebateRepository",
 ]

@@ -263,11 +263,10 @@ async def list_emacs(
     statut: Optional[str] = Query(None, description="Filtrer par statut de verification"),
     annee: Optional[int] = Query(None, description="Filtrer par annee"),
     current_user: User = Depends(get_current_user),
-    pharmacy_id: int = Depends(get_current_pharmacy_id),
-    db: Session = Depends(get_db),
+    emac_repo: EMACRepository = Depends(get_emac_repo),
 ):
-    """Lister les EMAC avec pagination et filtres"""
-    query = db.query(EMAC).filter(EMAC.pharmacy_id == pharmacy_id)
+    """Lister les EMAC avec pagination et filtres (scope pharmacy forcee via repo)."""
+    query = emac_repo.query()
 
     if laboratoire_id:
         query = query.filter(EMAC.laboratoire_id == laboratoire_id)
@@ -498,22 +497,17 @@ async def get_emac_anomalies(
     emac_id: int,
     severite: Optional[str] = Query(None, description="Filtrer par severite"),
     current_user: User = Depends(get_current_user),
-    pharmacy_id: int = Depends(get_current_pharmacy_id),
-    db: Session = Depends(get_db),
+    emac_repo: EMACRepository = Depends(get_emac_repo),
 ):
-    """Lister les anomalies d'un EMAC"""
-    emac = db.query(EMAC).filter(EMAC.id == emac_id, EMAC.pharmacy_id == pharmacy_id).first()
-    if not emac:
+    """Lister les anomalies d'un EMAC (isolation multi-tenant via parent EMAC)."""
+    if not emac_repo.exists(emac_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"EMAC avec ID {emac_id} non trouve"
         )
 
-    query = db.query(AnomalieEMAC).filter(AnomalieEMAC.emac_id == emac_id)
-    if severite:
-        query = query.filter(AnomalieEMAC.severite == severite)
-
-    return query.order_by(AnomalieEMAC.created_at).all()
+    # emac_repo.list_anomalies gere deja severite, ordonnance et verifie l'appartenance
+    return emac_repo.list_anomalies(emac_id, severite=severite)
 
 
 @router.patch("/anomalies/{anomalie_id}", response_model=AnomalieEMACResponse)

@@ -550,8 +550,7 @@ async def list_factures_labo(
     sort_by: str = Query("date_facture", description="Trier par (date_facture, montant, statut)"),
     sort_order: str = Query("desc", description="Ordre (asc, desc)"),
     current_user: User = Depends(get_current_user),
-    pharmacy_id: int = Depends(get_current_pharmacy_id),
-    db: Session = Depends(get_db)
+    invoice_repo: InvoiceLaboRepository = Depends(get_invoice_repo),
 ):
     """
     Lister les factures laboratoires avec pagination et filtres
@@ -562,7 +561,8 @@ async def list_factures_labo(
     - Par recherche textuelle (numero facture ou nom client)
     - Par periode (date_debut, date_fin)
     """
-    query = db.query(FactureLabo).filter(FactureLabo.pharmacy_id == pharmacy_id)
+    # invoice_repo.query() applique deja le filtre pharmacy_id.
+    query = invoice_repo.query()
 
     # Filtres
     if laboratoire_id:
@@ -915,11 +915,9 @@ async def get_facture_anomalies(
     **Filtres:**
     - Par severite (critical, opportunity, info)
     """
-    # Controle d'acces scope via invoice_repo (pharmacy_id obligatoire).
-    if not db.query(FactureLabo).filter(
-        FactureLabo.id == facture_id,
-        FactureLabo.pharmacy_id == pharmacy_id,
-    ).first():
+    # Controle d'acces scope via invoice_repo (isolation garantie).
+    invoice_repo = InvoiceLaboRepository(db=db, pharmacy_id=pharmacy_id)
+    if not invoice_repo.exists(facture_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Facture labo avec ID {facture_id} non trouvee"

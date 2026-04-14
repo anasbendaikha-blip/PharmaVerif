@@ -34,6 +34,8 @@ from app.models_labo import (
     PalierRFA,
 )
 from app.api.routes.auth import get_current_user, get_current_pharmacy_id
+from app.api.deps import get_lab_repo
+from app.infrastructure.repositories.lab_repo import LaboratoireRepository
 # TODO [phase-1-5-follow-up]: basculer sur app.domain.verification.VerificationEngine
 # (cf tests/test_domain_adapters.py pour la parite).
 from app.services.verification_engine import VerificationEngine
@@ -51,8 +53,7 @@ router = APIRouter()
 async def list_laboratoires(
     actif: Optional[bool] = Query(None, description="Filtrer par statut actif"),
     current_user: User = Depends(get_current_user),
-    pharmacy_id: int = Depends(get_current_pharmacy_id),
-    db: Session = Depends(get_db)
+    lab_repo: LaboratoireRepository = Depends(get_lab_repo),
 ):
     """
     Lister tous les laboratoires de la pharmacie courante
@@ -60,7 +61,7 @@ async def list_laboratoires(
     **Filtres:**
     - actif: True/False pour filtrer par statut
     """
-    query = db.query(Laboratoire).filter(Laboratoire.pharmacy_id == pharmacy_id)
+    query = lab_repo.query()
     if actif is not None:
         query = query.filter(Laboratoire.actif == actif)
     return query.order_by(Laboratoire.nom).all()
@@ -73,11 +74,9 @@ async def get_laboratoire(
     pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
-    """Obtenir un laboratoire par ID (filtre par pharmacie)"""
-    labo = db.query(Laboratoire).filter(
-        Laboratoire.id == laboratoire_id,
-        Laboratoire.pharmacy_id == pharmacy_id,
-    ).first()
+    """Obtenir un laboratoire par ID (scope pharmacy via repo)"""
+    lab_repo = LaboratoireRepository(db=db, pharmacy_id=pharmacy_id)
+    labo = lab_repo.get(laboratoire_id)
     if not labo:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

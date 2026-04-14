@@ -55,6 +55,17 @@ class BaseRepository(Generic[T]):
             self.model.pharmacy_id == self.pharmacy_id
         )
 
+    def query(self) -> Query:
+        """
+        Point d'extension PUBLIC pour les endpoints a filtrage dynamique.
+
+        Retourne une `Query` deja filtree par pharmacy_id. Les routes peuvent
+        chainer des `.filter()` / `.order_by()` supplementaires dessus sans
+        jamais pouvoir desactiver l'isolation multi-tenant (le filtre
+        pharmacy_id est deja applique en amont).
+        """
+        return self._base_query()
+
     # ------------------------------------------------------------------
     # Lecture
     # ------------------------------------------------------------------
