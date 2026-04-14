@@ -160,6 +160,9 @@ class EMAC(Base):
 # ANOMALIES EMAC
 # ========================================
 
+# TODO [phase-2]: Ajouter pharmacy_id + migration Alembic — audit MT-002.
+# L'isolation est actuellement indirecte (via emac_id → EMAC.pharmacy_id).
+# Les routes emac.py queryent AnomalieEMAC sans verifier l'EMAC parent.
 class AnomalieEMAC(Base):
     """
     Modele Anomalie EMAC

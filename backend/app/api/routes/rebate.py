@@ -10,6 +10,11 @@ Priorites:
   P0 — Templates CRUD, Agreements CRUD + versioning, Schedule, Preview
   P1 — Dashboard mensuel, Primes conditionnelles
   P2 — Force recalcul, Stats globales
+
+TODO [phase-2] MT-002: Les endpoints RebateTemplate (list/get/create/update/delete)
+ne filtrent pas par pharmacy_id car le modele RebateTemplate n'a pas ce champ.
+Les templates sont actuellement partages entre tous les tenants. A reevaluer
+avec le produit : templates "systeme" (partages) vs "pharmacy" (scoped).
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
