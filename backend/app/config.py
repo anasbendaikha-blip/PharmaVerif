@@ -259,11 +259,13 @@ def validate_settings():
     if not settings.DATABASE_URL:
         errors.append("DATABASE_URL est requis")
 
-    # Vérifier Tesseract
-    if settings.TESSERACT_PATH:
-        tesseract_path = Path(settings.TESSERACT_PATH)
-        if not tesseract_path.exists():
-            print(f"⚠️  Warning: Tesseract non trouvé à {settings.TESSERACT_PATH}")
+    # Tesseract — desactive phase-4 : Factur-X remplace l'OCR.
+    # Le check est conserve mais silencieux : si un parser legacy en a besoin,
+    # il signalera l'absence lui-meme. On ne pollue plus les logs au startup.
+    # if settings.TESSERACT_PATH:
+    #     tesseract_path = Path(settings.TESSERACT_PATH)
+    #     if not tesseract_path.exists():
+    #         print(f"⚠️  Warning: Tesseract non trouve a {settings.TESSERACT_PATH}")
 
     # Afficher les erreurs
     if errors:
