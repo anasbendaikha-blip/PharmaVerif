@@ -43,6 +43,8 @@ interface StatCardProps {
   loading?: boolean;
   /** Action au clic */
   onClick?: () => void;
+  /** Classe de couleur custom pour la valeur (ex: "text-pv-danger"). Design tokens PharmaVerif. */
+  valueColor?: string;
 }
 
 // ========================================
@@ -108,6 +110,7 @@ export function StatCard({
   className,
   loading = false,
   onClick,
+  valueColor,
 }: StatCardProps) {
   const styles = variantStyles[variant];
 
@@ -160,7 +163,7 @@ export function StatCard({
         {/* Value + Label */}
         <div className="flex-1 min-w-0">
           <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate" title={typeof label === 'string' ? label : undefined}>{label}</p>
-          <p className="mt-1 text-lg sm:text-2xl font-bold text-foreground tabular-nums">{value}</p>
+          <p className={cn('mt-1 text-lg sm:text-2xl font-bold tabular-nums', valueColor || 'text-foreground')}>{value}</p>
 
           {/* Trend */}
           {trend && (

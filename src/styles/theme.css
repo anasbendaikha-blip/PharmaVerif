@@ -46,14 +46,35 @@
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
   --radius: 0.625rem;
-  --sidebar: #0F172A;
-  --sidebar-foreground: #E2E8F0;
-  --sidebar-primary: #3B82F6;
+  /* Sidebar : blanc selon specs Figma phase-3 */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #424242;
+  --sidebar-primary: #1A73E8;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: rgba(59, 130, 246, 0.12);
-  --sidebar-accent-foreground: #F1F5F9;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #3B82F6;
+  --sidebar-accent: #E8F0FE;
+  --sidebar-accent-foreground: #1A73E8;
+  --sidebar-border: #EEEEEE;
+  --sidebar-ring: #1A73E8;
+
+  /* Design tokens PharmaVerif (Figma validé phase-3) */
+  --pv-primary: #1A73E8;
+  --pv-primary-50: #E8F0FE;
+  --pv-primary-700: #0D47A1;
+  --pv-success: #2E7D32;
+  --pv-success-50: #E8F5E9;
+  --pv-success-text: #1B5E20;
+  --pv-danger: #C62828;
+  --pv-danger-50: #FFEBEE;
+  --pv-warning: #F57F17;
+  --pv-warning-50: #FFF8E1;
+  --pv-warning-text: #E65100;
+  --pv-neutral-50: #FAFAFA;
+  --pv-neutral-100: #F5F5F5;
+  --pv-neutral-200: #EEEEEE;
+  --pv-neutral-400: #BDBDBD;
+  --pv-neutral-600: #757575;
+  --pv-neutral-800: #424242;
+  --pv-neutral-900: #212121;
 }
 
 .dark {
@@ -150,6 +171,26 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Tokens PharmaVerif exposes comme classes Tailwind (bg-pv-primary, text-pv-danger, …) */
+  --color-pv-primary: var(--pv-primary);
+  --color-pv-primary-50: var(--pv-primary-50);
+  --color-pv-primary-700: var(--pv-primary-700);
+  --color-pv-success: var(--pv-success);
+  --color-pv-success-50: var(--pv-success-50);
+  --color-pv-success-text: var(--pv-success-text);
+  --color-pv-danger: var(--pv-danger);
+  --color-pv-danger-50: var(--pv-danger-50);
+  --color-pv-warning: var(--pv-warning);
+  --color-pv-warning-50: var(--pv-warning-50);
+  --color-pv-warning-text: var(--pv-warning-text);
+  --color-pv-neutral-50: var(--pv-neutral-50);
+  --color-pv-neutral-100: var(--pv-neutral-100);
+  --color-pv-neutral-200: var(--pv-neutral-200);
+  --color-pv-neutral-400: var(--pv-neutral-400);
+  --color-pv-neutral-600: var(--pv-neutral-600);
+  --color-pv-neutral-800: var(--pv-neutral-800);
+  --color-pv-neutral-900: var(--pv-neutral-900);
 }
 
 @layer base {

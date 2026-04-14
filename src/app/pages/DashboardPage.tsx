@@ -447,6 +447,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
           loading={loading}
           trend={trends.anomalies.text}
           trendDirection={trends.anomalies.direction}
+          valueColor="text-pv-danger"
         />
         <StatCard
           label="Montant recuperable"
@@ -456,6 +457,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
           loading={loading}
           trend={trends.ecart.text}
           trendDirection={trends.ecart.direction}
+          valueColor="text-pv-warning"
         />
         <StatCard
           label="Taux de conformite"
@@ -463,6 +465,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
           icon={<CheckCircle2 className="h-5 w-5" />}
           variant="purple"
           loading={loading}
+          valueColor="text-pv-success"
         />
       </div>
 
