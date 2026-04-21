@@ -428,45 +428,97 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         }
       />
 
-      {/* ===== STAT CARDS WITH TRENDS ===== */}
+      {/* ===== KPI CARDS — Claude Design Dashboard prototype ===== */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Factures verifiees"
-          value={stats.total_factures}
-          icon={<FileText className="h-5 w-5" />}
-          variant="blue"
-          loading={loading}
-          trend={trends.factures.text}
-          trendDirection={trends.factures.direction}
-        />
-        <StatCard
-          label="Anomalies detectees"
-          value={stats.total_anomalies}
-          icon={<AlertCircle className="h-5 w-5" />}
-          variant="orange"
-          loading={loading}
-          trend={trends.anomalies.text}
-          trendDirection={trends.anomalies.direction}
-          valueColor="text-pv-danger"
-        />
-        <StatCard
-          label="Montant recuperable"
-          value={formatCurrency(stats.economies_potentielles)}
-          icon={<TrendingUp className="h-5 w-5" />}
-          variant="green"
-          loading={loading}
-          trend={trends.ecart.text}
-          trendDirection={trends.ecart.direction}
-          valueColor="text-pv-warning"
-        />
-        <StatCard
-          label="Taux de conformite"
-          value={formatPercentage(stats.taux_conformite)}
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          variant="purple"
-          loading={loading}
-          valueColor="text-pv-success"
-        />
+        {/* KPI 1 : Montant récupérable */}
+        <div className="bg-white border border-pv-ink-100/70 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow h-[156px] relative">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11.5px] font-semibold uppercase tracking-wider text-pv-slate-500">Montant récupérable</span>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2.5">
+            <span className="text-[34px] font-semibold tracking-tight text-pv-ink-900 tabular-nums leading-none">
+              {loading ? '—' : Math.round(stats.economies_potentielles).toLocaleString('fr-FR')}
+            </span>
+            <span className="text-pv-slate-400 font-medium text-[22px]">€</span>
+          </div>
+          {trends.ecart.direction !== 'neutral' && (
+            <div className="mt-2 flex items-center gap-1.5">
+              <span className={`inline-flex items-center gap-0.5 text-[12px] font-semibold px-1.5 py-0.5 rounded ${
+                trends.ecart.direction === 'up' ? 'bg-pv-ok-50 text-pv-ok-700' : 'bg-pv-crit-50 text-pv-crit-700'
+              }`}>
+                {trends.ecart.direction === 'up' ? <TrendingUp className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                {trends.ecart.text}
+              </span>
+              <span className="text-[12px] text-pv-slate-500">vs mois précédent</span>
+            </div>
+          )}
+        </div>
+
+        {/* KPI 2 : Anomalies ouvertes */}
+        <div className="bg-white border border-pv-ink-100/70 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow h-[156px]">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11.5px] font-semibold uppercase tracking-wider text-pv-slate-500">Anomalies ouvertes</span>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-[34px] font-semibold tracking-tight text-pv-ink-900 tabular-nums leading-none">
+              {loading ? '—' : stats.total_anomalies}
+            </span>
+            {stats.total_anomalies > 0 && (
+              <span className="text-[11.5px] text-pv-crit-600 font-semibold px-1.5 py-0.5 rounded bg-pv-crit-50">
+                à traiter
+              </span>
+            )}
+          </div>
+          {!loading && stats.total_anomalies > 0 && (
+            <div className="mt-3 h-1.5 w-full rounded-full bg-pv-slate-150 overflow-hidden">
+              <div className="h-full rounded-full bg-pv-crit-500" style={{ width: `${Math.min(100, stats.total_anomalies * 2)}%` }} />
+            </div>
+          )}
+        </div>
+
+        {/* KPI 3 : Factures traitées */}
+        <div className="bg-white border border-pv-ink-100/70 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow h-[156px]">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11.5px] font-semibold uppercase tracking-wider text-pv-slate-500">Factures traitées</span>
+          </div>
+          <div className="mt-2 flex items-center gap-4">
+            {/* Progress ring SVG */}
+            <div className="relative w-[68px] h-[68px] shrink-0">
+              <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
+                <circle cx="32" cy="32" r="26" fill="none" stroke="var(--pv-slate-150)" strokeWidth="6" />
+                <circle cx="32" cy="32" r="26" fill="none" stroke="var(--pv-ok-600)" strokeWidth="6" strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 26}`}
+                  strokeDashoffset={`${2 * Math.PI * 26 * (1 - (stats.total_factures > 0 ? 1 : 0))}`} />
+              </svg>
+              <div className="absolute inset-0 grid place-items-center">
+                <span className="text-[12px] font-semibold text-pv-ink-900 tabular-nums">100%</span>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-[30px] font-semibold tracking-tight text-pv-ink-900 tabular-nums leading-none">
+                  {loading ? '—' : stats.total_factures}
+                </span>
+              </div>
+              <div className="mt-1.5 text-[12px] text-pv-slate-500">sur la période</div>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 4 : Conformité */}
+        <div className="bg-white border border-pv-ink-100/70 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow h-[156px] relative">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11.5px] font-semibold uppercase tracking-wider text-pv-slate-500">Conformité fournisseurs</span>
+          </div>
+          <div className="mt-2 flex items-baseline gap-1">
+            <span className="text-[34px] font-semibold tracking-tight text-pv-ink-900 tabular-nums leading-none">
+              {loading ? '—' : formatPercentage(stats.taux_conformite)}
+            </span>
+          </div>
+          <div className="absolute bottom-4 left-5 right-5 text-[11.5px] text-pv-slate-500">
+            Seuil cible <span className="tabular-nums font-medium text-pv-ink-800">≥ 90 %</span> · 30 derniers jours
+          </div>
+        </div>
       </div>
 
       {/* ===== ERROR STATE ===== */}

@@ -56,7 +56,42 @@
   --sidebar-border: #EEEEEE;
   --sidebar-ring: #1A73E8;
 
-  /* Design tokens PharmaVerif (Figma validé phase-3) */
+  /* Design tokens PharmaVerif — Claude Design (Dashboard.html) */
+  /* Primary "ink" palette — medical deep blue */
+  --pv-ink-50: #f4f7fb;
+  --pv-ink-100: #e6edf5;
+  --pv-ink-200: #c7d5e6;
+  --pv-ink-400: #5f83ad;
+  --pv-ink-500: #3c6293;
+  --pv-ink-600: #2a4d7a;
+  --pv-ink-700: #1f3c61;
+  --pv-ink-800: #17304f;
+  --pv-ink-900: #0f2340;
+  --pv-ink-950: #0a1830;
+  /* Semantic — from Claude Design prototype */
+  --pv-ok-50: #ecf6f0;
+  --pv-ok-500: #2f9e5a;
+  --pv-ok-600: #1f7f45;
+  --pv-ok-700: #155c31;
+  --pv-warn-50: #fdf5e7;
+  --pv-warn-500: #c98410;
+  --pv-warn-600: #a56a04;
+  --pv-warn-700: #7a4e02;
+  --pv-crit-50: #fcecec;
+  --pv-crit-500: #c73434;
+  --pv-crit-600: #a52020;
+  --pv-crit-700: #7d1515;
+  /* Surface neutrals */
+  --pv-slate-50: #fafbfc;
+  --pv-slate-100: #f3f5f8;
+  --pv-slate-150: #edf0f5;
+  --pv-slate-200: #e4e8ef;
+  --pv-slate-300: #cbd2dc;
+  --pv-slate-400: #96a0b0;
+  --pv-slate-500: #64708a;
+  --pv-slate-600: #47536a;
+  --pv-slate-700: #33405a;
+  /* Backward-compat aliases (phase-3 tokens) */
   --pv-primary: #1A73E8;
   --pv-primary-50: #E8F0FE;
   --pv-primary-700: #0D47A1;
@@ -172,7 +207,39 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* Tokens PharmaVerif exposes comme classes Tailwind (bg-pv-primary, text-pv-danger, …) */
+  /* Tokens PharmaVerif — Claude Design ink palette */
+  --color-pv-ink-50: var(--pv-ink-50);
+  --color-pv-ink-100: var(--pv-ink-100);
+  --color-pv-ink-200: var(--pv-ink-200);
+  --color-pv-ink-400: var(--pv-ink-400);
+  --color-pv-ink-500: var(--pv-ink-500);
+  --color-pv-ink-600: var(--pv-ink-600);
+  --color-pv-ink-700: var(--pv-ink-700);
+  --color-pv-ink-800: var(--pv-ink-800);
+  --color-pv-ink-900: var(--pv-ink-900);
+  --color-pv-ink-950: var(--pv-ink-950);
+  --color-pv-ok-50: var(--pv-ok-50);
+  --color-pv-ok-500: var(--pv-ok-500);
+  --color-pv-ok-600: var(--pv-ok-600);
+  --color-pv-ok-700: var(--pv-ok-700);
+  --color-pv-warn-50: var(--pv-warn-50);
+  --color-pv-warn-500: var(--pv-warn-500);
+  --color-pv-warn-600: var(--pv-warn-600);
+  --color-pv-warn-700: var(--pv-warn-700);
+  --color-pv-crit-50: var(--pv-crit-50);
+  --color-pv-crit-500: var(--pv-crit-500);
+  --color-pv-crit-600: var(--pv-crit-600);
+  --color-pv-crit-700: var(--pv-crit-700);
+  --color-pv-slate-50: var(--pv-slate-50);
+  --color-pv-slate-100: var(--pv-slate-100);
+  --color-pv-slate-150: var(--pv-slate-150);
+  --color-pv-slate-200: var(--pv-slate-200);
+  --color-pv-slate-300: var(--pv-slate-300);
+  --color-pv-slate-400: var(--pv-slate-400);
+  --color-pv-slate-500: var(--pv-slate-500);
+  --color-pv-slate-600: var(--pv-slate-600);
+  --color-pv-slate-700: var(--pv-slate-700);
+  /* Backward-compat aliases (phase-3) */
   --color-pv-primary: var(--pv-primary);
   --color-pv-primary-50: var(--pv-primary-50);
   --color-pv-primary-700: var(--pv-primary-700);
