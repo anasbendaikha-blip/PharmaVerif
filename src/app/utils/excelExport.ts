@@ -1,7 +1,13 @@
 /**
- * PharmaVerif - Export Excel
+ * PharmaVerif - Export Excel (client-side, legacy).
  * Copyright (c) 2026 Anas BENDAIKHA
- * Tous droits reserves.
+ *
+ * TODO [phase-3-follow-up]: ce module genere des XLSX cote client via SheetJS.
+ * Le backend n'a pas encore d'endpoint /export/xlsx pour EMAC ni pour
+ * l'historique des prix. Quand ces endpoints existeront, remplacer les
+ * call sites (EMACComparisonEnhanced.tsx, PrixHistoriqueTimeline.tsx) par
+ * des appels backend et supprimer ce fichier + la dependance `xlsx`.
+ * Impact bundle actuel : vendor-xlsx.js ~ 425 KB gzip 142 KB.
  *
  * Fonctions d'export Excel pour :
  *  - Comparaison EMAC vs Factures (triangle de verification)

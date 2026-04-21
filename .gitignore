@@ -46,3 +46,4 @@ backend/uploads/
 backend/exports/
 backend/logs/
 backend/.env
+.claude/

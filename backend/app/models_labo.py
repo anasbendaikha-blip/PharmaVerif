@@ -54,6 +54,9 @@ class Laboratoire(Base):
         return f"<Laboratoire {self.nom}>"
 
 
+# TODO [phase-2]: Ajouter pharmacy_id + migration Alembic — audit MT-002.
+# Note : verification_engine._get_accord() filtre deja sur `pharmacy_id` (code mort
+# cote SQL tant que la colonne n'existe pas). A corriger avec la migration.
 class AccordCommercial(Base):
     """
     Modele Accord Commercial

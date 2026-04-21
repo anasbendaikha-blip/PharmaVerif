@@ -15,6 +15,8 @@ from app.database import get_db
 from app.models import Grossiste, User
 from app.schemas import GrossisteCreate, GrossisteUpdate, GrossisteResponse, MessageResponse
 from app.api.routes.auth import get_current_user, get_current_pharmacy_id
+from app.api.deps import get_grossiste_repo
+from app.infrastructure.repositories.grossiste_repo import GrossisteRepository
 
 router = APIRouter()
 
@@ -23,11 +25,10 @@ router = APIRouter()
 async def list_grossistes(
     actif: Optional[bool] = Query(None, description="Filtrer par statut actif"),
     current_user: User = Depends(get_current_user),
-    pharmacy_id: int = Depends(get_current_pharmacy_id),
-    db: Session = Depends(get_db)
+    grossiste_repo: GrossisteRepository = Depends(get_grossiste_repo),
 ):
     """Lister tous les grossistes de la pharmacie courante"""
-    query = db.query(Grossiste).filter(Grossiste.pharmacy_id == pharmacy_id)
+    query = grossiste_repo.query()
     if actif is not None:
         query = query.filter(Grossiste.actif == actif)
     return query.all()
@@ -40,11 +41,9 @@ async def get_grossiste(
     pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db)
 ):
-    """Obtenir un grossiste par ID (filtre par pharmacie)"""
-    grossiste = db.query(Grossiste).filter(
-        Grossiste.id == grossiste_id,
-        Grossiste.pharmacy_id == pharmacy_id,
-    ).first()
+    """Obtenir un grossiste par ID (scope pharmacy via repo)"""
+    grossiste_repo = GrossisteRepository(db=db, pharmacy_id=pharmacy_id)
+    grossiste = grossiste_repo.get(grossiste_id)
     if not grossiste:
         raise HTTPException(status_code=404, detail="Grossiste non trouve")
     return grossiste

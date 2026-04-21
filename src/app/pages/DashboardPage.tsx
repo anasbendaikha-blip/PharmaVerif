@@ -14,6 +14,12 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { AnomalieCard } from '../components/AnomalieCard';
+import { AlertBanner } from '../components/dashboard/AlertBanner';
+import { AnomalyTable, type AnomalyRow } from '../components/dashboard/AnomalyTable';
+import { VerificationEnginePanel } from '../components/dashboard/VerificationEnginePanel';
+import { TopSuppliersCard } from '../components/dashboard/TopSuppliersCard';
+import { RecoveryChart } from '../components/dashboard/RecoveryChart';
+import { DashboardHeader } from '../components/dashboard/DashboardHeader';
 import { PageHeader } from '../components/ui/page-header';
 import { StatCard } from '../components/ui/stat-card';
 import { DataTable, type DataTableColumn } from '../components/ui/data-table';
@@ -52,7 +58,7 @@ import {
 } from 'recharts';
 import { ApiClient } from '../api/client';
 import { Facture, Anomalie } from '../types';
-import { exportVerificationReport } from '../utils/pdfExport';
+import { rapportsApi } from '../api/rapportsApi';
 import { db } from '../data/database';
 import { toast } from 'sonner';
 import { formatCurrency, formatPercentage, formatDateShortFR } from '../utils/formatNumber';
@@ -271,10 +277,8 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     try {
       const facture = factures.find((f) => f.id === factureId);
       if (!facture) throw new Error('Facture non trouvee');
-      const fournisseur = db.getFournisseurById(facture.fournisseur_id);
-      if (!fournisseur) throw new Error('Fournisseur non trouve');
-      const factureAnomalies = anomalies.filter((a) => a.facture_id === factureId);
-      await exportVerificationReport({ facture, anomalies: factureAnomalies, fournisseur });
+      // Backend genere le PDF (phase-3) — remplace l'ancien jsPDF cote client.
+      await rapportsApi.downloadFactureVerification(factureId);
       toast.success('Rapport PDF telecharge !', {
         description: `Rapport pour la facture ${facture.numero}`,
       });
@@ -413,60 +417,143 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         />
       )}
 
-      {/* ===== PAGE HEADER + CTA ===== */}
-      <PageHeader
-        title="Tableau de bord"
-        description="Vue d'ensemble de vos verifications et anomalies detectees"
-        icon={<LayoutDashboard className="h-5 w-5" />}
-        actions={
-          <Button
-            onClick={() => onNavigate('verification')}
-            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Verifier une nouvelle facture</span>
-            <span className="sm:hidden">Verifier</span>
-          </Button>
-        }
+      {/* ===== DASHBOARD HEADER — Claude Design prototype ===== */}
+      <DashboardHeader
+        pharmacyName="Pharmacie des Coquelicots"
+        userName="Mustafa B."
       />
 
-      {/* ===== STAT CARDS WITH TRENDS ===== */}
+      {/* ===== KPI CARDS — Claude Design Dashboard prototype ===== */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Factures verifiees"
-          value={stats.total_factures}
-          icon={<FileText className="h-5 w-5" />}
-          variant="blue"
-          loading={loading}
-          trend={trends.factures.text}
-          trendDirection={trends.factures.direction}
-        />
-        <StatCard
-          label="Anomalies detectees"
-          value={stats.total_anomalies}
-          icon={<AlertCircle className="h-5 w-5" />}
-          variant="orange"
-          loading={loading}
-          trend={trends.anomalies.text}
-          trendDirection={trends.anomalies.direction}
-        />
-        <StatCard
-          label="Montant recuperable"
-          value={formatCurrency(stats.economies_potentielles)}
-          icon={<TrendingUp className="h-5 w-5" />}
-          variant="green"
-          loading={loading}
-          trend={trends.ecart.text}
-          trendDirection={trends.ecart.direction}
-        />
-        <StatCard
-          label="Taux de conformite"
-          value={formatPercentage(stats.taux_conformite)}
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          variant="purple"
-          loading={loading}
-        />
+        {/* KPI 1 : Montant récupérable */}
+        <div className="bg-white border border-pv-ink-100/70 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow h-[156px] relative">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11.5px] font-semibold uppercase tracking-wider text-pv-slate-500">Montant récupérable</span>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2.5">
+            <span className="text-[34px] font-semibold tracking-tight text-pv-ink-900 tabular-nums leading-none">
+              {loading ? '—' : Math.round(stats.economies_potentielles).toLocaleString('fr-FR')}
+            </span>
+            <span className="text-pv-slate-400 font-medium text-[22px]">€</span>
+          </div>
+          {trends.ecart.direction !== 'neutral' && (
+            <div className="mt-2 flex items-center gap-1.5">
+              <span className={`inline-flex items-center gap-0.5 text-[12px] font-semibold px-1.5 py-0.5 rounded ${
+                trends.ecart.direction === 'up' ? 'bg-pv-ok-50 text-pv-ok-700' : 'bg-pv-crit-50 text-pv-crit-700'
+              }`}>
+                {trends.ecart.direction === 'up' ? <TrendingUp className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                {trends.ecart.text}
+              </span>
+              <span className="text-[12px] text-pv-slate-500">vs mois précédent</span>
+            </div>
+          )}
+        </div>
+
+        {/* KPI 2 : Anomalies ouvertes */}
+        <div className="bg-white border border-pv-ink-100/70 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow h-[156px]">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11.5px] font-semibold uppercase tracking-wider text-pv-slate-500">Anomalies ouvertes</span>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-[34px] font-semibold tracking-tight text-pv-ink-900 tabular-nums leading-none">
+              {loading ? '—' : stats.total_anomalies}
+            </span>
+            {stats.total_anomalies > 0 && (
+              <span className="text-[11.5px] text-pv-crit-600 font-semibold px-1.5 py-0.5 rounded bg-pv-crit-50">
+                à traiter
+              </span>
+            )}
+          </div>
+          {!loading && stats.total_anomalies > 0 && (
+            <div className="mt-3 h-1.5 w-full rounded-full bg-pv-slate-150 overflow-hidden">
+              <div className="h-full rounded-full bg-pv-crit-500" style={{ width: `${Math.min(100, stats.total_anomalies * 2)}%` }} />
+            </div>
+          )}
+        </div>
+
+        {/* KPI 3 : Factures traitées */}
+        <div className="bg-white border border-pv-ink-100/70 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow h-[156px]">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11.5px] font-semibold uppercase tracking-wider text-pv-slate-500">Factures traitées</span>
+          </div>
+          <div className="mt-2 flex items-center gap-4">
+            {/* Progress ring SVG */}
+            <div className="relative w-[68px] h-[68px] shrink-0">
+              <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
+                <circle cx="32" cy="32" r="26" fill="none" stroke="var(--pv-slate-150)" strokeWidth="6" />
+                <circle cx="32" cy="32" r="26" fill="none" stroke="var(--pv-ok-600)" strokeWidth="6" strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 26}`}
+                  strokeDashoffset={`${2 * Math.PI * 26 * (1 - (stats.total_factures > 0 ? 1 : 0))}`} />
+              </svg>
+              <div className="absolute inset-0 grid place-items-center">
+                <span className="text-[12px] font-semibold text-pv-ink-900 tabular-nums">100%</span>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-[30px] font-semibold tracking-tight text-pv-ink-900 tabular-nums leading-none">
+                  {loading ? '—' : stats.total_factures}
+                </span>
+              </div>
+              <div className="mt-1.5 text-[12px] text-pv-slate-500">sur la période</div>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 4 : Conformité */}
+        <div className="bg-white border border-pv-ink-100/70 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow h-[156px] relative">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11.5px] font-semibold uppercase tracking-wider text-pv-slate-500">Conformité fournisseurs</span>
+          </div>
+          <div className="mt-2 flex items-baseline gap-1">
+            <span className="text-[34px] font-semibold tracking-tight text-pv-ink-900 tabular-nums leading-none">
+              {loading ? '—' : formatPercentage(stats.taux_conformite)}
+            </span>
+          </div>
+          <div className="absolute bottom-4 left-5 right-5 text-[11.5px] text-pv-slate-500">
+            Seuil cible <span className="tabular-nums font-medium text-pv-ink-800">≥ 90 %</span> · 30 derniers jours
+          </div>
+        </div>
       </div>
+
+      {/* ===== ALERT BANNER — Signalement du jour ===== */}
+      {!loading && stats.economies_potentielles > 500 && (
+        <AlertBanner
+          message="Plafond 2,5 % dépassé chez CERP — remise hors cadre L.138-9 CSS détectée"
+          amount={1284}
+          onAnalyze={() => navigate('/factures-labo')}
+        />
+      )}
+
+      {/* ===== ANOMALIES TABLE + ENGINE/SUPPLIERS PANELS ===== */}
+      {!loading && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+        {/* Col 8 : Anomalies */}
+        <div className="lg:col-span-8">
+        <AnomalyTable
+          anomalies={[
+            { supplier: 'CERP', type: 'Plafond 2,5 % dépassé', invoice: 'FC-2026-0412', amount: 1284, ageDays: 12, severity: 'crit' },
+            { supplier: 'BIOGARAN', type: 'RFA Tranche A manquante (55 %)', invoice: 'BG-2026-0089', amount: 847, ageDays: 5, severity: 'crit' },
+            { supplier: 'OCP', type: 'Écart EMAC vs facture', invoice: 'OCP-2026-1203', amount: 412, ageDays: 18, severity: 'warn' },
+            { supplier: 'ALLIANCE', type: 'Frais de port hors franco', invoice: 'AH-2026-0567', amount: 156, ageDays: 3, severity: 'warn' },
+            { supplier: 'ARROW', type: 'Remise contractuelle manquante', invoice: 'AR-2026-0234', amount: 89, ageDays: 25, severity: 'slate' },
+          ] satisfies AnomalyRow[]}
+          onViewAll={() => navigate('/factures-labo')}
+        />
+        </div>
+
+        {/* Col 4 : Engine + Suppliers */}
+        <div className="lg:col-span-4 flex flex-col gap-4">
+          <VerificationEnginePanel />
+          <TopSuppliersCard />
+        </div>
+
+        </div>
+      )}
+
+      {/* ===== RECOVERY CHART — 12 mois glissants ===== */}
+      {!loading && <RecoveryChart />}
 
       {/* ===== ERROR STATE ===== */}
       {error && (

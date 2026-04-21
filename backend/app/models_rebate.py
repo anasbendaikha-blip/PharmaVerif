@@ -68,6 +68,9 @@ class ScheduleStatus(str, enum.Enum):
 # MODELS REBATE ENGINE
 # ========================================
 
+# TODO [phase-2]: Ajouter pharmacy_id + migration Alembic — audit MT-002.
+# Les templates sont actuellement partages entre tous les tenants ; a confirmer
+# avec le produit si cela doit rester (templates "officiels") ou devenir par-tenant.
 class RebateTemplate(Base):
     """
     Grille de remise pre-definie (template)

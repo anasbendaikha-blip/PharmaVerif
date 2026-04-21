@@ -33,9 +33,14 @@ passlib[bcrypt]==1.7.4
 bcrypt==4.1.2
 
 # ========================================
-# OCR - TESSERACT
+# OCR - TESSERACT (DÉSACTIVÉ phase-4)
 # ========================================
-pytesseract==0.3.10
+# Factur-X (EN 16931) remplace l'OCR depuis septembre 2026 :
+# le XML embarque dans le PDF fournit les donnees structurees.
+# pytesseract==0.3.10  # SUPPRIMÉ phase-4 — plus d'usage actif.
+#
+# pdf2image et opencv-python restent en place car exploites par d'autres
+# parsers (verif layout, extraction images). Pillow est une dep commune.
 Pillow==10.2.0
 pdf2image==1.16.3
 opencv-python==4.9.0.80
@@ -123,6 +128,14 @@ reportlab==4.1.0
 # ========================================
 python-dotenv==1.0.0
 click==8.1.7
+
+# ========================================
+# FACTUR-X (EN 16931) — phase-4
+# ========================================
+# PDF facture electronique avec XML CII embarque (obligatoire FR sept 2026).
+# factur-x extrait le XML du PDF, lxml parse les namespaces.
+factur-x==4.2
+lxml>=6.0
 
 # ========================================
 # DEPLOYMENT

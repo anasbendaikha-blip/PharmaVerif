@@ -10,6 +10,11 @@ Priorites:
   P0 — Templates CRUD, Agreements CRUD + versioning, Schedule, Preview
   P1 — Dashboard mensuel, Primes conditionnelles
   P2 — Force recalcul, Stats globales
+
+TODO [phase-2] MT-002: Les endpoints RebateTemplate (list/get/create/update/delete)
+ne filtrent pas par pharmacy_id car le modele RebateTemplate n'a pas ce champ.
+Les templates sont actuellement partages entre tous les tenants. A reevaluer
+avec le produit : templates "systeme" (partages) vs "pharmacy" (scoped).
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -64,6 +69,17 @@ from app.models_rebate import (
 )
 from app.models_labo import Laboratoire, FactureLabo, LigneFactureLabo
 from app.api.routes.auth import get_current_user, get_current_pharmacy_id
+from app.api.deps import get_rebate_repo
+from app.infrastructure.repositories.rebate_repo import RebateRepository
+# TODO [phase-1-5-follow-up]: basculer sur app.domain.rebate.RebateCalculator
+# (corrections A/B + formule verifiees par tests/test_domain_rebate.py).
+# La bascule necessite :
+#   1. Reecrire les endpoints qui retournent `entries[]` (stages M+0/M+1/M+2)
+#      car le domain RebateResult ne stage pas (synthese globale uniquement).
+#   2. Resoudre les taux depuis `agreement.agreement_config` (JSON libre) via
+#      un helper dedie avant d'appeler app.domain.adapters.laboratory_agreement_to_rebate_input.
+#   3. Mettre a jour VerificationLaboResponse et schemas_rebate.py pour
+#      absorber la nouvelle forme.
 from app.services.rebate_engine import (
     RebateEngine,
     AgreementVersioningService,
@@ -86,6 +102,7 @@ async def list_templates(
     scope: Optional[str] = Query(None, description="Filtrer par scope (system, group, pharmacy)"),
     current_user: User = Depends(get_current_user),
     pharmacy_id: int = Depends(get_current_pharmacy_id),
+    rebate_repo: RebateRepository = Depends(get_rebate_repo),
     db: Session = Depends(get_db),
 ):
     """
@@ -94,18 +111,13 @@ async def list_templates(
     Les templates systeme sont visibles par toutes les pharmacies.
     Les templates 'pharmacy' sont filtrés par pharmacie.
     """
-    query = db.query(RebateTemplate)
-
+    templates = rebate_repo.list_templates(
+        actif_only=False if actif is None else actif,
+        laboratoire_nom=laboratoire_nom,
+        scope=scope,
+    )
     if actif is not None:
-        query = query.filter(RebateTemplate.actif == actif)
-
-    if laboratoire_nom:
-        query = query.filter(RebateTemplate.laboratoire_nom.ilike(f"%{laboratoire_nom}%"))
-
-    if scope:
-        query = query.filter(RebateTemplate.scope == scope)
-
-    templates = query.order_by(RebateTemplate.laboratoire_nom, RebateTemplate.nom).all()
+        templates = [t for t in templates if t.actif == actif]
 
     # Enrichir avec le compteur d'accords actifs
     result = []
@@ -131,9 +143,8 @@ async def get_template(
     db: Session = Depends(get_db),
 ):
     """Obtenir un template de remise par ID"""
-    template = db.query(RebateTemplate).filter(
-        RebateTemplate.id == template_id,
-    ).first()
+    rebate_repo = RebateRepository(db=db, pharmacy_id=pharmacy_id)
+    template = rebate_repo.get_template(template_id)
 
     if not template:
         raise HTTPException(
@@ -315,19 +326,10 @@ async def list_agreements(
     - Par laboratoire
     - Par statut (brouillon, actif, archive, expire)
     """
-    query = db.query(LaboratoryAgreement).filter(
-        LaboratoryAgreement.pharmacy_id == pharmacy_id,
+    rebate_repo = RebateRepository(db=db, pharmacy_id=pharmacy_id)
+    agreements = rebate_repo.list_agreements(
+        statut=statut, laboratoire_id=laboratoire_id,
     )
-
-    if laboratoire_id is not None:
-        query = query.filter(LaboratoryAgreement.laboratoire_id == laboratoire_id)
-
-    if statut:
-        query = query.filter(LaboratoryAgreement.statut == statut)
-
-    agreements = query.order_by(
-        desc(LaboratoryAgreement.created_at),
-    ).all()
 
     # Enrichir avec le nom du labo et du template
     result = []
@@ -349,12 +351,9 @@ async def get_agreement(
     pharmacy_id: int = Depends(get_current_pharmacy_id),
     db: Session = Depends(get_db),
 ):
-    """Obtenir un accord de remise par ID (filtre par pharmacie)"""
-    agreement = db.query(LaboratoryAgreement).filter(
-        LaboratoryAgreement.id == agreement_id,
-        LaboratoryAgreement.pharmacy_id == pharmacy_id,
-    ).first()
-
+    """Obtenir un accord de remise par ID (scope pharmacy via repo)"""
+    rebate_repo = RebateRepository(db=db, pharmacy_id=pharmacy_id)
+    agreement = rebate_repo.get_agreement(agreement_id)
     if not agreement:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

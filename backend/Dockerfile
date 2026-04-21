@@ -23,11 +23,15 @@ WORKDIR /app
 # DEPENDENCIES SYSTÈME
 # ========================================
 
-# Installer dépendances système pour OCR et PDF
+# Installer dépendances système pour PDF
+# SUPPRIMÉ phase-4 : Tesseract retiré (Factur-X remplace l'OCR depuis sept 2026).
+#   Les parsers PDF legacy (Biogaran, generic) utilisent pdfplumber uniquement ;
+#   plus besoin de l'OCR Tesseract. Gain image : ~200 MB (apt).
+# Pour reactiver si un parser OCR revient : decommenter les 2 lignes tesseract-*.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Tesseract OCR
-    tesseract-ocr \
-    tesseract-ocr-fra \
+    # Tesseract OCR (DÉSACTIVÉ — phase-4)
+    # tesseract-ocr \
+    # tesseract-ocr-fra \
     # Librairies pour PDF
     poppler-utils \
     # Librairies pour OpenCV (compatible Debian bookworm)

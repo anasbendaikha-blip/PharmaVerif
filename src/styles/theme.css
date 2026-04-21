@@ -46,14 +46,70 @@
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
   --radius: 0.625rem;
-  --sidebar: #0F172A;
-  --sidebar-foreground: #E2E8F0;
-  --sidebar-primary: #3B82F6;
+  /* Sidebar : blanc selon specs Figma phase-3 */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #424242;
+  --sidebar-primary: #1A73E8;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: rgba(59, 130, 246, 0.12);
-  --sidebar-accent-foreground: #F1F5F9;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #3B82F6;
+  --sidebar-accent: #E8F0FE;
+  --sidebar-accent-foreground: #1A73E8;
+  --sidebar-border: #EEEEEE;
+  --sidebar-ring: #1A73E8;
+
+  /* Design tokens PharmaVerif — Claude Design (Dashboard.html) */
+  /* Primary "ink" palette — medical deep blue */
+  --pv-ink-50: #f4f7fb;
+  --pv-ink-100: #e6edf5;
+  --pv-ink-200: #c7d5e6;
+  --pv-ink-400: #5f83ad;
+  --pv-ink-500: #3c6293;
+  --pv-ink-600: #2a4d7a;
+  --pv-ink-700: #1f3c61;
+  --pv-ink-800: #17304f;
+  --pv-ink-900: #0f2340;
+  --pv-ink-950: #0a1830;
+  /* Semantic — from Claude Design prototype */
+  --pv-ok-50: #ecf6f0;
+  --pv-ok-500: #2f9e5a;
+  --pv-ok-600: #1f7f45;
+  --pv-ok-700: #155c31;
+  --pv-warn-50: #fdf5e7;
+  --pv-warn-500: #c98410;
+  --pv-warn-600: #a56a04;
+  --pv-warn-700: #7a4e02;
+  --pv-crit-50: #fcecec;
+  --pv-crit-500: #c73434;
+  --pv-crit-600: #a52020;
+  --pv-crit-700: #7d1515;
+  /* Surface neutrals */
+  --pv-slate-50: #fafbfc;
+  --pv-slate-100: #f3f5f8;
+  --pv-slate-150: #edf0f5;
+  --pv-slate-200: #e4e8ef;
+  --pv-slate-300: #cbd2dc;
+  --pv-slate-400: #96a0b0;
+  --pv-slate-500: #64708a;
+  --pv-slate-600: #47536a;
+  --pv-slate-700: #33405a;
+  /* Backward-compat aliases (phase-3 tokens) */
+  --pv-primary: #1A73E8;
+  --pv-primary-50: #E8F0FE;
+  --pv-primary-700: #0D47A1;
+  --pv-success: #2E7D32;
+  --pv-success-50: #E8F5E9;
+  --pv-success-text: #1B5E20;
+  --pv-danger: #C62828;
+  --pv-danger-50: #FFEBEE;
+  --pv-warning: #F57F17;
+  --pv-warning-50: #FFF8E1;
+  --pv-warning-text: #E65100;
+  --pv-neutral-50: #FAFAFA;
+  --pv-neutral-100: #F5F5F5;
+  --pv-neutral-200: #EEEEEE;
+  --pv-neutral-400: #BDBDBD;
+  --pv-neutral-600: #757575;
+  --pv-neutral-800: #424242;
+  --pv-neutral-900: #212121;
 }
 
 .dark {
@@ -150,6 +206,58 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Tokens PharmaVerif — Claude Design ink palette */
+  --color-pv-ink-50: var(--pv-ink-50);
+  --color-pv-ink-100: var(--pv-ink-100);
+  --color-pv-ink-200: var(--pv-ink-200);
+  --color-pv-ink-400: var(--pv-ink-400);
+  --color-pv-ink-500: var(--pv-ink-500);
+  --color-pv-ink-600: var(--pv-ink-600);
+  --color-pv-ink-700: var(--pv-ink-700);
+  --color-pv-ink-800: var(--pv-ink-800);
+  --color-pv-ink-900: var(--pv-ink-900);
+  --color-pv-ink-950: var(--pv-ink-950);
+  --color-pv-ok-50: var(--pv-ok-50);
+  --color-pv-ok-500: var(--pv-ok-500);
+  --color-pv-ok-600: var(--pv-ok-600);
+  --color-pv-ok-700: var(--pv-ok-700);
+  --color-pv-warn-50: var(--pv-warn-50);
+  --color-pv-warn-500: var(--pv-warn-500);
+  --color-pv-warn-600: var(--pv-warn-600);
+  --color-pv-warn-700: var(--pv-warn-700);
+  --color-pv-crit-50: var(--pv-crit-50);
+  --color-pv-crit-500: var(--pv-crit-500);
+  --color-pv-crit-600: var(--pv-crit-600);
+  --color-pv-crit-700: var(--pv-crit-700);
+  --color-pv-slate-50: var(--pv-slate-50);
+  --color-pv-slate-100: var(--pv-slate-100);
+  --color-pv-slate-150: var(--pv-slate-150);
+  --color-pv-slate-200: var(--pv-slate-200);
+  --color-pv-slate-300: var(--pv-slate-300);
+  --color-pv-slate-400: var(--pv-slate-400);
+  --color-pv-slate-500: var(--pv-slate-500);
+  --color-pv-slate-600: var(--pv-slate-600);
+  --color-pv-slate-700: var(--pv-slate-700);
+  /* Backward-compat aliases (phase-3) */
+  --color-pv-primary: var(--pv-primary);
+  --color-pv-primary-50: var(--pv-primary-50);
+  --color-pv-primary-700: var(--pv-primary-700);
+  --color-pv-success: var(--pv-success);
+  --color-pv-success-50: var(--pv-success-50);
+  --color-pv-success-text: var(--pv-success-text);
+  --color-pv-danger: var(--pv-danger);
+  --color-pv-danger-50: var(--pv-danger-50);
+  --color-pv-warning: var(--pv-warning);
+  --color-pv-warning-50: var(--pv-warning-50);
+  --color-pv-warning-text: var(--pv-warning-text);
+  --color-pv-neutral-50: var(--pv-neutral-50);
+  --color-pv-neutral-100: var(--pv-neutral-100);
+  --color-pv-neutral-200: var(--pv-neutral-200);
+  --color-pv-neutral-400: var(--pv-neutral-400);
+  --color-pv-neutral-600: var(--pv-neutral-600);
+  --color-pv-neutral-800: var(--pv-neutral-800);
+  --color-pv-neutral-900: var(--pv-neutral-900);
 }
 
 @layer base {
