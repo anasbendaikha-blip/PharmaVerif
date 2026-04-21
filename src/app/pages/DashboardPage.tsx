@@ -417,464 +417,125 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         />
       )}
 
-      {/* ===== DASHBOARD HEADER — Claude Design prototype ===== */}
+      {/* ===== DASHBOARD HEADER — Claude Design (structural, no mock) ===== */}
       <DashboardHeader
         pharmacyName="Pharmacie des Coquelicots"
         userName="Mustafa B."
       />
 
-      {/* ===== KPI CARDS — Claude Design Dashboard prototype ===== */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* KPI 1 : Montant récupérable */}
-        <div className="bg-white border border-pv-ink-100/70 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow h-[156px] relative">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11.5px] font-semibold uppercase tracking-wider text-pv-slate-500">Montant récupérable</span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2.5">
-            <span className="text-[34px] font-semibold tracking-tight text-pv-ink-900 tabular-nums leading-none">
-              {loading ? '—' : Math.round(stats.economies_potentielles).toLocaleString('fr-FR')}
-            </span>
-            <span className="text-pv-slate-400 font-medium text-[22px]">€</span>
-          </div>
-          {trends.ecart.direction !== 'neutral' && (
-            <div className="mt-2 flex items-center gap-1.5">
-              <span className={`inline-flex items-center gap-0.5 text-[12px] font-semibold px-1.5 py-0.5 rounded ${
-                trends.ecart.direction === 'up' ? 'bg-pv-ok-50 text-pv-ok-700' : 'bg-pv-crit-50 text-pv-crit-700'
-              }`}>
-                {trends.ecart.direction === 'up' ? <TrendingUp className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                {trends.ecart.text}
-              </span>
-              <span className="text-[12px] text-pv-slate-500">vs mois précédent</span>
-            </div>
-          )}
-        </div>
+      {/* ═══════════════════════════════════════════════════════════════
+          DÉCISION B (21 avril 2026) — Désactivation des composants mock.
+          Tout ce qui suit est commenté car alimenté par mock data
+          (ApiClient wraps localStorage, pas le vrai backend PostgreSQL).
 
-        {/* KPI 2 : Anomalies ouvertes */}
-        <div className="bg-white border border-pv-ink-100/70 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow h-[156px]">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11.5px] font-semibold uppercase tracking-wider text-pv-slate-500">Anomalies ouvertes</span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[34px] font-semibold tracking-tight text-pv-ink-900 tabular-nums leading-none">
-              {loading ? '—' : stats.total_anomalies}
-            </span>
-            {stats.total_anomalies > 0 && (
-              <span className="text-[11.5px] text-pv-crit-600 font-semibold px-1.5 py-0.5 rounded bg-pv-crit-50">
-                à traiter
-              </span>
-            )}
-          </div>
-          {!loading && stats.total_anomalies > 0 && (
-            <div className="mt-3 h-1.5 w-full rounded-full bg-pv-slate-150 overflow-hidden">
-              <div className="h-full rounded-full bg-pv-crit-500" style={{ width: `${Math.min(100, stats.total_anomalies * 2)}%` }} />
-            </div>
-          )}
-        </div>
+          Sera réactivé composant par composant quand l'endpoint
+          GET /api/v1/dashboard retournera les vraies agrégations.
 
-        {/* KPI 3 : Factures traitées */}
-        <div className="bg-white border border-pv-ink-100/70 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow h-[156px]">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11.5px] font-semibold uppercase tracking-wider text-pv-slate-500">Factures traitées</span>
-          </div>
-          <div className="mt-2 flex items-center gap-4">
-            {/* Progress ring SVG */}
-            <div className="relative w-[68px] h-[68px] shrink-0">
-              <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
-                <circle cx="32" cy="32" r="26" fill="none" stroke="var(--pv-slate-150)" strokeWidth="6" />
-                <circle cx="32" cy="32" r="26" fill="none" stroke="var(--pv-ok-600)" strokeWidth="6" strokeLinecap="round"
-                  strokeDasharray={`${2 * Math.PI * 26}`}
-                  strokeDashoffset={`${2 * Math.PI * 26 * (1 - (stats.total_factures > 0 ? 1 : 0))}`} />
-              </svg>
-              <div className="absolute inset-0 grid place-items-center">
-                <span className="text-[12px] font-semibold text-pv-ink-900 tabular-nums">100%</span>
-              </div>
+          Composants désactivés :
+            - 4 KPI cards (stats viennent de ApiClient.getStats → mock localStorage)
+            - AlertBanner (CERP 1284€ fictif)
+            - AnomalyTable Top 5 (5 anomalies inventées)
+            - VerificationEnginePanel (7 règles hardcodées)
+            - TopSuppliersCard (5 fournisseurs fictifs)
+            - RecoveryChart 12 mois (données inventées)
+            - Charts (donut, bar, line — tous mock)
+            - Alertes prioritaires (écarts OCP inventés)
+            - Anomalies récentes (mock localStorage)
+            - DataTable factures (mock localStorage)
+
+          Composants conservés :
+            - DashboardHeader (structural)
+            - Sidebar + navigation (structural)
+            - Placeholder d'onboarding ci-dessous
+          ═══════════════════════════════════════════════════════════════ */}
+
+      {/* ===== PLACEHOLDER HONNÊTE — en attendant les vraies données ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 bg-white border border-pv-ink-100/70 rounded-xl p-8 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="shrink-0 w-12 h-12 rounded-xl bg-pv-ink-50 grid place-items-center">
+              <FileCheck className="h-6 w-6 text-pv-ink-500" />
             </div>
             <div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-[30px] font-semibold tracking-tight text-pv-ink-900 tabular-nums leading-none">
-                  {loading ? '—' : stats.total_factures}
-                </span>
-              </div>
-              <div className="mt-1.5 text-[12px] text-pv-slate-500">sur la période</div>
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 4 : Conformité */}
-        <div className="bg-white border border-pv-ink-100/70 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow h-[156px] relative">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11.5px] font-semibold uppercase tracking-wider text-pv-slate-500">Conformité fournisseurs</span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-1">
-            <span className="text-[34px] font-semibold tracking-tight text-pv-ink-900 tabular-nums leading-none">
-              {loading ? '—' : formatPercentage(stats.taux_conformite)}
-            </span>
-          </div>
-          <div className="absolute bottom-4 left-5 right-5 text-[11.5px] text-pv-slate-500">
-            Seuil cible <span className="tabular-nums font-medium text-pv-ink-800">≥ 90 %</span> · 30 derniers jours
-          </div>
-        </div>
-      </div>
-
-      {/* ===== ALERT BANNER — Signalement du jour ===== */}
-      {!loading && stats.economies_potentielles > 500 && (
-        <AlertBanner
-          message="Plafond 2,5 % dépassé chez CERP — remise hors cadre L.138-9 CSS détectée"
-          amount={1284}
-          onAnalyze={() => navigate('/factures-labo')}
-        />
-      )}
-
-      {/* ===== ANOMALIES TABLE + ENGINE/SUPPLIERS PANELS ===== */}
-      {!loading && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-
-        {/* Col 8 : Anomalies */}
-        <div className="lg:col-span-8">
-        <AnomalyTable
-          anomalies={[
-            { supplier: 'CERP', type: 'Plafond 2,5 % dépassé', invoice: 'FC-2026-0412', amount: 1284, ageDays: 12, severity: 'crit' },
-            { supplier: 'BIOGARAN', type: 'RFA Tranche A manquante (55 %)', invoice: 'BG-2026-0089', amount: 847, ageDays: 5, severity: 'crit' },
-            { supplier: 'OCP', type: 'Écart EMAC vs facture', invoice: 'OCP-2026-1203', amount: 412, ageDays: 18, severity: 'warn' },
-            { supplier: 'ALLIANCE', type: 'Frais de port hors franco', invoice: 'AH-2026-0567', amount: 156, ageDays: 3, severity: 'warn' },
-            { supplier: 'ARROW', type: 'Remise contractuelle manquante', invoice: 'AR-2026-0234', amount: 89, ageDays: 25, severity: 'slate' },
-          ] satisfies AnomalyRow[]}
-          onViewAll={() => navigate('/factures-labo')}
-        />
-        </div>
-
-        {/* Col 4 : Engine + Suppliers */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
-          <VerificationEnginePanel />
-          <TopSuppliersCard />
-        </div>
-
-        </div>
-      )}
-
-      {/* ===== RECOVERY CHART — 12 mois glissants ===== */}
-      {!loading && <RecoveryChart />}
-
-      {/* ===== ERROR STATE ===== */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="size-4" />
-          <AlertTitle>Erreur de chargement</AlertTitle>
-          <AlertDescription className="flex items-center justify-between gap-4">
-            <span>{error}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadData}
-              className="shrink-0 gap-1.5"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Reessayer
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* ===== ALERTES PRIORITAIRES ===== */}
-      {alertesPrioritaires.length > 0 && (
-        <Card className="border-red-200 dark:border-red-800/50">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <div className="relative">
-                  <Bell className="h-5 w-5 text-red-600 dark:text-red-400" />
-                  <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
-                  </span>
-                </div>
-                Alertes prioritaires
-              </CardTitle>
-              {anomalies.filter((a) => a.montant_ecart >= SEUIL_ALERTE_PRIORITAIRE).length > 3 && (
+              <h2 className="text-[17px] font-semibold text-pv-ink-900">
+                Bienvenue sur PharmaVerif
+              </h2>
+              <p className="mt-2 text-[14px] text-pv-slate-600 leading-relaxed">
+                Votre espace de vérification de factures pharmaceutiques est prêt.
+                Déposez vos factures laboratoire pour débloquer les analyses avancées :
+                détection d'anomalies, suivi des RFA, vérification EMAC, et statistiques fournisseurs.
+              </p>
+              <div className="mt-4 flex gap-3">
+                <Button
+                  onClick={() => navigate('/factures-labo')}
+                  className="gap-2 bg-pv-ink-900 hover:bg-pv-ink-800 text-white"
+                >
+                  <Plus className="h-4 w-4" />
+                  Déposer une facture
+                </Button>
                 <Button
                   variant="outline"
-                  size="sm"
-                  onClick={() => onNavigate('verification')}
-                  className="gap-1.5 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800"
+                  onClick={() => navigate('/verification')}
+                  className="gap-2"
                 >
-                  Voir toutes les alertes
-                  <ChevronRight className="h-4 w-4" />
+                  <FileCheck className="h-4 w-4" />
+                  Vérifier manuellement
                 </Button>
-              )}
+              </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {alertesPrioritaires.map((alerte) => {
-                const facture = factures.find((f) => f.id === alerte.facture_id);
-                return (
-                  <div
-                    key={alerte.id}
-                    className="flex items-center justify-between gap-4 p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-900/30"
-                  >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {alerte.description}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Facture {facture?.numero || `#${alerte.facture_id}`}
-                          {' '}&middot;{' '}
-                          Impact : {formatCurrency(alerte.montant_ecart)}
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0 gap-1.5 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30"
-                      onClick={() => onNavigate('verification')}
-                    >
-                      Traiter
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ===== CHARTS SECTION ===== */}
-      {(loading || anomalies.length > 0 || factures.length > 0) && (
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Repartition par type */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Repartition des anomalies</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <SkeletonChart height={pieChartHeight} variant="pie" />
-              ) : pieData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={pieChartHeight}>
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={isMobile ? 35 : 50}
-                      outerRadius={isMobile ? 65 : 85}
-                      paddingAngle={4}
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-[280px] text-muted-foreground">
-                  Aucune anomalie a afficher
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Montants par fournisseur */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Montants recuperables par fournisseur</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <SkeletonChart height={chartHeight} variant="bar" />
-              ) : barData.some((d) => d.montant > 0) ? (
-                <ResponsiveContainer width="100%" height={chartHeight}>
-                  <BarChart data={barData} margin={{ top: 5, right: isMobile ? 5 : 20, left: isMobile ? -10 : 10, bottom: isMobile ? 5 : 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: isMobile ? 10 : 12 }}
-                      angle={isMobile ? -45 : 0}
-                      textAnchor={isMobile ? 'end' : 'middle'}
-                      height={isMobile ? 60 : 30}
-                      className="fill-muted-foreground"
-                    />
-                    <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} className="fill-muted-foreground" />
-                    <RechartsTooltip
-                      formatter={(value: number) => [formatCurrency(value), 'Montant']}
-                      contentStyle={{
-                        backgroundColor: 'var(--card)',
-                        borderColor: 'var(--border)',
-                        borderRadius: '8px',
-                        fontSize: '13px',
-                      }}
-                    />
-                    <Bar
-                      dataKey="montant"
-                      fill={CHART_PALETTE[0]}
-                      radius={[4, 4, 0, 0]}
-                      name="Montant recuperable"
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-[280px] text-muted-foreground">
-                  Aucune donnee a afficher
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* ===== EVOLUTION MENSUELLE (LineChart) ===== */}
-      {(loading || factures.length > 0) && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Evolution mensuelle</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <SkeletonChart height={chartHeight} variant="line" />
-            ) : (
-            <ResponsiveContainer width="100%" height={chartHeight}>
-              <LineChart data={monthlyEvolutionData} margin={{ top: 5, right: isMobile ? 5 : 20, left: isMobile ? -10 : 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis
-                  dataKey="mois"
-                  tick={{ fontSize: isMobile ? 10 : 12 }}
-                  interval={isMobile ? 1 : 0}
-                  className="fill-muted-foreground"
-                />
-                <YAxis
-                  yAxisId="left"
-                  tick={{ fontSize: isMobile ? 10 : 12 }}
-                  className="fill-muted-foreground"
-                  allowDecimals={false}
-                />
-                {!isMobile && (
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    tick={{ fontSize: 12 }}
-                    className="fill-muted-foreground"
-                    tickFormatter={(value: number) => `${(value / 1000).toFixed(0)}k`}
-                  />
-                )}
-                <RechartsTooltip
-                  formatter={(value: number, name: string) => {
-                    if (name === 'Montant HT') return [formatCurrency(value), name];
-                    return [value, name];
-                  }}
-                  contentStyle={{
-                    backgroundColor: 'var(--card)',
-                    borderColor: 'var(--border)',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                  }}
-                />
-                <Legend />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="factures"
-                  name="Factures"
-                  stroke={CHART_PALETTE[0]}
-                  strokeWidth={2}
-                  dot={{ r: isMobile ? 3 : 4 }}
-                  activeDot={{ r: isMobile ? 4 : 6 }}
-                />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="anomalies"
-                  name="Anomalies"
-                  stroke={CHART_PALETTE[1]}
-                  strokeWidth={2}
-                  dot={{ r: isMobile ? 3 : 4 }}
-                  activeDot={{ r: isMobile ? 4 : 6 }}
-                />
-                <Line
-                  yAxisId={isMobile ? 'left' : 'right'}
-                  type="monotone"
-                  dataKey="montant"
-                  name="Montant HT"
-                  stroke={CHART_PALETTE[3]}
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  dot={{ r: isMobile ? 2 : 3 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ===== ANOMALIES RECENTES (simplifie) ===== */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-foreground">
-            Anomalies recentes{' '}
-            <span className="text-muted-foreground font-normal text-sm">
-              ({anomalies.length} au total)
-            </span>
-          </h2>
-          {anomalies.length > 5 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onNavigate('verification')}
-              className="gap-2"
-            >
-              Voir toutes
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-
-        {anomaliesRecentes.length > 0 ? (
-          <div className="grid gap-4">
-            {anomaliesRecentes.map((anomalie) => (
-              <AnomalieCard key={anomalie.id} anomalie={anomalie} />
-            ))}
           </div>
-        ) : (
-          <Alert variant="success">
-            <CheckCircle2 className="size-4" />
-            <AlertTitle>Aucune anomalie detectee</AlertTitle>
-            <AlertDescription>Toutes les factures recentes sont conformes.</AlertDescription>
-          </Alert>
-        )}
-      </div>
-
-      {/* ===== DERNIERES FACTURES (DataTable) ===== */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Dernieres factures analysees</h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/factures')}
-            className="gap-2"
-          >
-            <FileCheck className="h-4 w-4" />
-            Voir toutes les factures
-          </Button>
         </div>
 
-        <DataTable
-          data={factures}
-          columns={factureColumns}
-          rowKey={(row) => row.id}
-          loading={loading}
-          loadingRows={4}
-          emptyMessage="Aucune facture verifiee"
-          emptyDescription="Importez vos factures pour commencer l'analyse"
-          emptyIcon={<FileText className="h-8 w-8 text-muted-foreground/50" />}
-          defaultSort={{ key: 'date', direction: 'desc' }}
-        />
+        <div className="bg-white border border-pv-ink-100/70 rounded-xl p-6 shadow-sm">
+          <h3 className="text-[13px] font-semibold uppercase tracking-wider text-pv-slate-500">
+            Moteur de vérification
+          </h3>
+          <p className="mt-2 text-[28px] font-semibold text-pv-ink-900">7 règles</p>
+          <p className="mt-1 text-[13px] text-pv-slate-500">actives et prêtes</p>
+          <div className="mt-4 space-y-1.5 text-[12px] text-pv-slate-600">
+            <p>✓ Remises par tranche (A/B/OTC)</p>
+            <p>✓ Escompte et franco de port</p>
+            <p>✓ RFA et gratuités</p>
+            <p>✓ Cohérence TVA et arithmétique</p>
+          </div>
+        </div>
       </div>
+
+      {/*
+      ═══ DÉBUT SECTION DÉSACTIVÉE — KPI CARDS (mock data) ═══
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      ... [4 KPI cards commentées - alimentées par ApiClient.getStats() mock] ...
+      </div>
+      ═══ FIN KPI CARDS ═══
+      */}
+
+      {/*
+      ═══ DÉBUT SECTION DÉSACTIVÉE — ALERT BANNER + ANOMALY TABLE + PANELS (mock data) ═══
+      <AlertBanner ... /> — CERP 1284€ fictif
+      <AnomalyTable anomalies={[...]} /> — 5 anomalies inventées
+      <VerificationEnginePanel /> — stats hardcodées
+      <TopSuppliersCard /> — fournisseurs fictifs
+      <RecoveryChart /> — 12 mois inventés
+      ═══ FIN SECTION ═══
+      */}
+
+      {/* ===== SECTION DÉSACTIVÉE — Les sections originales ci-dessous sont aussi mock ===== */}
+      {/* Les charts (Répartition anomalies, Montants par fournisseur, Évolution mensuelle),
+          alertes prioritaires, anomalies récentes et DataTable factures utilisent tous
+          ApiClient (mock localStorage). Désactivés en bloc. */}
+
     </div>
   );
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DÉCISION B — DEAD CODE (mock data) — 21 avril 2026
+   ═══════════════════════════════════════════════════════════════════════
+   Tout le code ci-dessous est du dashboard historique alimenté par mock
+   data (ApiClient → localStorage, pas le vrai backend PostgreSQL).
+   Conservé pour référence et réactivation future quand
+   GET /api/v1/dashboard retournera les vraies agrégations.
+
+   Pour réactiver : supprimer le `function _DISABLED_DashboardLegacy`
+   et reintégrer les sections voulues dans DashboardPage ci-dessus.
+   ═══════════════════════════════════════════════════════════════════════ */
