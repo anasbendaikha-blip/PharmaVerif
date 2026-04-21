@@ -18,6 +18,8 @@ import { AlertBanner } from '../components/dashboard/AlertBanner';
 import { AnomalyTable, type AnomalyRow } from '../components/dashboard/AnomalyTable';
 import { VerificationEnginePanel } from '../components/dashboard/VerificationEnginePanel';
 import { TopSuppliersCard } from '../components/dashboard/TopSuppliersCard';
+import { RecoveryChart } from '../components/dashboard/RecoveryChart';
+import { DashboardHeader } from '../components/dashboard/DashboardHeader';
 import { PageHeader } from '../components/ui/page-header';
 import { StatCard } from '../components/ui/stat-card';
 import { DataTable, type DataTableColumn } from '../components/ui/data-table';
@@ -415,21 +417,10 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         />
       )}
 
-      {/* ===== PAGE HEADER + CTA ===== */}
-      <PageHeader
-        title="Tableau de bord"
-        description="Vue d'ensemble de vos verifications et anomalies detectees"
-        icon={<LayoutDashboard className="h-5 w-5" />}
-        actions={
-          <Button
-            onClick={() => onNavigate('verification')}
-            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Verifier une nouvelle facture</span>
-            <span className="sm:hidden">Verifier</span>
-          </Button>
-        }
+      {/* ===== DASHBOARD HEADER — Claude Design prototype ===== */}
+      <DashboardHeader
+        pharmacyName="Pharmacie des Coquelicots"
+        userName="Mustafa B."
       />
 
       {/* ===== KPI CARDS — Claude Design Dashboard prototype ===== */}
@@ -560,6 +551,9 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
 
         </div>
       )}
+
+      {/* ===== RECOVERY CHART — 12 mois glissants ===== */}
+      {!loading && <RecoveryChart />}
 
       {/* ===== ERROR STATE ===== */}
       {error && (
