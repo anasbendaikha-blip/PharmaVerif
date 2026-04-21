@@ -16,6 +16,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { AnomalieCard } from '../components/AnomalieCard';
 import { AlertBanner } from '../components/dashboard/AlertBanner';
 import { AnomalyTable, type AnomalyRow } from '../components/dashboard/AnomalyTable';
+import { VerificationEnginePanel } from '../components/dashboard/VerificationEnginePanel';
+import { TopSuppliersCard } from '../components/dashboard/TopSuppliersCard';
 import { PageHeader } from '../components/ui/page-header';
 import { StatCard } from '../components/ui/stat-card';
 import { DataTable, type DataTableColumn } from '../components/ui/data-table';
@@ -532,8 +534,12 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         />
       )}
 
-      {/* ===== TOP 5 ANOMALIES TABLE ===== */}
+      {/* ===== ANOMALIES TABLE + ENGINE/SUPPLIERS PANELS ===== */}
       {!loading && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+        {/* Col 8 : Anomalies */}
+        <div className="lg:col-span-8">
         <AnomalyTable
           anomalies={[
             { supplier: 'CERP', type: 'Plafond 2,5 % dépassé', invoice: 'FC-2026-0412', amount: 1284, ageDays: 12, severity: 'crit' },
@@ -544,6 +550,15 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
           ] satisfies AnomalyRow[]}
           onViewAll={() => navigate('/factures-labo')}
         />
+        </div>
+
+        {/* Col 4 : Engine + Suppliers */}
+        <div className="lg:col-span-4 flex flex-col gap-4">
+          <VerificationEnginePanel />
+          <TopSuppliersCard />
+        </div>
+
+        </div>
       )}
 
       {/* ===== ERROR STATE ===== */}
