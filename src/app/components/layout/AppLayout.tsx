@@ -94,11 +94,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               &copy; {new Date().getFullYear()} PharmaVerif &mdash;{' '}
               <span className="font-medium text-foreground/70">Anas BENDAIKHA</span>
             </p>
-            <div className="flex items-center gap-3">
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                Prototype
-              </span>
-            </div>
+            {/* Badge "Prototype" retiré — 2026-04-21 nettoyage mocks résiduels */}
           </div>
         </footer>
       </div>

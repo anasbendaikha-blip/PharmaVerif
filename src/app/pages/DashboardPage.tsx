@@ -65,6 +65,7 @@ import { formatCurrency, formatPercentage, formatDateShortFR } from '../utils/fo
 import { isApiMode } from '../api/config';
 import { getErrorMessage } from '../api/httpClient';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
+import { useAuth } from '../contexts/AuthContext';
 import { OnboardingBanner } from '../components/OnboardingBanner';
 import { useNavigate } from 'react-router-dom';
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert';
@@ -90,6 +91,7 @@ interface DashboardPageProps {
 
 export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { isCompleted: onboardingCompleted } = useOnboardingStatus();
   const [bannerDismissed, setBannerDismissed] = useState(
     () => sessionStorage.getItem('pharmaverif_onboarding_banner_dismissed') === 'true'
@@ -417,10 +419,11 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         />
       )}
 
-      {/* ===== DASHBOARD HEADER — Claude Design (structural, no mock) ===== */}
+      {/* ===== DASHBOARD HEADER — données réelles du contexte auth ===== */}
       <DashboardHeader
-        pharmacyName="Pharmacie des Coquelicots"
-        userName="Mustafa B."
+        pharmacyName="Tableau de bord"
+        userName={user?.name || user?.nom && user?.prenom ? `${user.prenom} ${user.nom}` : 'Utilisateur'}
+        userRole={user?.role}
       />
 
       {/* ═══════════════════════════════════════════════════════════════
@@ -494,9 +497,12 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
           <p className="mt-1 text-[13px] text-pv-slate-500">actives et prêtes</p>
           <div className="mt-4 space-y-1.5 text-[12px] text-pv-slate-600">
             <p>✓ Remises par tranche (A/B/OTC)</p>
-            <p>✓ Escompte et franco de port</p>
-            <p>✓ RFA et gratuités</p>
-            <p>✓ Cohérence TVA et arithmétique</p>
+            <p>✓ Escompte non appliqué</p>
+            <p>✓ Franco de port</p>
+            <p>✓ RFA progression</p>
+            <p>✓ Gratuités et ratios</p>
+            <p>✓ Cohérence TVA</p>
+            <p>✓ Calcul arithmétique</p>
           </div>
         </div>
       </div>

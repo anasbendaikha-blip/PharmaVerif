@@ -27,12 +27,7 @@ export function Footer({ onNavigate }: FooterProps) {
             </p>
           </div>
 
-          {/* Version Badge */}
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
-              Version Prototype
-            </span>
-          </div>
+          {/* Badge "Version Prototype" retiré — 2026-04-21 nettoyage mocks résiduels */}
 
           {/* Links */}
           <div className="flex items-center gap-4 text-sm">
