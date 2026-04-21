@@ -19,7 +19,9 @@ import { AnomalyTable, type AnomalyRow } from '../components/dashboard/AnomalyTa
 import { VerificationEnginePanel } from '../components/dashboard/VerificationEnginePanel';
 import { TopSuppliersCard } from '../components/dashboard/TopSuppliersCard';
 import { RecoveryChart } from '../components/dashboard/RecoveryChart';
-import { DashboardHeader } from '../components/dashboard/DashboardHeader';
+// DashboardHeader retiré — le header global Header.tsx (AppLayout) gère
+// l'identité utilisateur et le breadcrumb. Fichier conservé pour référence :
+// import { DashboardHeader } from '../components/dashboard/DashboardHeader';
 import { PageHeader } from '../components/ui/page-header';
 import { StatCard } from '../components/ui/stat-card';
 import { DataTable, type DataTableColumn } from '../components/ui/data-table';
@@ -419,12 +421,8 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         />
       )}
 
-      {/* ===== DASHBOARD HEADER — données réelles du contexte auth ===== */}
-      <DashboardHeader
-        pharmacyName="Tableau de bord"
-        userName={user?.name || user?.nom && user?.prenom ? `${user.prenom} ${user.nom}` : 'Utilisateur'}
-        userRole={user?.role}
-      />
+      {/* DashboardHeader retiré — le Header global (AppLayout) gère identité + breadcrumb.
+         Cohérence avec les autres pages (EMAC, Factures, Agreements) qui n'ont pas de header propre. */}
 
       {/* ═══════════════════════════════════════════════════════════════
           DÉCISION B (21 avril 2026) — Désactivation des composants mock.
