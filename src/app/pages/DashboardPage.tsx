@@ -14,6 +14,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { AnomalieCard } from '../components/AnomalieCard';
+import { AlertBanner } from '../components/dashboard/AlertBanner';
+import { AnomalyTable, type AnomalyRow } from '../components/dashboard/AnomalyTable';
 import { PageHeader } from '../components/ui/page-header';
 import { StatCard } from '../components/ui/stat-card';
 import { DataTable, type DataTableColumn } from '../components/ui/data-table';
@@ -520,6 +522,29 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
           </div>
         </div>
       </div>
+
+      {/* ===== ALERT BANNER — Signalement du jour ===== */}
+      {!loading && stats.economies_potentielles > 500 && (
+        <AlertBanner
+          message="Plafond 2,5 % dépassé chez CERP — remise hors cadre L.138-9 CSS détectée"
+          amount={1284}
+          onAnalyze={() => navigate('/factures-labo')}
+        />
+      )}
+
+      {/* ===== TOP 5 ANOMALIES TABLE ===== */}
+      {!loading && (
+        <AnomalyTable
+          anomalies={[
+            { supplier: 'CERP', type: 'Plafond 2,5 % dépassé', invoice: 'FC-2026-0412', amount: 1284, ageDays: 12, severity: 'crit' },
+            { supplier: 'BIOGARAN', type: 'RFA Tranche A manquante (55 %)', invoice: 'BG-2026-0089', amount: 847, ageDays: 5, severity: 'crit' },
+            { supplier: 'OCP', type: 'Écart EMAC vs facture', invoice: 'OCP-2026-1203', amount: 412, ageDays: 18, severity: 'warn' },
+            { supplier: 'ALLIANCE', type: 'Frais de port hors franco', invoice: 'AH-2026-0567', amount: 156, ageDays: 3, severity: 'warn' },
+            { supplier: 'ARROW', type: 'Remise contractuelle manquante', invoice: 'AR-2026-0234', amount: 89, ageDays: 25, severity: 'slate' },
+          ] satisfies AnomalyRow[]}
+          onViewAll={() => navigate('/factures-labo')}
+        />
+      )}
 
       {/* ===== ERROR STATE ===== */}
       {error && (
