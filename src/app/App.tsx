@@ -11,7 +11,7 @@
  */
 
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
 import { VerificationPage } from './pages/VerificationPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -115,14 +115,8 @@ function AppLayoutRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/factures"
-          element={
-            <ProtectedRoute>
-              <FacturesPage onNavigate={handleNavigate} />
-            </ProtectedRoute>
-          }
-        />
+        {/* P0 navigation : /factures (mock localStorage) redirige vers /factures-labo (API réelle) */}
+        <Route path="/factures" element={<Navigate to="/factures-labo" replace />} />
         <Route
           path="/factures-labo"
           element={
